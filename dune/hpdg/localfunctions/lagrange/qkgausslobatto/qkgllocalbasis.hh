@@ -16,6 +16,8 @@
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
 
+#include <dune/hpdg/localfunctions/lagrange/qkgausslobatto/glnodes.hh>
+
 
 namespace Dune
 {
@@ -40,18 +42,7 @@ namespace Dune
     // ith Lagrange polynomial of degree k in one dimension
     static R p (int i, D x)
     {
-      GaussLobattoQuadratureRule1D<double> gaussLobattoNodes_(k+1);
-      // Not so easy to find the right order :/
-      while (gaussLobattoNodes_.size() != k+1)
-          gaussLobattoNodes_ = GaussLobattoQuadratureRule1D<double>(gaussLobattoNodes_.order()+1);
-
-      std::vector<double> xx(k+1); // Nodes
-      for (size_t n =0; n<=k; n++)
-          xx[n] = gaussLobattoNodes_[n].position();
-
-      // GL nodes are sometimes not ordered what screws up the indexing
-      std::sort(xx.begin(), xx.end());
-
+      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(1.0);
       for (int j=0; j<=k; j++)
         if (j!=i) result *= (x-xx[j])/(xx[i]-xx[j]);
@@ -61,19 +52,7 @@ namespace Dune
     // derivative of ith Lagrange polynomial of degree k in one dimension
     static R dp (int i, D x)
     {
-      GaussLobattoQuadratureRule1D<double> gaussLobattoNodes_(k+1);
-
-      // Not so easy to find the right order :/
-      while (gaussLobattoNodes_.size() != k+1)
-          gaussLobattoNodes_ = GaussLobattoQuadratureRule1D<double>(gaussLobattoNodes_.order()+1);
-
-      std::vector<double> xx(k+1); // Nodes
-      for (size_t n =0; n<=k; n++)
-          xx[n] = gaussLobattoNodes_[n].position();
-
-      // GL nodes are sometimes not ordered what screws up the indexing
-      std::sort(xx.begin(), xx.end());
-
+      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(0.0);
 
       for (int j=0; j<=k; j++)
@@ -101,6 +80,7 @@ namespace Dune
     }
 
   public:
+
     typedef LocalBasisTraits<D,d,Dune::FieldVector<D,d>,R,1,Dune::FieldVector<R,1>,Dune::FieldMatrix<R,1,d>, 1> Traits;
 
     //! \brief number of shape functions
@@ -240,6 +220,8 @@ namespace Dune
     }
 
   };
+
+
 }
 
 #endif

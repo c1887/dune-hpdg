@@ -1,2 +1,2 @@
-#install headers
-install(FILES hpdg.hh DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg)
+add_subdirectory("localfunctions")
+add_subdirectory("functionspacebases")

@@ -13,6 +13,8 @@
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
 
+#include <dune/hpdg/localfunctions/lagrange/qkgausslobatto/glnodes.hh>
+
 
 namespace Dune
 {
@@ -34,21 +36,14 @@ namespace Dune
 
   public:
 
+    // Empty constr. to set up the nodes
+    QkGaussLobattoLocalInterpolation() :
+        xx(GaussLobattoPoints<k>::getPoints()) {}
+
     //! \brief Local interpolation of a function
     template<typename F, typename C>
     void interpolate (const F& f, std::vector<C>& out) const
     {
-      GaussLobattoQuadratureRule1D<double> gaussLobattoNodes(k+1);
-      // Not so easy to find the right order :/
-      while (gaussLobattoNodes.size() != k+1)
-          gaussLobattoNodes = GaussLobattoQuadratureRule1D<double>(gaussLobattoNodes.order()+1);
-
-      std::vector<double> xx(k+1); // Nodes
-      for (size_t n =0; n<=k; n++)
-          xx[n] = gaussLobattoNodes[n].position();
-
-      // GL nodes are sometimes not ordered what screws up the indexing
-      std::sort(xx.begin(), xx.end());
       typename LB::Traits::DomainType x;
       typename LB::Traits::RangeType y;
 
@@ -67,8 +62,8 @@ namespace Dune
       }
     }
   private:
-//    GaussLobattoQuadratureRule1D<typename LB::Traits::DomainType::DomainFieldType> gaussLobattoNodes_ = GaussLobattoQuadratureRule1D<typename LB::Traits::DomainType::DF>(k+1); // TODO: order here okay?
-//    GaussLobattoQuadratureRule1D<double> gaussLobattoNodes_ = GaussLobattoQuadratureRule1D<double>(k+1); // TODO: order here okay?
+    FieldVector<double, k> xx; // Gauss Lobatto Nodes
+
   };
 
   /** \todo Please doc me! */
