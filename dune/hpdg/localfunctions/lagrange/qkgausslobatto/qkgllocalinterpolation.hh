@@ -38,7 +38,7 @@ namespace Dune
 
     // Empty constr. to set up the nodes
     QkGaussLobattoLocalInterpolation() :
-        xx(GaussLobattoPoints<k>::getPoints()) {}
+        xx(GaussLobattoPoints<k+1>::getPoints()) {}
 
     //! \brief Local interpolation of a function
     template<typename F, typename C>
@@ -62,7 +62,7 @@ namespace Dune
       }
     }
   private:
-    FieldVector<double, k> xx; // Gauss Lobatto Nodes
+    FieldVector<double, k+1> xx; // Gauss Lobatto Nodes
 
   };
 
