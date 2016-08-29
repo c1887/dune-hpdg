@@ -40,9 +40,9 @@ namespace Dune
     enum { n = StaticPower<k+1,d>::power };
 
     // ith Lagrange polynomial of degree k in one dimension
-    static R p (int i, D x)
+    R p (int i, D x) const
     {
-      auto xx = GaussLobattoPoints<k+1>::getPoints();
+//      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(1.0);
       for (int j=0; j<=k; j++)
         if (j!=i) result *= (x-xx[j])/(xx[i]-xx[j]);
@@ -50,9 +50,9 @@ namespace Dune
     }
 
     // derivative of ith Lagrange polynomial of degree k in one dimension
-    static R dp (int i, D x)
+    R dp (int i, D x) const
     {
-      auto xx = GaussLobattoPoints<k+1>::getPoints();
+//      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(0.0);
 
       for (int j=0; j<=k; j++)
@@ -218,6 +218,14 @@ namespace Dune
     {
       return k;
     }
+  private:
+    FieldVector<double, k+1> xx;
+
+  public:
+    // Empty constr. to set up the nodes
+    QkGaussLobattoLocalBasis() :
+        xx(GaussLobattoPoints<k+1>::getPoints()) {}
+
 
   };
 
