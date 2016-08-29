@@ -90,6 +90,7 @@ public:
   {}
 
 
+  // TODO: This is too general for our Qk case
   void initializeIndices()
   {
     vertexOffset_        = 0;
@@ -138,6 +139,7 @@ public:
     return IndexSet<TP>{*this};
   }
 
+  // TODO: This is too general for our Qk case
   size_type size() const
   {
     switch (dim)
@@ -311,6 +313,7 @@ public:
     return node_->finiteElement().size();
   }
 
+  // TODO: This is too general for our Qk case
   //! Maps from subtree index set [0..size-1] to a globally unique multi index in global basis
   MultiIndex index(size_type i) const
   {
