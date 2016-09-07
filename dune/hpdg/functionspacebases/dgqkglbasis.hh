@@ -245,16 +245,12 @@ public:
       }
       case 2:
       {
-        if (element.type().isTriangle())
-        {
-          return {nodeFactory_->dofsPerTriangle*gridIndexSet.subIndex(element,0,0) + i};
-        }
-        else if (element.type().isQuadrilateral())
+       if (element.type().isQuadrilateral())
         {
           return { nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i};
         }
         else
-          DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+          DUNE_THROW(Dune::NotImplemented, "DGQkGL in 2d is only implemented on quadrilaterals");
       }
       case 3:
       {
