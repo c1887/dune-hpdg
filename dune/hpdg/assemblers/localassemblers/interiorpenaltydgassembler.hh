@@ -156,8 +156,8 @@ public:
             {
                 for (size_t j=0; j<cols; ++j)
                 {
-                    double zij = -0.5*z*tFEvalues[i]*(gradients[j]*outerNormal);
-                    zij += 0.5*DGType*z*tFEvalues[j]*(gradients[i]*outerNormal);
+                    double zij = -z*tFEvalues[i]*(gradients[j]*outerNormal);
+                    zij += DGType*z*tFEvalues[j]*(gradients[i]*outerNormal);
                     // TODO: This should be multiplied by k^2 (where k is the polynomial degree of the basis functions)
                     zij += sigma0*z/edgeLength*tFEvalues[i]*tFEvalues[j];
                     // The sigma1 stabilization term does not effect boundary edges
