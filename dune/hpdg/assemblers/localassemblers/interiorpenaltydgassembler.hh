@@ -99,6 +99,11 @@ public:
         int rows = localMatrix.N();
         int cols = localMatrix.M();
 
+        localMatrix = 0.0;
+        // For Neumann data, we don't assemble on boundary edges
+        if (!dirichlet)
+            return;
+
         // get geometries of the edge and the inside element
         const Geometry edgeGeometry = edge.geometry();
         const InsideGeometry insideGeometry = edge.inside().geometry();
@@ -106,10 +111,6 @@ public:
         // Get the length of the edge
         const double& edgeLength= edgeGeometry.volume();
 
-        localMatrix = 0.0;
-        // For Neumann data, we don't assemble on boundary edges
-        if (!dirichlet)
-            return;
 
         // get quadrature rule
         QuadratureRuleKey tFEquad(edge.type(), tFE.localBasis().order());
