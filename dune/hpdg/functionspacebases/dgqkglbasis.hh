@@ -289,7 +289,7 @@ protected:
 // This is the actual global basis implementation based on the reusable parts.
 // *****************************************************************************
 
-/** \brief Basis of a scalar k-th-order Lagrangean-DG finite element space
+/** \brief Basis of a scalar k-th-order Discontinuous Galerkin finite element space
  *
  * \ingroup FunctionSpaceBasesImplementations
  *

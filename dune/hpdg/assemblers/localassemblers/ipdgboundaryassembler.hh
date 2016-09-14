@@ -85,9 +85,6 @@ class IPDGBoundaryAssembler :
 
 
             // get quadrature rule
-//            const Dune::QuadratureRule<ctype, dim-1>& quad = QuadratureRuleCache<ctype, dim-1>::rule(segmentGeometry.type(), order_, IsRefinedLocalFiniteElement<TrialLocalFE>::value(tFE) );
-//            const Dune::QuadratureRule<ctype, dim-1>& quad = QuadratureRuleCache<ctype, dim-1>::rule(segmentGeometry.type(), order_, IsRefinedLocalFiniteElement<TrialLocalFE>::value(tFE) );
-            // get quadrature rule
             QuadratureRuleKey tFEquad(it->type(), tFE.localBasis().order());
             QuadratureRuleKey quadKey = tFEquad.derivative().square();
 
@@ -139,7 +136,6 @@ class IPDGBoundaryAssembler :
                 else
                     neumann_->evaluate(segmentGeometry.global(quadPos), dirichletVal);
 
-//                dirichletVal = 1.0; // TODO REMOVE THIS!!11
                 // and vector entries
                 double penalty = sigma0/edgeLength;
                 for (size_t i=0; i<values.size(); ++i)

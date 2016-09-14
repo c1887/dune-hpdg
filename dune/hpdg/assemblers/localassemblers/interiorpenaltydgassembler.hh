@@ -20,6 +20,7 @@
 /** \brief Local assembler for edge contributions in the Interior Penalty Discontinuous Galerkin (IPDG) method
  *
  * This local assembler is meant to work in combination with the global IntersectionOperatorAssembler.
+ * Note that mixed boundary conditions are not yet supported.
  *
  * For reference, see e.g.
  * > B. Riviere. Discontinuous Galerkin Methods for Solving Elliptic and Parabalic Equations. SIAM, 2008.
@@ -33,14 +34,22 @@ private:
     static const int dimworld = GridType::dimensionworld;
     const int quadOrder_ =-1;
 
-    // TODO: Maybe use enum for the IP types
     const double DGType = -1.0; // -1 leads to the symmetric interior penalty DG variant. {-1,0,1} are possible values.
 
 public:
 
-    // TODO sigma_e^0 should be carefully chosen (and should probably be private)
     bool dirichlet = true;
-    double sigma0 = 50.0; // Penalizes discontinuities
+    /** Penalty term \sigma_0
+     *
+     * This term penalizes discontinuities across the edges.
+     * Should be chosed large enough. In particular, it should scale approx. in k^2 where k
+     * is the polynomial degree of the FE space.
+     */
+    double sigma0 = 10.0; // Penalizes discontinuities
+    /** Penalty term \sigma_1
+     *
+     * This term penalizes jumps in the derivatives across the edges.
+     */
     double sigma1 = 0; // Penalizes jumps of the normal derivative along the non-boundary edges
 
     typedef typename Base::Element Element;
@@ -51,14 +60,13 @@ public:
 
     void indices(const Element& element, BoolMatrix& isNonZero, const TrialLocalFE& tFE, const AnsatzLocalFE& aFE) const
     {
-//        isNonZero = true;
         DUNE_THROW(Dune::NotImplemented, "IPDG is called assembled edge-wise, not element-wise!");
     }
 
     template <class Edge>
     void indices(const Edge& it, BoolMatrix& isNonZero, const TrialLocalFE& tFE, const AnsatzLocalFE& aFE) const
     {
-        isNonZero = dirichlet; //TODO
+        isNonZero = dirichlet; // For boundary edges, only in case of Dirichlet values we need to assemble a local matrix.
     }
 
     template <class Edge>
@@ -82,6 +90,10 @@ public:
     template <class Edge>
     void assemble(const Edge& edge, LocalMatrix& localMatrix, const TrialLocalFE& tFE, const AnsatzLocalFE& aFE) const
     {
+        // For Neumann data, we don't assemble on boundary edges
+        if (!dirichlet)
+            return;
+
         typedef typename Dune::template FieldVector<double,dim> FVdim;
         typedef typename Dune::template FieldVector<double,dimworld> FVdimworld;
 
@@ -100,9 +112,6 @@ public:
         int cols = localMatrix.M();
 
         localMatrix = 0.0;
-        // For Neumann data, we don't assemble on boundary edges
-        if (!dirichlet)
-            return;
 
         // get geometries of the edge and the inside element
         const Geometry edgeGeometry = edge.geometry();
@@ -110,7 +119,6 @@ public:
 
         // Get the length of the edge
         const double& edgeLength= edgeGeometry.volume();
-
 
         // get quadrature rule
         QuadratureRuleKey tFEquad(edge.type(), tFE.localBasis().order());
@@ -158,7 +166,6 @@ public:
                 {
                     double zij = -z*tFEvalues[i]*(gradients[j]*outerNormal);
                     zij += DGType*z*tFEvalues[j]*(gradients[i]*outerNormal);
-                    // TODO: This should be multiplied by k^2 (where k is the polynomial degree of the basis functions)
                     zij += sigma0*z/edgeLength*tFEvalues[i]*tFEvalues[j];
                     // The sigma1 stabilization term does not effect boundary edges
                     Dune::MatrixVector::addToDiagonal(localMatrix[i][j],zij);
@@ -195,11 +202,11 @@ public:
         int cols = localMatrix.M();
 
         // get geometry and store it
-        const Geometry edgeGeometry = edge.geometry(); //TODO: does this work for edges?
+        const Geometry edgeGeometry = edge.geometry();
         const InsideGeometry insideGeometry = edge.inside().geometry();
         const auto outsideGeometry = edge.outside().geometry();
 
-        const double& edgeLength = edgeGeometry.volume(); // TODO: Is this what I want?
+        const double& edgeLength = edgeGeometry.volume();
         localMatrix = 0.0;
 
         // get quadrature rule
@@ -208,7 +215,7 @@ public:
 
         const Dune::template QuadratureRule<double, dim>& quad = QuadratureRuleCache<double, dim>::rule(quadKey);
 
-        // store gradients of shape functions and base functions
+        // store gradients for both the inner and outer elements
         std::vector<JacobianType> insideReferenceGradients(tFEinside.localBasis().size());
         std::vector<JacobianType> outsideReferenceGradients(tFEoutside.localBasis().size());
         std::vector<FVdimworld> insideGradients(tFEinside.localBasis().size());
