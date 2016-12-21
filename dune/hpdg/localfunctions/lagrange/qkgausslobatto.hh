@@ -10,7 +10,7 @@
 
 namespace Dune
 {
-  /** \brief General Lagrange finite element for cubes with arbitrary dimension and polynomial order
+  /** \brief General Lagrange finite element for cubes with arbitrary dimension and polynomial order up to 17
    * using Gauss Lobatto interpolation nodes instead of equidistant points.
    *
    * \tparam D type used for domain coordinates

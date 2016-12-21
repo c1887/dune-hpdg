@@ -43,22 +43,23 @@ class IPDGBoundaryAssembler :
          * \param order The quadrature order used for numerical integration
          */
         template <class F>
-        IPDGBoundaryAssembler(const F& neumann, int order=2) :
-            neumann_(Dune::stackobject_to_shared_ptr(neumann)),
-            order_(order)
+        IPDGBoundaryAssembler(const F& neumann, int order=2, bool bdrType=true) :
+            bdrFunction_(Dune::stackobject_to_shared_ptr(neumann)),
+            order_(order),
+            dirichlet(bdrType)
         {}
 
         /** \brief Constructor
-         * \param neumann Neumann force function
+         * \param f Neumann force function or Dirichlet data
          * \param order The quadrature order used for numerical integration
+         * \param bdrType True means we assemble for Dirichlet data, false means Neumann data
          */
         template <class F>
-        IPDGBoundaryAssembler(std::shared_ptr<const F> neumann, int order=2)
-            : neumann_(neumann)
-            , order_(order)
-        {
-            /* Nothing. */
-        }
+        IPDGBoundaryAssembler(std::shared_ptr<const F> f, int order=2, bool bdrType=true)
+            : bdrFunction_(f)
+            , order_(order),
+              dirichlet(bdrType)
+        {}
 
         // TODO:
         template <class TrialLocalFE, class BoundaryIterator>
@@ -130,11 +131,11 @@ class IPDGBoundaryAssembler :
                 // Evaluate Dirichlet function at quadrature point. If it is a grid function use that to speed up the evaluation
                 FV dirichletVal;
 
-                const GridFunction* gf = dynamic_cast<const GridFunction*>(neumann_.get());
+                const GridFunction* gf = dynamic_cast<const GridFunction*>(bdrFunction_.get());
                 if (gf and gf->isDefinedOn(inside))
                     gf->evaluateLocal(inside, elementQuadPos, dirichletVal);
                 else
-                    neumann_->evaluate(segmentGeometry.global(quadPos), dirichletVal);
+                    bdrFunction_->evaluate(segmentGeometry.global(quadPos), dirichletVal);
 
                 // and vector entries
                 double penalty = sigma0/edgeLength;
@@ -157,9 +158,9 @@ class IPDGBoundaryAssembler :
 
     public:
         double sigma0 = 10.0;
-        double dirichlet = true;
     private:
-        const std::shared_ptr<const Function> neumann_;
+        bool dirichlet;
+        const std::shared_ptr<const Function> bdrFunction_;
         
         // quadrature order
         const int order_;

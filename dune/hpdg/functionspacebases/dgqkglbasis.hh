@@ -31,14 +31,14 @@ namespace Functions {
 // set and can be used without a global basis.
 // *****************************************************************************
 
-template<typename GV, int k, typename ST, typename TP>
-using DGQkGLNode = QkGLNode<GV, k, ST, TP>;
+template<typename GV, int k, typename TP>
+using DGQkGLNode = QkGLNode<GV, k, TP>;
 
-template<typename GV, int k, class MI, class TP, class ST>
+template<typename GV, int k, class MI, class TP, bool useTwoLevelIndex=false>
 class DGQkGLNodeIndexSet;
 
 
-template<typename GV, int k, class MI, class ST>
+template<typename GV, int k, class MI, bool useTwoLevelIndex=false>
 class DGQkGLNodeFactory
 {
   static const int dim = GV::dimension;
@@ -47,7 +47,7 @@ public:
 
   /** \brief The grid view that the FE space is defined on */
   using GridView = GV;
-  using size_type = ST;
+  using size_type = std::size_t;
 
 
   // Precompute the number of dofs per entity type
@@ -61,10 +61,10 @@ public:
 
 
   template<class TP>
-  using Node = DGQkGLNode<GV, k, size_type, TP>;
+  using Node = DGQkGLNode<GV, k, TP>;
 
   template<class TP>
-  using IndexSet = DGQkGLNodeIndexSet<GV, k, MI, TP, ST>;
+  using IndexSet = DGQkGLNodeIndexSet<GV, k, MI, TP, useTwoLevelIndex>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -79,33 +79,66 @@ public:
 
   void initializeIndices()
   {
-    switch (dim)
-    {
-      case 1:
+    if (useTwoLevelIndex) {
+      switch (dim)
       {
-        break;
-      }
-      case 2:
-      {
-        GeometryType triangle;
-        triangle.makeTriangle();
-        quadrilateralOffset_ = dofsPerTriangle * gridView_.size(triangle);
-        break;
-      }
-      case 3:
-      {
-        GeometryType tetrahedron;
-        tetrahedron.makeSimplex(3);
-        prismOffset_         = dofsPerTetrahedron * gridView_.size(tetrahedron);
+        case 1:
+        {
+          break;
+        }
+        case 2:
+        {
+          GeometryType triangle;
+          triangle.makeTriangle();
+          quadrilateralOffset_ = gridView_.size(triangle);
+          break;
+        }
+        case 3:
+        {
+          GeometryType tetrahedron;
+          tetrahedron.makeSimplex(3);
+          prismOffset_ = gridView_.size(tetrahedron);
 
-        GeometryType prism;
-        prism.makePrism();
-        hexahedronOffset_    = prismOffset_         +   dofsPerPrism * gridView_.size(prism);
+          GeometryType prism;
+          prism.makePrism();
+          hexahedronOffset_ = prismOffset_ + gridView_.size(prism);
 
-        GeometryType hexahedron;
-        hexahedron.makeCube(3);
-        pyramidOffset_       = hexahedronOffset_    +   dofsPerHexahedron * gridView_.size(hexahedron);
-        break;
+          GeometryType hexahedron;
+          hexahedron.makeCube(3);
+          pyramidOffset_ = hexahedronOffset_ + gridView_.size(hexahedron);
+          break;
+        }
+      }
+    }
+    else {
+      switch (dim)
+      {
+        case 1:
+        {
+          break;
+        }
+        case 2:
+        {
+          GeometryType triangle;
+          triangle.makeTriangle();
+          quadrilateralOffset_ = dofsPerTriangle * gridView_.size(triangle);
+          break;
+        }
+        case 3:
+        {
+          GeometryType tetrahedron;
+          tetrahedron.makeSimplex(3);
+          prismOffset_         = dofsPerTetrahedron * gridView_.size(tetrahedron);
+
+          GeometryType prism;
+          prism.makePrism();
+          hexahedronOffset_    = prismOffset_         +   dofsPerPrism * gridView_.size(prism);
+
+          GeometryType hexahedron;
+          hexahedron.makeCube(3);
+          pyramidOffset_       = hexahedronOffset_    +   dofsPerHexahedron * gridView_.size(hexahedron);
+          break;
+        }
       }
     }
   }
@@ -131,42 +164,79 @@ public:
 
   size_type size() const
   {
-    switch (dim)
-    {
-      case 1:
-        return dofsPerEdge*gridView_.size(0);
-      case 2:
+    if (useTwoLevelIndex) {
+      switch (dim)
       {
-        GeometryType triangle, quad;
-        triangle.makeTriangle();
-        quad.makeQuadrilateral();
-        return dofsPerTriangle*gridView_.size(triangle) + dofsPerQuad*gridView_.size(quad);
-      }
-      case 3:
-      {
-        GeometryType tetrahedron, pyramid, prism, hexahedron;
-        tetrahedron.makeTetrahedron();
-        pyramid.makePyramid();
-        prism.makePrism();
-        hexahedron.makeCube(3);
-        return dofsPerTetrahedron*gridView_.size(tetrahedron) + dofsPerPyramid*gridView_.size(pyramid)
-             + dofsPerPrism*gridView_.size(prism) + dofsPerHexahedron*gridView_.size(hexahedron);
+        case 1:
+          return gridView_.size(0);
+        case 2:
+        {
+          GeometryType triangle, quad;
+          triangle.makeTriangle();
+          quad.makeQuadrilateral();
+          return gridView_.size(triangle) + gridView_.size(quad);
+        }
+        case 3:
+        {
+          GeometryType tetrahedron, pyramid, prism, hexahedron;
+          tetrahedron.makeTetrahedron();
+          pyramid.makePyramid();
+          prism.makePrism();
+          hexahedron.makeCube(3);
+          return gridView_.size(tetrahedron) + gridView_.size(pyramid)
+            + gridView_.size(prism) + gridView_.size(hexahedron);
+        }
       }
     }
-    DUNE_THROW(Dune::NotImplemented, "No size method for " << dim << "d grids available yet!");
+    else {
+      switch (dim)
+      {
+        case 1:
+          return dofsPerEdge*gridView_.size(0);
+        case 2:
+        {
+          GeometryType triangle, quad;
+          triangle.makeTriangle();
+          quad.makeQuadrilateral();
+          return dofsPerTriangle*gridView_.size(triangle) + dofsPerQuad*gridView_.size(quad);
+        }
+        case 3:
+        {
+          GeometryType tetrahedron, pyramid, prism, hexahedron;
+          tetrahedron.makeTetrahedron();
+          pyramid.makePyramid();
+          prism.makePrism();
+          hexahedron.makeCube(3);
+          return dofsPerTetrahedron*gridView_.size(tetrahedron) + dofsPerPyramid*gridView_.size(pyramid)
+            + dofsPerPrism*gridView_.size(prism) + dofsPerHexahedron*gridView_.size(hexahedron);
+        }
+      }
+      DUNE_THROW(Dune::NotImplemented, "No size method for " << dim << "d grids available yet!");
+    }
   }
 
   //! Return number possible values for next position in multi index
   size_type size(const SizePrefix prefix) const
   {
+    if (useTwoLevelIndex) {
+      if (prefix.size() == 0) 
+        return size();
+      else if (prefix.size() == 1)
+        return maxNodeSize();
+      else
+        return 0;
+      assert(false);
+    }
+
     if (prefix.size() == 0)
       return size();
-    assert(false);
+    //assert(false);
   }
 
   /** \todo This method has been added to the interface without prior discussion. */
   size_type dimension() const
   {
+    if (useTwoLevelIndex) return size()*maxNodeSize();
     return size();
   }
 
@@ -186,7 +256,7 @@ public:
 
 
 
-template<typename GV, int k, class MI, class TP, class ST>
+template<typename GV, int k, class MI, class TP, bool useTwoLevelIndex>
 class DGQkGLNodeIndexSet
 {
   // Cannot be an enum -- otherwise the switch statement below produces compiler warnings
@@ -194,12 +264,12 @@ class DGQkGLNodeIndexSet
 
 public:
 
-  using size_type = ST;
+  using size_type = std::size_t;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
 
-  using NodeFactory = DGQkGLNodeFactory<GV, k, MI, ST>;
+  using NodeFactory = DGQkGLNodeFactory<GV, k, MI, useTwoLevelIndex>;
 
   using Node = typename NodeFactory::template Node<TP>;
 
@@ -237,6 +307,34 @@ public:
     const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
     const auto& element = node_->element();
 
+    if (useTwoLevelIndex) {
+      switch (dim)
+      {
+        case 1:
+          return {gridIndexSet.subIndex(element, 0, 0), i};
+        case 2:
+        {
+          if (element.type().isTriangle())
+            return {gridIndexSet.subIndex(element, 0, 0), i};
+          else if (element.type().isQuadrilateral())
+            return {nodeFactory_->quadrilateralOffset_ + gridIndexSet.subIndex(element, 0,0), i};
+          else
+            DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+        }
+        case 3:
+          if (element.type().isTetrahedron())
+            return {gridIndexSet.subIndex(element, 0, 0), i};
+          else if (element.type().isPrism())
+            return {nodeFactory_->prismOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+          else if (element.type().isHexahedron())
+            return {nodeFactory_->hexahedronOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+          else if (element.type().isPyramid())
+            return {nodeFactory_->pyramidOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+          else
+            DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+      }
+    }
+
     switch (dim)
     {
       case 1:
@@ -245,10 +343,8 @@ public:
       }
       case 2:
       {
-       if (element.type().isQuadrilateral())
-        {
+        if (element.type().isQuadrilateral())
           return { nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i};
-        }
         else
           DUNE_THROW(Dune::NotImplemented, "DGQkGL in 2d is only implemented on quadrilaterals");
       }
@@ -296,9 +392,11 @@ protected:
  * \tparam GV The GridView that the space is defined on
  * \tparam k The order of the basis
  */
-template<typename GV, int k, class ST = std::size_t>
-using DGQkGLBasis = DefaultGlobalBasis<DGQkGLNodeFactory<GV, k, FlatMultiIndex<ST>, ST> >;
+template<typename GV, int k>
+using DGQkGLBasis = DefaultGlobalBasis<DGQkGLNodeFactory<GV, k, FlatMultiIndex<std::size_t>> >;
 
+template<typename GV, int k>
+using DGQkGLBlockBasis = DefaultGlobalBasis<DGQkGLNodeFactory<GV, k, std::array<std::size_t, 2>, true> >;
 
 
 } // end namespace Functions
