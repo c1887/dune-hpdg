@@ -7,7 +7,6 @@
 #include <dune/istl/bcrsmatrix.hh>
 
 #include <dune/solvers/iterationsteps/lineariterationstep.hh>
-#include <dune/hpdg/iterationsteps/facebasedschwarzsmoother.hh>
 #include <dune/solvers/common/defaultbitvector.hh>
 #include <dune/solvers/iterationsteps/blockgssteps.hh>
 #include <dune/solvers/solvers/loopsolver.hh>
@@ -17,60 +16,6 @@
 
 
 namespace { // anonymous namespace for implementation details
-
-  template<class M, class V>
-  struct BlockJacobi {
-    const M* m_;
-    V* x_;
-    const V* r_;
-    public:
-      void setProblem(const M& m, V& x, const V& r) {
-        m_=&m;
-        x_=&x;
-        r_=&r;
-      }
-
-      void iterate() {
-        auto N = m_->N();
-        for (unsigned i=0; i< N; i++) {
-          (*m_)[i][i].solve((*x_)[i], (*r_)[i]);
-          //(*x_)[i]*=0.8;
-          (*x_)[i]*=0.95;
-        }
-      }
-  };
-  // determine the relative position of two elements through their indices (dangerous?)
-  template<class M>
-    int getPosition(M m, int k) {
-      double EPSILON = 1e-15;
-      if (std::abs(m[k+1][2*k+1])   > EPSILON)  return 0; // left
-      if (std::abs(m[2*k+1][k+1])   > EPSILON)  return 1; // right
-      if (std::abs(m[k*(k+1)+1][1]) > EPSILON)  return 2; // top 
-      if (std::abs(m[1][k*(k+1)+1]) > EPSILON)  return 3; // below 
-
-      DUNE_THROW(Dune::Exception, "failed to analyze adjacency pattern"); return -1; 
-    }
-
-  template<class V, class M>
-  void fillPositions(V& positions, const M& mat) {
-    positions.resize(mat.N());
-    for (std::size_t i=0; i< mat.N(); i++) {
-      auto& entry = positions[i];
-      entry = {-1,-1,-1,-1};
-      auto cIt = mat[i].begin();
-      const auto cEnd = mat[i].end();
-      for (; cIt!=cEnd; ++cIt) {
-        auto j = cIt.index();
-        if (i==j) continue;
-        auto& block = *cIt;
-        // determine Position of the adjacent element
-        int k = std::sqrt(block.N()) -1;
-        entry[getPosition(block, k)]=j;
-      }
-    }
-  }
-
-
 
   // Helper template for 'ForEachType'
   template<class T>
@@ -95,7 +40,6 @@ namespace Dune {
     {
     public:
 
-      int eleIter = 0;
       //ctor
       DGMultigridStep(const MatrixType& matrix, VectorType& x, const VectorType& rhs, const TransferTypes& transfer, const LocalSolver& localSolver) :
         LinearIterationStep<MatrixType, VectorType>(matrix, x, rhs),
@@ -126,7 +70,7 @@ namespace Dune {
             elementAt(transfer_, i).galerkinRestrictSetOccupation(*this->mat_, id(elementAt(coarseMat_, i)));
             elementAt(transfer_, i).galerkinRestrict(*this->mat_, id(elementAt(coarseMat_, i)));
           } ,
-          [&](auto id) // i != n-1 
+          [&](auto id) // i != n-1
           {
             elementAt(transfer_, i).galerkinRestrictSetOccupation(elementAt(coarseMat_, id(iPlusOne)), elementAt(coarseMat_, i));
             elementAt(transfer_, i).galerkinRestrict(elementAt(coarseMat_, id(iPlusOne)), elementAt(coarseMat_, i));
@@ -134,12 +78,10 @@ namespace Dune {
         });
       }
 
+      // TODO: Smart ptr!
       template<class S>
       void setBaseSolver(S& s) {basesolver_ = &s;}
 
-      void initializeSchwarzSmoother() {
-        fillPositions(positions_, *this->mat_);
-      }
       void iterate() {
         for (int i=0; i < coarseCorrections_; i++)
           vcycle(preSmoothingSteps_, postSmoothingsSteps_);
@@ -149,7 +91,46 @@ namespace Dune {
         coarseCorrections_ = coarseCorrections;
         preSmoothingSteps_ = preSmoothingSteps;
         postSmoothingsSteps_ = postSmoothingsSteps;
-      } 
+      }
+
+      template<class Index>
+      auto returnMatrix (const Index i) {
+        return Dune::Hybrid::elementAt(coarseMat_, i);
+      }
+
+      template<class V, class Index>
+      VectorType prolongVector(const V& v, const Index i) {
+        using namespace Dune::Hybrid;
+
+        CoarseVectors hierarchy;
+        elementAt(hierarchy, i) = v;
+        const auto n = size(transfer_);
+        const auto lastIndex = Dune::index_constant<n-1>();
+        VectorType ret;
+        ret.resize(elementAt(transfer_,lastIndex).getMatrix().N());
+        ret = 0;
+
+        forEach(integralRange(i, n), [&](auto j)
+        {
+          ifElse(equals(j,lastIndex),[&](auto id) {
+              const auto jj = id(j);
+              const auto& last = id(elementAt(hierarchy, jj));
+              auto& next = id(ret);
+              id(elementAt(transfer_, jj)).prolong(last, next);
+            }
+            ,[&] (auto id) {
+              const auto jj = id(j);
+              const auto jPlusOne= Dune::index_constant<jj+1>();
+              const auto& last= id(elementAt(hierarchy, jj));
+              auto& next = id(elementAt(hierarchy, jPlusOne));
+              next.resize(elementAt(transfer_,lastIndex).getMatrix().N());
+              id(elementAt(transfer_, jj)).prolong(last, next);
+          });
+        });
+
+        return ret;
+      }
+
     private:
 
       void vcycle(int preSmoothing, int postSmoothing) {
@@ -165,20 +146,7 @@ namespace Dune {
         auto globalSmoother = BlockGaussSeidel<MatrixType, VectorType, BitVectorType>::create(localGS_);
         globalSmoother.setProblem(*this->mat_, *this->x_, *this->rhs_);
 
-        const int pGlobal = (int) std::sqrt((int) MatrixType::block_type::rows) -1;
-        // the overlap p is actually quite large, but in the current implementation it doesnt make any difference
-        // performance-wise, so we take what we can get
-        auto globalSchwarzSmoother = Dune::Solvers::FaceBasedSchwarzSmoother<MatrixType, VectorType, pGlobal, 0>();
-        //auto globalSchwarzSmoother = Dune::Solvers::FaceBasedSchwarzSmoother<MatrixType, VectorType, pGlobal, pGlobal>();
-        //auto globalSchwarzSmoother = Dune::Solvers::FaceBasedSchwarzSmoother<MatrixType, VectorType, pGlobal, 2+1/pGlobal>();
-        //globalSchwarzSmoother.setProblem(*this->mat_, *this->x_, *this->rhs_);
-        globalSchwarzSmoother.setProblem(*this->mat_, *this->x_, *this->rhs_);
-        globalSchwarzSmoother.positions = positions_;
-        //globalSchwarzSmoother.preprocess();
-
         // Presmoothing
-        for (int iter=0; iter<eleIter; iter++)
-          globalSchwarzSmoother.iterate();
         for (int iter=0; iter<preSmoothing; iter++) {
           globalSmoother.iterate();
         }
@@ -208,7 +176,6 @@ namespace Dune {
           using Vector = typename std::tuple_element<i, CoarseVectors>::type;
           using BitVec = Dune::Solvers::DefaultBitVector_t<Vector>;
 
-          const bool dg = Matrix::block_type::rows != 1;
           auto newRes = res; // residual that will be updated after smoothing and restricted to the coarser level
 
           /* set up smoother */
@@ -216,72 +183,52 @@ namespace Dune {
           x.resize(matrix.N());
           using Smoother = BlockGaussSeidel<Matrix, Vector, BitVec>; // GS outer solver
           auto smoother = Smoother::create(localGS_);
-          const int p = (int) std::sqrt((int) Matrix::block_type::rows) -1;
-          // the overlap p is actually quite large, but in the current implementation it doesnt make any difference
-          // performance-wise, so we take what we can get
-          auto schwarz = Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, 0 >();
-          //auto schwarz = Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, p >();
-          //auto schwarz = Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, 2+1/p >();
-
-          //auto smoother = BlockJacobi<Matrix, Vector>();
 
           /* smooth preSmoothing times */
-          if (dg) {
-          schwarz.setProblem(matrix, x, res);
-          schwarz.positions = positions_;
-          }
           smoother.setProblem(matrix, x, res);
-          //schwarz.preprocess();
           if (i != 0 or basesolver_==nullptr) {
-          //if (true) {
-
-            if (dg)
-            for (int iter=0; iter< eleIter; ++iter)
-              schwarz.iterate();
-            for (int iter=0; iter< preSmoothing; ++iter) {
+            for (int iter=0; iter< preSmoothing; ++iter)
               smoother.iterate();
-            }
 
             /* update residual */
             if (correctResidual) Dune::MatrixVector::subtractProduct(newRes, matrix, x);
           }
 
-          /* restrict residual to coarser level*/ // TODO Check for basesolver_!=nullptr
-          ifElse(equals(i, _0), [&](auto id) // if (i==0)
+          /* restrict residual to coarser level*/
+          ifElse(equals(i, _0), [&](auto id)
           {
             if (basesolver_!=nullptr) {
-            auto ii = id(i);
-            using Matrix = typename std::tuple_element<ii, CoarseMatrices>::type;
-            using Vector = typename std::tuple_element<ii, CoarseVectors>::type;
+              auto ii = id(i);
+              using Matrix = typename std::tuple_element<ii, CoarseMatrices>::type;
+              using Vector = typename std::tuple_element<ii, CoarseVectors>::type;
 
-            x.resize(matrix.M()); // TODO BRAUCHE ICH DEN NOCH?
+              x.resize(matrix.M());
 
-            typedef ::LoopSolver<Vector> DuneSolversLoopSolver;
+              typedef ::LoopSolver<Vector> DuneSolversLoopSolver;
 
-            if (dynamic_cast<DuneSolversLoopSolver*>(this->basesolver_)) {
+              if (dynamic_cast<DuneSolversLoopSolver*>(this->basesolver_)) {
 
-            DuneSolversLoopSolver* loopBaseSolver = dynamic_cast<DuneSolversLoopSolver*> (this->basesolver_);
+                DuneSolversLoopSolver* loopBaseSolver = dynamic_cast<DuneSolversLoopSolver*> (this->basesolver_);
 
-            typedef LinearIterationStep<Matrix, Vector> SmootherType;
-            assert(dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_));
+                typedef LinearIterationStep<Matrix, Vector> SmootherType;
+                assert(dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_));
 
-            dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->setProblem(matrix, x, res);
-            dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->preprocess();
+                dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->setProblem(matrix, x, res);
+                dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->preprocess();
+              }
+              else if (dynamic_cast<LinearSolver<Matrix, Vector>*>(this->basesolver_)) {
 
-            }
-            else if (dynamic_cast<LinearSolver<Matrix, Vector>*>(this->basesolver_)) {
+                LinearSolver<Matrix, Vector>* linearBaseSolver = dynamic_cast<LinearSolver<Matrix, Vector>*> (this->basesolver_);
 
-              LinearSolver<Matrix, Vector>* linearBaseSolver = dynamic_cast<LinearSolver<Matrix, Vector>*> (this->basesolver_);
+                linearBaseSolver->setProblem(matrix, x, res);
+              }
 
-              linearBaseSolver->setProblem(matrix, x, res);
-            }
+              else {
+                DUNE_THROW(SolverError, "You can't use " << typeid(*this->basesolver_).name()
+                    << " as a base solver in a MultigridStep!");
+              }
 
-            else {
-              DUNE_THROW(SolverError, "You can't use " << typeid(*this->basesolver_).name()
-                  << " as a base solver in a MultigridStep!");
-            }
-
-            basesolver_->solve();
+              basesolver_->solve();
             }
           },
           //else
@@ -305,34 +252,11 @@ namespace Dune {
           using Vector = typename std::tuple_element<i, CoarseVectors>::type;
           using BitVec = Dune::Solvers::DefaultBitVector_t<Vector>;
 
-          const bool dg = Matrix::block_type::rows != 1;
           const int p = (int) std::sqrt((int) Matrix::block_type::rows) -1;
           /* set up smoother */
           if (i!=0 or basesolver_==nullptr) {
-          //if (true) {
             using Smoother = BlockGaussSeidel<Matrix, Vector, BitVec>; // GS outer solver
             auto smoother = Smoother::create(localGS_);
-            // the overlap p is actually quite large, but in the current implementation it doesnt make any difference
-            // performance-wise, so we take what we can get
-            //auto schwarz= Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, 0 >(); 
-            if(true){
-            auto newRes = res;
-            auto newX = x;
-            newX = 0;
-            Dune::MatrixVector::subtractProduct(newRes, matrix, x);
-            //auto schwarz= Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, p >(); 
-            auto schwarz= Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, 0 >(); 
-            //auto schwarz= Dune::Solvers::FaceBasedSchwarzSmoother<Matrix, Vector, p, 2+1/p >(); 
-            //auto smoother = BlockJacobi<Matrix, Vector>();
-            if (dg) {
-            schwarz.setProblem(matrix, newX, newRes);
-            schwarz.positions = positions_;
-            //schwarz.preprocess();
-            for (int iter=0; iter< eleIter; ++iter)
-              schwarz.iterate();
-            }
-            x+=newX;
-            }
             smoother.setProblem(matrix, x, res);
 
             /* smooth postSmoothing times */
@@ -366,8 +290,6 @@ namespace Dune {
         });
 
         //post smoothing
-        for (int iter=0; iter<eleIter; iter++)
-          globalSchwarzSmoother.iterate();
         for (int iter=0; iter<postSmoothing; iter++)
           globalSmoother.iterate();
       }
@@ -385,14 +307,11 @@ namespace Dune {
       CoarseVectors coarseX_;
       CoarseVectors coarseRes_;
       LocalSolver localGS_;
-      Solver* basesolver_ = nullptr; // TODO: smart ptr?
+      Solver* basesolver_ = nullptr;
 
       int coarseCorrections_ = 1; // number of MG cycles
       int preSmoothingSteps_ = 3;
       int postSmoothingsSteps_ = 3;
-
-      //Dune::Solvers::FaceBasedSchwarzSmoother<MatrixType, VectorType, 0> schwarz;
-      std::vector<std::array<int, 4> > positions_; // for the Schwarz smoother
 
     };
   } // namespace Solvers
