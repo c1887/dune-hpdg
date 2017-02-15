@@ -29,8 +29,6 @@ namespace { // anonymous namespace for implementation details
     typedef Dune::BlockVector<Dune::FieldVector<double, T::coarseBlock> > Type; // \todo change BlockVector for sth. more general
   };
 
-  template <class S>
-  void SmootherIterate(S& s, int n) { for(int i=0; i<n; i++) s.iterate(); }
 } // anonymous namespace
 
 namespace Dune {
