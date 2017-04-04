@@ -11,28 +11,27 @@
 
 #include <dune/matrix-vector/transformmatrix.hh>
 
-/** \brief Galerkin restriction and prolongation for Discontinuous Galerkin Q1 to continuous Galerkin Q1
+/** \brief Galerkin restriction and prolongation for blocked matrices
+ * Essentially the same as DGMultigridTransfer but this does not assume that we have a block-diagonal transfer operator
  *
  */
 namespace Dune {
-  namespace Solvers{
+  namespace HPDG{
     template<
         class VectorType,
         int coarseBlocksize, // TODO brauche ich den noch?
         class BitVectorType = Dune::BitSetVector<VectorType::block_type::dimension>,
         class MatrixType = Dune::BCRSMatrix< typename Dune::FieldMatrix<
                                                typename VectorType::field_type, VectorType::block_type::dimension, VectorType::block_type::dimension> > >
-    class DGQ1toQ1Transfer 
+    class BlockTransferOperator
     {
-
-
       typedef typename VectorType::field_type field_type;
 
     public:
 
       enum {blocksize = VectorType::block_type::dimension};
       enum {coarseBlock = coarseBlocksize};
-      using TransferOperatorType = Dune::BCRSMatrix< Dune::FieldMatrix< field_type, blocksize, 1> >; // Q1 cont. is scalar matrix, hence the 1
+      using TransferOperatorType = Dune::BCRSMatrix< Dune::FieldMatrix< field_type, blocksize, coarseBlocksize> >;
 
       template <typename SetupFunction>
       void setup(SetupFunction&& assembleMatrix)
@@ -58,20 +57,6 @@ namespace Dune {
         matrix_.mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
       }
 
-      // TODO:
-      //      /** \brief Restrict a vector valued bitfield from the fine onto the coarse grid
-      //     */
-      //      template<typename CoarseBitVectorType>
-      //      void restrict(const BitVectorType& f, CoarseBitVectorType& t) const
-
-
-      // TODO:
-      //      /** \brief Restrict a vector valued bitfield from the fine onto the coarse grid
-      //     * Fine bits only influence their father bits
-      //     */
-      //      template<typename CoarseBitVectorType>
-      //      void restrictToFathers(const BitVectorType& f, CoarseBitVectorType& t) const
-
       /** \brief Prolong a function from the coarse onto the fine grid
      */
       template <typename CoarseVectorType>
@@ -94,13 +79,11 @@ namespace Dune {
             const auto& Tj = matrix_[j];
             Dune::Solvers::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::Solvers::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
-                  Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl); // TODO: Pruefen, nicht klar ob richtig
+                  Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
               });
             });
           });
         }
-        //Dune::MatrixVector::addTransformedMatrix(coarseMat, matrix_, fineMat, matrix_);
-
       }
 
       /** \brief Set Occupation of Galerkin restricted coarse stiffness matrix
@@ -109,7 +92,7 @@ namespace Dune {
     * galerkinRestrict to ensure all non-zeroes are present
     * \param fineMat The fine level matrix
     * \param coarseMat The coarse level matrix
-    * \param setup The function that sets the index set 
+    * \param setup The function that sets the index set
     */
       template <typename CoarseMatrixType>
       void galerkinRestrictSetOccupation(const MatrixType& fineMat, CoarseMatrixType& coarseMat) const
@@ -141,7 +124,7 @@ namespace Dune {
       TransferOperatorType matrix_;
 
     };
-  } // end namespace Solvers
+  } // end namespace HPDG
 } // end namespace Dune
 
 #endif
