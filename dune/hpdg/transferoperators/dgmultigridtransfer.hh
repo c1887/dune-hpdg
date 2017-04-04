@@ -67,20 +67,6 @@ namespace Dune {
         matrix_.mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
       }
 
-      // TODO:
-      //      /** \brief Restrict a vector valued bitfield from the fine onto the coarse grid
-      //     */
-      //      template<typename CoarseBitVectorType>
-      //      void restrict(const BitVectorType& f, CoarseBitVectorType& t) const
-
-
-      // TODO:
-      //      /** \brief Restrict a vector valued bitfield from the fine onto the coarse grid
-      //     * Fine bits only influence their father bits
-      //     */
-      //      template<typename CoarseBitVectorType>
-      //      void restrictToFathers(const BitVectorType& f, CoarseBitVectorType& t) const
-
       /** \brief Prolong a function from the coarse onto the fine grid
      */
       template <typename CoarseVectorType>
