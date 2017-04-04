@@ -65,9 +65,7 @@ public:
       fineFE.localInterpolation().interpolate(coarseBasisFunction, values);
 
       /* copy them into the local block */
-      // auto localCoarse = coarseIndexSet.index(j)[1];
       for (size_t i = 0; i < numFine; i++) {
-        // auto localFine = fineIndexSet.index(i)[1];
         matrix_[i][j] = values[i];
       }
     }
