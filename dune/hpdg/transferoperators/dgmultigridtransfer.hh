@@ -1,5 +1,5 @@
-#ifndef DUNE_SOLVERS_DG_MULTIGRID_TRANSFER_HH
-#define DUNE_SOLVERS_DG_MULTIGRID_TRANSFER_HH
+#ifndef DUNE_HPDG_DG_MULTIGRID_TRANSFER_HH
+#define DUNE_HPDG_DG_MULTIGRID_TRANSFER_HH
 
 #include <memory>
 #include <dune/istl/bcrsmatrix.hh>
@@ -17,7 +17,7 @@
  * block diagonal.
  */
 namespace Dune {
-  namespace Solvers {
+  namespace HPDG {
     template<
         class VectorType,
         int coarseBlocksize,
@@ -151,7 +151,7 @@ namespace Dune {
       TransferOperatorType matrix_;
 
     };
-  } // end namespace Solvers
+  } // end namespace HPDG
 } // end namespace Dune
 
 #endif
