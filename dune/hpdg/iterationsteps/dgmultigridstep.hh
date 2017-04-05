@@ -33,7 +33,7 @@ namespace { // anonymous namespace for implementation details
 
 namespace Dune {
   namespace Solvers {
-    template <class MatrixType, class VectorType, class TransferTypes, class LocalSolver, bool correctResidual = true, bool P=false, class BitVectorType = Dune::Solvers::DefaultBitVector_t<VectorType> >
+    template <class MatrixType, class VectorType, class TransferTypes, class LocalSolver, class BitVectorType = Dune::Solvers::DefaultBitVector_t<VectorType> >
     class DGMultigridStep : public LinearIterationStep<MatrixType, VectorType, BitVectorType>
     {
     public:
@@ -189,7 +189,7 @@ namespace Dune {
               smoother.iterate();
 
             /* update residual */
-            if (correctResidual) Dune::MatrixVector::subtractProduct(newRes, matrix, x);
+            Dune::MatrixVector::subtractProduct(newRes, matrix, x);
           }
 
           /* restrict residual to coarser level*/
@@ -250,7 +250,6 @@ namespace Dune {
           using Vector = typename std::tuple_element<i, CoarseVectors>::type;
           using BitVec = Dune::Solvers::DefaultBitVector_t<Vector>;
 
-          const int p = (int) std::sqrt((int) Matrix::block_type::rows) -1;
           /* set up smoother */
           if (i!=0 or basesolver_==nullptr) {
             using Smoother = BlockGaussSeidel<Matrix, Vector, BitVec>; // GS outer solver
