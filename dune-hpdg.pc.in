@@ -10,6 +10,6 @@ Name: @PACKAGE_NAME@
 Version: @VERSION@
 Description: dune-hpdg module
 URL: http://dune-project.org/
-Requires: dune-common dune-geometry dune-grid dune-istl dune-localfunctions dune-matrix-vector dune-solvers dune-typetree dune-functions dune-tnnmg dune-subgrid
+Requires: dune-common dune-geometry dune-grid dune-istl dune-localfunctions dune-matrix-vector dune-solvers dune-typetree dune-functions dune-fufem
 Libs: -L${libdir}
 Cflags: -I${includedir}

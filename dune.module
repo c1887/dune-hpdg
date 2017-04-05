@@ -7,4 +7,4 @@ Module: dune-hpdg
 Version: 0.1
 Maintainer: Lasse Hinrichsen <l.hinrichsen@fu-berlin.de>
 #depending on
-Depends: dune-common dune-geometry dune-grid dune-istl dune-localfunctions dune-matrix-vector dune-solvers dune-typetree dune-functions dune-tnnmg dune-subgrid
+Depends: dune-common dune-geometry dune-grid dune-istl dune-localfunctions dune-matrix-vector dune-solvers dune-typetree dune-functions dune-fufem
