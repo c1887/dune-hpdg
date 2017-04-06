@@ -1,6 +1,9 @@
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
+#include <dune/fufem/assemblers/dunefunctionsfunctionalassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
+#include <dune/fufem/assemblers/localassemblers/l2functionalassembler.hh>
+#include <dune/fufem/functions/constantfunction.hh>
 
 #include <dune/fufem/assemblers/localassemblers/interiorpenaltydgassembler.hh>
 #include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
@@ -12,7 +15,7 @@ auto stiffnessMatrix(const GridType& grid) {
   using Matrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, (k+1)*(k+1), (k+1)*(k+1)> >;
   Matrix matrix;
 
-  const double penalty = 2.0*std::pow(k+1,2); // penalty factor
+  const double penalty = 1.5*std::pow(k+1,2); // penalty factor
 
   /* Setup Basis */
   using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
@@ -65,4 +68,30 @@ auto stiffnessMatrix(const GridType& grid) {
   }
 
   return matrix;
+}
+
+template<int k, class GridType>
+auto rightHandSide(const GridType& grid, double force=-10.0) {
+  constexpr auto dim = GridType::dimensionworld;
+  using Vector = Dune::BlockVector<Dune::FieldVector<double, Dune::StaticPower<k+1, dim>::power> >;
+  Vector rhs(grid.leafGridView().size(0));
+
+  using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
+  Basis basis{grid.leafGridView()};
+  auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
+
+  using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
+
+  // assemble standard function \int fv
+  {
+    const ConstantFunction<Dune::FieldVector<double, dim>, Dune::FieldVector<double, 1> > f(force);
+    const L2FunctionalAssembler<GridType, FiniteElement> rhsLocalAssembler(f);
+    const auto localRHSlambda = [&](const auto& element, auto& localV, const auto& localView) {
+      rhsLocalAssembler.assemble(element, localV, localView.tree().finiteElement());
+    };
+    Dune::Fufem::DuneFunctionsFunctionalAssembler<Basis> rhsAssembler(basis);
+    rhsAssembler.assembleBulk(rhsBE, localRHSlambda);
+  }
+
+  return rhs;
 }
