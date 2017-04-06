@@ -1,0 +1,13 @@
+---
+before_script:
+  - duneci-install-module https://git.imp.fu-berlin.de/agnumpde/dune-matrix-vector.git
+  - duneci-install-module https://git.imp.fu-berlin.de/agnumpde/dune-fufem.git
+  - duneci-install-module https://git.imp.fu-berlin.de/agnumpde/dune-solvers.git
+
+dune:git--clang:
+  image: duneci/dune:git
+  script: duneci-standard-test --opts=/duneci/opts.clang
+
+dune:git--gcc:
+  image: duneci/dune:git
+  script: duneci-standard-test
