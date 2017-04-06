@@ -10,6 +10,8 @@
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/utility/structuredgridfactory.hh>
 
+#include "utilities.hh"
+
 using namespace Dune;
 
 TestSuite test_makedgtransfertuple() {
@@ -36,38 +38,28 @@ TestSuite test_makedgtransfertuple() {
   // try if setup with bad level pairs throws
   {
     // case 1: pair is not ordered correctly
-    try {
-      // set up some faulty level pairs
-      constexpr auto level_pairs = std::make_tuple(
-          std::make_pair(_1, _2), // pair is ordered in the wrong way
-          std::make_pair(_4, _2)
-          );
+    constexpr auto level_pairs = std::make_tuple(
+        std::make_pair(_1, _2), // pair is ordered in the wrong way
+        std::make_pair(_4, _2)
+        );
 
-      // Compute transfer operators
-      auto transfer = HPDG::make_dgTransferTuple(level_pairs, *grid);
-      DUNE_UNUSED_PARAMETER(transfer);
-      suite.check(false, "Check handling of wrongly ordered pairs") << "Did not throw where it should have!";
-    }
-    catch (...) {
-      suite.check(true);
-    }
+    // try if computing transfer operators throws
+    auto toEvaluate = [&](auto&& a, auto&& b) {HPDG::make_dgTransferTuple(a,b);};
+    suite.check(doesThrow(toEvaluate, level_pairs, *grid), 
+        "Check handling of wrongly ordered pairs") << "Did not throw where it should have!";
 
+  }
+  {
     // case 2: coarse and fine values do not match
-    try {
-      // set up some faulty level pairs
       constexpr auto level_pairs = std::make_tuple(
           std::make_pair(_2, _1),
           std::make_pair(_4, _3) // coarse level has to be _2
           );
 
-      // Compute transfer operators
-      auto transfer = HPDG::make_dgTransferTuple(level_pairs, *grid);
-      DUNE_UNUSED_PARAMETER(transfer);
-      suite.check(false, "Check handling of consecutive pairs where fine and coarse levels do not match") << "Did not throw where it should have!";
-    }
-    catch (...) {
-      suite.check(true);
-    }
+      // try if computing transfer operators throws
+      auto toEvaluate = [&](auto&& a, auto&&b) {HPDG::make_dgTransferTuple(a, b);};
+      suite.check(doesThrow(toEvaluate, level_pairs, *grid), 
+          "Check handling of consecutive pairs where fine and coarse levels do not match") << "Did not throw where it should have!";
   }
   
   return suite;
