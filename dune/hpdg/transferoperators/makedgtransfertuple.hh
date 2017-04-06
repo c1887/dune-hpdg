@@ -8,7 +8,7 @@
 #include <dune/istl/bvector.hh>
 
 #include <dune/hpdg/common/arraytotuple.hh>
-#include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/transferoperators/dgmultigridtransfermatrixfree.hh>
 
 #include <dune/functions/common/utility.hh>
@@ -58,11 +58,6 @@ namespace HPDG {
 
       constexpr auto pfine = levelPair.first.value; // fine level
       constexpr auto pcoarse = levelPair.second.value; // coarse level
-      // setup bases (actually, we just need coarse and fine FiniteElements!
-      using FBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, pfine>;
-      using CBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, pcoarse>;
-      auto fbasis = FBasis(grid.leafGridView());
-      auto cbasis = CBasis(grid.leafGridView());
 
       const int rows = Dune::StaticPower<pfine+1, dim>::power;
       const int cols = Dune::StaticPower<pcoarse+1, dim>::power;
@@ -71,13 +66,11 @@ namespace HPDG {
       using DGTransfer = Dune::HPDG::DGMultigridTransferMatrixFree<FV, cols>;
       auto dgTransfer = DGTransfer();
 
-      auto cview = cbasis.localView();
-      auto fview = fbasis.localView();
-      cview.bind(*(grid.leafGridView().template begin<0>()));
-      fview.bind(*(grid.leafGridView().template begin<0>()));
+      auto fineFE = Dune::QkGaussLobattoLocalFiniteElement<typename GridType::LeafGridView::ctype, double, dim, pfine>();
+      auto coarseFE = Dune::QkGaussLobattoLocalFiniteElement<typename GridType::LeafGridView::ctype, double, dim, pcoarse>();
 
       // compute transfer from fine to coarse FE
-      dgTransfer.setup(cview.tree().finiteElement(), fview.tree().finiteElement());
+      dgTransfer.setup(coarseFE, fineFE);
       return dgTransfer;
     };
 
