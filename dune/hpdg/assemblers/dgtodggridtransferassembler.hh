@@ -37,7 +37,7 @@ namespace Impl{
         size_[maxLevel] = grid.size(0); // 0 because we're in elementwise DG and count the number of elements, not vertices
 
         // iterate over levels
-        for (std::size_t level=0; level<maxLevel; level++) {
+        for (int level=0; level<maxLevel; level++) {
           const auto& indexSet = grid.levelIndexSet(level);
           size_[level]=indexSet.size(0);
           for (const auto& e: elements(grid.levelGridView(level)))
@@ -86,11 +86,11 @@ namespace Dune {
       /* Setup indices */
       {
         std::vector<Dune::MatrixIndexSet> indicesVector(maxLevel-0);
-        for (std::size_t i =0; i<maxLevel; i++) 
+        for (int i =0; i<maxLevel; i++) 
           indicesVector[i].resize(multiLevelBasis.size(i+1), multiLevelBasis.size(i));
 
         // iterate over all levels
-        for (std::size_t level=0; level<maxLevel; level++) {
+        for (int level=0; level<maxLevel; level++) {
           auto& indices = indicesVector[level];
           // iterate over elements on this level
           for (const auto& element: elements(grid.levelGridView(level))) {
@@ -114,7 +114,7 @@ namespace Dune {
       using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, 1>; // TODO: If this is given as a template par., we can also go with Qk, k>=1
       using CoarseFE = typename LevelBasis::LocalView::Tree::FiniteElement;
 
-      for (std::size_t level=0; level<maxLevel; level++) {
+      for (int level=0; level<maxLevel; level++) {
         // Set up bases
         const auto cbasis = LevelBasis(grid.levelGridView(level));
         const auto fbasis = LevelBasis(grid.levelGridView(level+1));
@@ -170,7 +170,6 @@ namespace Dune {
                 auto localFine = fineIndexSet.index(j)[1];
                 for (std::size_t i = 0; i < coarseView.size(); i++) {
                   auto localCoarse = coarseIndexSet.index(i)[1];
-                  auto& localElementMatrix = matrix[multiLevelBasis.index(son, level+1)][multiLevelBasis.index(element, level)];
                   localElementMatrix[localFine][localCoarse]+=values[i];
                 }
               }
