@@ -18,7 +18,7 @@
 
 #include <dune/hpdg/iterationsteps/dgmultigridstep.hh>
 namespace Dune {
-  namespace HPDG {
+  namespace Solvers{
     template <class MatrixType, class VectorType, class TransferTypes, class LocalSolver, bool correctResidual = true, bool P=false, class BitVectorType = Dune::Solvers::DefaultBitVector_t<VectorType> >
     class DualDGMultigridStep : public LinearIterationStep<MatrixType, VectorType, BitVectorType>
     {
@@ -349,6 +349,6 @@ return ret;
       int increaseCoarseSmoothing_ = 1;
 
     };
-  } // namespace HPDG 
+  } // namespace Solvers
 } // namespace Dune
 #endif //DUNE_HPDG_DUAL_DG_MULTIGRID_STEP
