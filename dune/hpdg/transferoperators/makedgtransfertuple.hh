@@ -1,3 +1,5 @@
+#ifndef DUNE_HPDG_TRANSFEROPERATORS_MAKEDGTRANSFERTUPLE_HH
+#define DUNE_HPDG_TRANSFEROPERATORS_MAKEDGTRANSFERTUPLE_HH
 #include <stdexcept>
 
 #include <dune/common/power.hh>
@@ -78,3 +80,4 @@ namespace HPDG {
   }
 }
 }
+#endif

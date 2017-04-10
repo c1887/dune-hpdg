@@ -1,3 +1,5 @@
+#ifndef DUNE_HPDG_COMMON_ARRAYTOTUPLE_HH
+#define DUNE_HPDG_COMMON_ARRAYTOTUPLE_HH
 #include <array>
 #include <tuple>
 
@@ -19,3 +21,4 @@ decltype(auto) arrayToTuple(const std::array<T, N> &a) {
 }
 }
 }
+#endif
