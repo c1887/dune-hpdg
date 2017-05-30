@@ -12,6 +12,7 @@
 
 #include <dune/solvers/iterationsteps/blockgssteps.hh>
 #include <dune/solvers/iterationsteps/multigridstep.hh>
+#include <dune/solvers/transferoperators/densemultigridtransfer.hh>
 #include <dune/solvers/solvers/loopsolver.hh>
 #include <dune/solvers/norms/energynorm.hh>
 #include <dune/solvers/solvers/umfpacksolver.hh>
@@ -50,6 +51,17 @@ TestSuite test_geometricDGMultigrid() {
   // compute transfer operator hierarchy (grid is allowed to be nonconforming!)
   HPDG::assembleDGGridTransferHierarchy(transfer, *grid);
 
+  // copy into dune-solvers transfer operator
+  using TransferOperator = DenseMultigridTransfer<Vector>;
+  using TransferOperators = std::vector<std::shared_ptr<TransferOperator>>;
+  TransferOperators transferOps(grid->maxLevel());
+  for (size_t i = 0; i < transfer.size(); ++i)
+  {
+    // create transfer operator from level i to i+1
+    transferOps[i] = std::make_shared<TransferOperator>();
+    transferOps[i]->setMatrix(*transfer[i]);
+  }
+
   // make some sanity checks
   {
     auto& topTransfer = transfer.back();
@@ -71,6 +83,7 @@ TestSuite test_geometricDGMultigrid() {
   // setup multigrid step
   auto multigridStep = Solvers::MultigridStep<Matrix, Vector, BitVector>(matrix, x, b);
   multigridStep.setSmoother(&smoother);
+  multigridStep.setTransferOperators(transferOps);
   multigridStep.setMGType(1,5,5);
 
   // dune-solvers multigrid needs some ignore nodes
