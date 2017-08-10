@@ -7,7 +7,7 @@
 #include <dune/common/fmatrix.hh>
 #include <dune/common/bitsetvector.hh>
 #include <dune/istl/bdmatrix.hh>
-#include <dune/solvers/common/algorithm.hh>
+#include <dune/matrix-vector/algorithm.hh>
 
 #include <dune/matrix-vector/transformmatrix.hh>
 
@@ -74,11 +74,11 @@ namespace Dune {
         coarseMat = 0;
         for (std::size_t i =0; i< fineMat.N(); i++) {
           const auto& Ai = fineMat[i];
-          Dune::Solvers::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
+          Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
             const auto& Ti = matrix_[i];
             const auto& Tj = matrix_[j];
-            Dune::Solvers::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
-              Dune::Solvers::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
+            Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
+              Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
                   Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
               });
             });
@@ -101,11 +101,11 @@ namespace Dune {
         auto indices = Dune::MatrixIndexSet(m, m);
         for (std::size_t i =0; i< fineMat.N(); i++) {
           const auto& Ai = fineMat[i];
-          Dune::Solvers::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
+          Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
             const auto& Ti = matrix_[i];
             const auto& Tj = matrix_[j];
-            Dune::Solvers::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
-              Dune::Solvers::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
+            Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
+              Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
                 indices.add(k, l);
               });
             });
