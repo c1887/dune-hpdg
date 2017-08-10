@@ -78,7 +78,7 @@ namespace Impl{
 }
 namespace Dune {
   namespace HPDG{
-    template<typename MatrixType, typename GridType>
+    template<int k=1, typename MatrixType, typename GridType>
     void assembleDGGridTransferHierarchy(std::vector<std::shared_ptr<MatrixType>>& matrixVector, const GridType& grid){
       const auto multiLevelBasis = ::Impl::MultilevelBasis<GridType>(grid);
       const auto maxLevel = grid.maxLevel();
@@ -86,7 +86,7 @@ namespace Dune {
       /* Setup indices */
       {
         std::vector<Dune::MatrixIndexSet> indicesVector(maxLevel-0);
-        for (int i =0; i<maxLevel; i++) 
+        for (int i =0; i<maxLevel; i++)
           indicesVector[i].resize(multiLevelBasis.size(i+1), multiLevelBasis.size(i));
 
         // iterate over all levels
@@ -111,7 +111,7 @@ namespace Dune {
       }
 
       /* Assemble matrices */
-      using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, 1>; // TODO: If this is given as a template par., we can also go with Qk, k>=1
+      using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, k>;
       using CoarseFE = typename LevelBasis::LocalView::Tree::FiniteElement;
 
       for (int level=0; level<maxLevel; level++) {
