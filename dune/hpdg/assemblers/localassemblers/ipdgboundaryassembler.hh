@@ -159,11 +159,11 @@ class IPDGBoundaryAssembler :
     public:
         double sigma0 = 10.0;
     private:
-        bool dirichlet;
         const std::shared_ptr<const Function> bdrFunction_;
         
         // quadrature order
         const int order_;
+        bool dirichlet;
         double DGType_ = -1.0;
 };
 
