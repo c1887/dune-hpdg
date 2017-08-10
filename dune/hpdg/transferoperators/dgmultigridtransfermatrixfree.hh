@@ -9,7 +9,7 @@
 #include <dune/istl/bdmatrix.hh>
 
 #include <dune/matrix-vector/transformmatrix.hh>
-#include <dune/solvers/common/algorithm.hh>
+#include <dune/matrix-vector/algorithm.hh>
 
 #include <dune/hpdg/common/blockwiseoperations.hh>
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
@@ -100,9 +100,10 @@ public:
   void galerkinRestrict(const MatrixType &fineMat,
                         CoarseMatrixType &coarseMat) const {
     coarseMat = 0;
+#pragma omp parallel for
     for (std::size_t i = 0; i < coarseMat.N(); i++) {
       auto &Ci = coarseMat[i];
-      Dune::Solvers::sparseRangeFor(Ci, [&](auto &&Cij, auto &&j) {
+      Dune::MatrixVector::sparseRangeFor(Ci, [&](auto &&Cij, auto &&j) {
         Dune::MatrixVector::addTransformedMatrix(Cij, matrix_, fineMat[i][j],
                                                  matrix_);
       });
