@@ -14,6 +14,8 @@ dune_add_test(
 dune_add_test(
   SOURCES test_geometricdgmultigrid.cc)
 dune_add_test(
+  SOURCES test_dynamicbasis.cc)
+dune_add_test(
   SOURCES test_matrixwindow.cc)
 dune_add_test(
   SOURCES test_dynamicbcrs.cc)
