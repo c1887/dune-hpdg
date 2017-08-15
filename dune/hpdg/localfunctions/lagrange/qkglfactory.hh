@@ -39,37 +39,6 @@ namespace Dune
     }
   };
 
-  /** \brief Factory that only creates dimension specific local finite elements
-   *
-   * TODO Brauche ich das?
-   *
-   * Specialization for dim=3
-   */
-  template<class D, class R, int k>
-  struct DimSpecificQkGLLocalFiniteElementFactory<D,R,3,k>
-  {
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,3>::Traits::LocalBasisType::Traits,0>::Traits T;
-    typedef PrismP1LocalFiniteElement<D,R> PrismP1;
-    typedef PrismP2LocalFiniteElement<D,R> PrismP2;
-    typedef PyramidP1LocalFiniteElement<D,R> PyramidP1;
-    typedef PyramidP2LocalFiniteElement<D,R> PyramidP2;
-
-    //! create finite element for given GeometryType
-    static LocalFiniteElementVirtualInterface<T>* create(const GeometryType& gt)
-    {
-      if ((gt.isPrism())and (k==1))
-        return new LocalFiniteElementVirtualImp<PrismP1>(PrismP1());
-      if ((gt.isPrism())and (k==2))
-        return new LocalFiniteElementVirtualImp<PrismP2>(PrismP2());
-      if ((gt.isPyramid())and (k==1))
-        return new LocalFiniteElementVirtualImp<PyramidP1>(PyramidP1());
-      if ((gt.isPyramid())and (k==2))
-        return new LocalFiniteElementVirtualImp<PyramidP2>(PyramidP2());
-      return 0;
-    }
-  };
-
-
   /** \brief Factory to create any kind of Pk/Qk like element wrapped for the virtual interface
    *
    */
@@ -156,6 +125,99 @@ namespace Dune
 
   };
 
+  template<class D, class R, int dim>
+  struct DynamicOrderQkGLLocalFiniteElementFactory
+  {
+    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef LocalFiniteElementVirtualInterface<T> FiniteElementType;
+    template<int k>
+    using QkGL = QkGaussLobattoLocalFiniteElement<D, R, dim, k>;
+
+
+    //! create finite element for given GeometryType
+    static FiniteElementType* create(const size_t& gt)
+    {
+          // TODO: smart ptr
+      switch(gt) {
+        case(1):
+          return new  LocalFiniteElementVirtualImp<QkGL<1>>(QkGL<1>());
+        case(2):
+          return new  LocalFiniteElementVirtualImp<QkGL<2>>(QkGL<2>());
+        case(3):
+          return new  LocalFiniteElementVirtualImp<QkGL<3>>(QkGL<3>());
+        case(4):
+          return new  LocalFiniteElementVirtualImp<QkGL<4>>(QkGL<4>());
+        case(5):
+          return new  LocalFiniteElementVirtualImp<QkGL<5>>(QkGL<5>());
+        case(6):
+          return new  LocalFiniteElementVirtualImp<QkGL<6>>(QkGL<6>());
+        case(7):
+          return new  LocalFiniteElementVirtualImp<QkGL<7>>(QkGL<7>());
+        case(8):
+          return new  LocalFiniteElementVirtualImp<QkGL<8>>(QkGL<8>());
+        case(9):
+          return new  LocalFiniteElementVirtualImp<QkGL<9>>(QkGL<9>());
+        case(10):
+          return new  LocalFiniteElementVirtualImp<QkGL<10>>(QkGL<10>());
+        default:
+          DUNE_THROW(Dune::NotImplemented, "Gauss-Lobatto only up to order 10");
+      }
+    }
+  };
+
+
+  template<class D, class R, int dim>
+  class DynamicOrderQkGLLocalFiniteElementCache
+  {
+  protected:
+    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef LocalFiniteElementVirtualInterface<T> FE;
+    typedef typename std::map<int,FE*> FEMap;
+
+  public:
+    /** \brief Type of the finite elements stored in this cache */
+    typedef FE FiniteElementType;
+
+    /** \brief Default constructor */
+    DynamicOrderQkGLLocalFiniteElementCache() {}
+
+    /** \brief Copy constructor */
+    DynamicOrderQkGLLocalFiniteElementCache(const DynamicOrderQkGLLocalFiniteElementCache& other)
+    {
+      typename FEMap::iterator it = other.cache_.begin();
+      typename FEMap::iterator end = other.cache_.end();
+      for(; it!=end; ++it)
+        cache_[it->first] = (it->second)->clone();
+    }
+
+    ~DynamicOrderQkGLLocalFiniteElementCache()
+    {
+      typename FEMap::iterator it = cache_.begin();
+      typename FEMap::iterator end = cache_.end();
+      for(; it!=end; ++it)
+        delete it->second;
+    }
+
+    //! Get local finite element for given GeometryType
+    const FiniteElementType& get(const int& gt) const
+    {
+      typename FEMap::const_iterator it = cache_.find(gt);
+      if (it==cache_.end())
+      {
+        FiniteElementType* fe = DynamicOrderQkGLLocalFiniteElementFactory<D,R,dim>::create(gt);
+        if (fe==0)
+          DUNE_THROW(Dune::NotImplemented,"No Qk Gauss-Lobatto like local finite element available order " << gt);
+
+        cache_[gt] = fe;
+        return *fe;
+      }
+      return *(it->second);
+    }
+
+  protected:
+    mutable FEMap cache_;
+
+  };
 }
 
 #endif
