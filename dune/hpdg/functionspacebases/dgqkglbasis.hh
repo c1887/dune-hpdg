@@ -219,7 +219,7 @@ public:
   size_type size(const SizePrefix prefix) const
   {
     if (useTwoLevelIndex) {
-      if (prefix.size() == 0) 
+      if (prefix.size() == 0)
         return size();
       else if (prefix.size() == 1)
         return maxNodeSize();
@@ -311,25 +311,25 @@ public:
       switch (dim)
       {
         case 1:
-          return {gridIndexSet.subIndex(element, 0, 0), i};
+          return {{gridIndexSet.subIndex(element, 0, 0), i}};
         case 2:
         {
           if (element.type().isTriangle())
-            return {gridIndexSet.subIndex(element, 0, 0), i};
+            return {{gridIndexSet.subIndex(element, 0, 0), i}};
           else if (element.type().isQuadrilateral())
-            return {nodeFactory_->quadrilateralOffset_ + gridIndexSet.subIndex(element, 0,0), i};
+            return {{nodeFactory_->quadrilateralOffset_ + gridIndexSet.subIndex(element, 0,0), i}};
           else
             DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
         }
         case 3:
           if (element.type().isTetrahedron())
-            return {gridIndexSet.subIndex(element, 0, 0), i};
+            return {{gridIndexSet.subIndex(element, 0, 0), i}};
           else if (element.type().isPrism())
-            return {nodeFactory_->prismOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+            return {{nodeFactory_->prismOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
           else if (element.type().isHexahedron())
-            return {nodeFactory_->hexahedronOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+            return {{nodeFactory_->hexahedronOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
           else if (element.type().isPyramid())
-            return {nodeFactory_->pyramidOffset_+ gridIndexSet.subIndex(element, 0,0), i};
+            return {{nodeFactory_->pyramidOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
           else
             DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
       }
@@ -339,12 +339,12 @@ public:
     {
       case 1:
       {
-        return {nodeFactory_->dofsPerEdge*gridIndexSet.subIndex(element,0,0) + i};
+        return {{nodeFactory_->dofsPerEdge*gridIndexSet.subIndex(element,0,0) + i}};
       }
       case 2:
       {
         if (element.type().isQuadrilateral())
-          return { nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i};
+          return {{nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i}};
         else
           DUNE_THROW(Dune::NotImplemented, "DGQkGL in 2d is only implemented on quadrilaterals");
       }
@@ -352,19 +352,19 @@ public:
       {
         if (element.type().isTetrahedron())
         {
-          return {nodeFactory_->dofsPerTetrahedron*gridIndexSet.subIndex(element,0,0) + i};
+          return {{nodeFactory_->dofsPerTetrahedron*gridIndexSet.subIndex(element,0,0) + i}};
         }
         else if (element.type().isPrism())
         {
-          return { nodeFactory_->prismOffset_ + nodeFactory_->dofsPerPrism*gridIndexSet.subIndex(element,0,0) + i};
+          return {{nodeFactory_->prismOffset_ + nodeFactory_->dofsPerPrism*gridIndexSet.subIndex(element,0,0) + i}};
         }
         else if (element.type().isHexahedron())
         {
-          return { nodeFactory_->hexahedronOffset_ + nodeFactory_->dofsPerHexahedron*gridIndexSet.subIndex(element,0,0) + i};
+          return {{nodeFactory_->hexahedronOffset_ + nodeFactory_->dofsPerHexahedron*gridIndexSet.subIndex(element,0,0) + i}};
         }
         else if (element.type().isPyramid())
         {
-          return { nodeFactory_->pyramidOffset_ + nodeFactory_->dofsPerPyramid*gridIndexSet.subIndex(element,0,0) + i};
+          return {{nodeFactory_->pyramidOffset_ + nodeFactory_->dofsPerPyramid*gridIndexSet.subIndex(element,0,0) + i}};
         }
         else
           DUNE_THROW(Dune::NotImplemented, "3d elements have to be tetrahedrons, prisms, hexahedrons or pyramids");
