@@ -47,7 +47,6 @@ namespace Impl {
       auto numFine = fineFE.size();
 
       auto matrix = MatrixType(numFine, numCoarse);
-      std::cout << "matrix: " << matrix.N() << " x " << matrix.M() << std::endl;
 
       std::vector<typename FE::Traits::LocalBasisType::Traits::RangeType> values(
           numCoarse);
@@ -160,7 +159,7 @@ class DynamicOrderTransfer {
             colMatrix = &matrix_(this->blockSizeToOrder(fineMat.blockRows(j)), maxOrder);
           }
           else
-            rowMatrix = &identity_(fineMat.blockRows(j));
+            colMatrix = &identity_(fineMat.blockRows(j));
 
           Dune::MatrixVector::addTransformedMatrix(Cij, *rowMatrix, fineMat.matrix()[i][j], *colMatrix);
         }
