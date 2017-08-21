@@ -85,6 +85,9 @@ namespace Dune {
       auto size() const {
         return n_;
       }
+      auto N() const {
+        return n_;
+      }
 
       DynamicBlockVector& operator=(const field_type& scalar) {
         for (size_t i = 0; i < size_; ++i)
@@ -171,6 +174,26 @@ namespace Dune {
 
       auto dimension() const {
         return size_;
+      }
+
+      // give STL-like access
+      auto& at(size_t i) {
+        return vector_[i];
+      }
+      const auto& at(size_t i) const {
+        return vector_[i];
+      }
+      auto& front() {
+        return vector_.front();
+      }
+      const auto& front() const {
+        return vector_.front();
+      }
+      auto& back() {
+        return vector_.back();
+      }
+      const auto& back() const {
+        return vector_.back();
       }
 
       private:
