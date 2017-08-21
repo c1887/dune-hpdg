@@ -142,6 +142,45 @@ namespace Dune
         return rowAccess;
       }
 
+      /** y=Ax */
+      void mv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+      {
+        DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
+        DUNE_ASSERT_BOUNDS(x.N() == M());
+        DUNE_ASSERT_BOUNDS(y.N() == N());
+
+        for (size_type i=0; i<n_; ++i)
+        {
+          y[i] = mat_access(i) * x;
+        }
+      }
+
+      /** y+=Ax */
+      void umv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+      {
+        DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
+        DUNE_ASSERT_BOUNDS(x.N() == M());
+        DUNE_ASSERT_BOUNDS(y.N() == N());
+
+        for (size_type i=0; i<n_; ++i)
+        {
+          y[i] += mat_access(i) * x;
+        }
+      }
+
+      /** y-=Ax */
+      void mmv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+      {
+        DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
+        DUNE_ASSERT_BOUNDS(x.N() == M());
+        DUNE_ASSERT_BOUNDS(y.N() == N());
+
+        for (size_type i=0; i<n_; ++i)
+        {
+          y[i] -= mat_access(i) * x;
+        }
+      }
+
       private:
       K* data_;
       size_t n_; // number of rows

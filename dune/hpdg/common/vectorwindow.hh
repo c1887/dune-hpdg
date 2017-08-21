@@ -98,6 +98,17 @@ namespace Dune {
       n_=n;
     }
 
+    value_type operator*(const VectorWindow& y) const {
+      DUNE_ASSERT_BOUNDS(y.N() == n_);
+      auto sum = value_type(0);
+      const K* pthis = data_;
+      const K* py = y.data_;
+      // compute scalar product directly on the C-array
+      for (size_t i = 0; i < n_; i++)
+        sum+= *pthis++ * *py++;
+      return sum;
+    }
+
     //==== forward some methods of std::vector
     /** \brief Number of elements for which memory has been allocated.
 
