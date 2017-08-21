@@ -142,6 +142,7 @@ namespace Dune
         return rowAccess;
       }
 
+      using Base::mv; // generic version that works for other vector types
       /** y=Ax */
       void mv (const VectorWindow<K>& x, VectorWindow<K>& y) const
       {
@@ -155,6 +156,7 @@ namespace Dune
         }
       }
 
+      using Base::umv; // generic version that works for other vector types
       /** y+=Ax */
       void umv (const VectorWindow<K>& x, VectorWindow<K>& y) const
       {
@@ -168,6 +170,7 @@ namespace Dune
         }
       }
 
+      using Base::mmv; // generic version that works for other vector types
       /** y-=Ax */
       void mmv (const VectorWindow<K>& x, VectorWindow<K>& y) const
       {
