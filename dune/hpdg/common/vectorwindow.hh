@@ -59,7 +59,15 @@ namespace Dune {
     VectorWindow(const VectorWindow& x) = delete;
 
     // TODO: I cannot imagine a situation where this should be used, but feel free to implement.
-    VectorWindow(VectorWindow&& x) = delete;
+    VectorWindow(VectorWindow&& x) {
+      this->n_ = x.n_;
+      this->data_ = x.data_;
+      x.data_ = nullptr;
+    }
+
+    VectorWindow() :
+      data_(nullptr),
+      n_(0) {}
 
     //! Constructor taking a ptr and the size of the vector
     VectorWindow(K* start, size_t n) :

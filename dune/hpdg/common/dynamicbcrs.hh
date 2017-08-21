@@ -72,7 +72,7 @@ namespace Dune {
         setSize(matrix_.N(), matrix_.M());
       }
 
-      /** (Re-)allocates memory and sets pointers of the matrix windows. 
+      /** (Re-)allocates memory and sets pointers of the matrix windows.
        *
        * This is needed before actually using the matrix!
        */
@@ -81,11 +81,19 @@ namespace Dune {
         resetBlocks();
       }
 
+      auto N() const {
+        return n_;
+      }
+
+      auto M() const {
+        return m_;
+      }
+
       private:
 
       /** Allocates memory.
        *
-       * If memory has been allocated before, 
+       * If memory has been allocated before,
        * it will be released and new memory will be allocated!
        */
       void allocateMemory() {

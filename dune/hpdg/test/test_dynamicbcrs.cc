@@ -3,6 +3,7 @@
 #include <dune/common/parallel/mpihelper.hh>
 
 #include <dune/hpdg/common/dynamicbcrs.hh>
+#include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/istl/matrixindexset.hh>
 #include <memory>
 
@@ -11,8 +12,6 @@ using namespace Dune;
 
 TestSuite test_dynamicbcrs() {
   TestSuite suite("test_dynamicbcrs");
-
-  const size_t blockrows = 5;
 
   // lets see, if we can create a bcrs matrix
   using Matrix = Dune::HPDG::DynamicBCRSMatrix<double>;
@@ -27,8 +26,8 @@ TestSuite test_dynamicbcrs() {
 
   // additional setup
   dynbcrs.finishIdx();
-  for (size_t i = 0; i < 2; i++)
-    dynbcrs.blockRows(i) = blockrows;
+  dynbcrs.blockRows(0) = 5; // first block row has 5 rows
+  dynbcrs.blockRows(1) = 4; // second block row has only 4 rows
   dynbcrs.update(); // crucial!
 
   // bcrs is bound to the dynbcrs object, so we do not have to change anything on it.
@@ -40,16 +39,32 @@ TestSuite test_dynamicbcrs() {
   bcrs[1][0]=-1.5;
   bcrs[1][1]=2.0;
 
-  // show that this is actually usable:
-  using BV = Dune::BlockVector<Dune::FieldVector<double, blockrows>>;
-  BV bv(2);
-  bv=2.;
+  // test with dynamic block vector
+  auto bv = Dune::HPDG::makeDynamicBlockVector(dynbcrs); // this creates a dynamic block vector of the same dimensions as our matrix has
   {
     auto dummy = bv;
+    dummy = 2.;
     bcrs.mv(dummy, bv);
   }
 
-  for (const auto& e: bv) std::cout << e << std::endl;
+  // output vector: (yes, we do have iterators :) )
+  for (const auto& e: bv) {
+    for (const auto& ee: e) std::cout << ee << std::endl;
+  }
+
+
+  // make some checks
+  {
+    auto vec1 = bv;
+    auto vec2 = vec1;
+    vec1=1;
+    vec2=2;
+    suite.check(std::abs(vec1.dimension()*1.*2. - (vec1*vec2))<1e-15, "Check scalar product");
+    auto vec3 = vec1+vec2;
+    vec3-=vec2;
+    vec3-=vec1;
+    suite.check((vec3*vec3) < 1e-15, "Check addition and subtraction") << "(v1+v2) - v1 - v2  has norm " << (vec3*vec3) << std::endl;
+  }
   return suite;
 }
 
