@@ -65,6 +65,22 @@ TestSuite test_dynamicbcrs() {
     vec3-=vec1;
     suite.check((vec3*vec3) < 1e-15, "Check addition and subtraction") << "(v1+v2) - v1 - v2  has norm " << (vec3*vec3) << std::endl;
   }
+
+  // test copy construction
+  {
+    auto matrix2 = dynbcrs;
+    // compare last blocks
+    const auto& b1 = bcrs[1][1];
+    const auto& b2 = matrix2.matrix()[1][1];
+    suite.check(b1.N() == b2.N());
+    suite.check(b1.M() == b2.M());
+
+    for (size_t i = 0; i < b1.N(); i++) {
+      for (size_t j = 0; j < b1.M(); j++) {
+        suite.check(b1[i][j]==b2[i][j]);
+      }
+    }
+  }
   return suite;
 }
 

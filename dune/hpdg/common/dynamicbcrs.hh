@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <dune/istl/bcrsmatrix.hh>
+#include <dune/istl/matrixindexset.hh>
 #include <dune/hpdg/common/matrixwindow.hh>
 #include <dune/matrix-vector/algorithm.hh>
 
@@ -33,6 +34,24 @@ namespace Dune {
         n_(0),
         m_(0),
         rowMap_(0) {}
+
+      DynamicBCRSMatrix(const DynamicBCRSMatrix& other) {
+        n_=other.n_;
+        m_=other.m_;
+        rowMap_= other.rowMap_;
+        {
+          auto idx = Dune::MatrixIndexSet(n_, m_);
+          idx.import(other.matrix_);
+          idx.exportIdx(matrix_);
+        }
+        update();
+
+        // copy data from one C-array to the other
+        K* data = data_.get();
+        K* otherdata = other.data_.get();
+        for (size_t i = 0; i < size_; i++)
+          *data++ = *otherdata++;
+      }
 
       /** Get the managed BCRS matrix in Dune::BCRSMatrix format*/
       BCRS& matrix() {
@@ -97,12 +116,12 @@ namespace Dune {
        * it will be released and new memory will be allocated!
        */
       void allocateMemory() {
-        auto size = calculateSize();
+        size_ = calculateSize();
         if (data_ != nullptr) {
-          data_.reset(new field_type[size]);
+          data_.reset(new field_type[size_]);
         }
         else {
-          data_ = std::make_unique<field_type[]>(size);
+          data_ = std::make_unique<field_type[]>(size_);
         }
       }
 
@@ -135,6 +154,7 @@ namespace Dune {
       size_t m_;
       std::vector<size_t> rowMap_; // stores the number of rows each block row has
       BCRS matrix_;
+      size_t size_;
       std::unique_ptr<field_type[]> data_;
     };
   }
