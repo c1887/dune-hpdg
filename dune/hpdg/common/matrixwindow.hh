@@ -77,6 +77,7 @@ namespace Dune
         m_(m),
         rowAccess(nullptr, 0) {}
 
+      MatrixWindow(const MatrixWindow&) = delete;
 
       void resize (size_type r, size_type c, value_type v = value_type() )
       {

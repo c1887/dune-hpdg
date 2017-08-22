@@ -5,6 +5,7 @@
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/istl/matrixindexset.hh>
+#include "utilities.hh"
 #include <memory>
 
 using namespace Dune;
@@ -81,6 +82,14 @@ TestSuite test_dynamicbcrs() {
       }
     }
   }
+  // Copying the Dune::BCRSMatrix object directly _must not_ work, as the block types are windows and do not manage storage themselves.
+  // The way to go is to copy the DynamicBCRS object. Hence, the following must throw:
+  suite.check(
+
+    doesThrow([&]() { auto illegalCopy = bcrs; }
+
+  ));
+
   return suite;
 }
 
