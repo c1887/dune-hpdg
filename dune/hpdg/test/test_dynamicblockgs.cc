@@ -21,7 +21,7 @@ TestSuite test_dynamicblockgs() {
 
   constexpr const int dim =2;
   using Grid = Dune::YaspGrid<dim>;
-  auto gridptr = Dune::StructuredGridFactory<Grid>::createCubeGrid({{0,0}}, {{1,1}}, {{44,44}});
+  auto gridptr = Dune::StructuredGridFactory<Grid>::createCubeGrid({{0,0}}, {{1,1}}, {{4,4}});
 
   size_t iter = 1;
 
