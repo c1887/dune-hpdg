@@ -27,18 +27,24 @@ namespace Dune {
       DynamicBCRSMatrix(size_t n, size_t m, size_t blockRows=1) :
         n_(n),
         m_(m),
-        rowMap_(n)
-      {for (auto& e: rowMap_) e = blockRows;}
+        rowMap_(n),
+        colMap_(m)
+      {
+        for (auto& e: rowMap_) e = blockRows;
+        for (auto& e: colMap_) e = blockRows;
+      }
 
       DynamicBCRSMatrix() :
         n_(0),
         m_(0),
-        rowMap_(0) {}
+        rowMap_(0),
+        colMap_(0) {}
 
       DynamicBCRSMatrix(const DynamicBCRSMatrix& other) {
         n_=other.n_;
         m_=other.m_;
         rowMap_= other.rowMap_;
+        colMap_= other.colMap_;
         {
           auto idx = Dune::MatrixIndexSet(n_, m_);
           idx.import(other.matrix_);
@@ -71,6 +77,7 @@ namespace Dune {
         n_=n;
         m_=m;
         rowMap_.resize(n_);
+        colMap_.resize(m_);
       }
 
       /** Get the number of rows in the i-th block row */
@@ -85,10 +92,26 @@ namespace Dune {
         return rowMap_[i];
       }
 
+      /** Get the number of columns in the i-th block columns */
+      size_t& blockColumns(size_t i) {
+        DUNE_ASSERT_BOUNDS(i<n_);
+        return colMap_[i];
+      }
+
+      /** Get the number of columns in the i-th block columns */
+      const size_t& blockColumns(size_t i) const {
+        DUNE_ASSERT_BOUNDS(i<n_);
+        return colMap_[i];
+      }
       /** Updates the matrix size after the index set was set externally
        */
       void finishIdx() {
         setSize(matrix_.N(), matrix_.M());
+      }
+
+      /** For convenience; sets the column sizes to the same values as the row sizes */
+      void setSquare() {
+        colMap_ = rowMap_;
       }
 
       /** (Re-)allocates memory and sets pointers of the matrix windows.
@@ -131,7 +154,7 @@ namespace Dune {
         for (size_t i = 0; i < n_; i++) {
           auto& Qi = matrix_[i];
           MatrixVector::sparseRangeFor(Qi, [&](auto&&, auto&&j) {
-              count+=rowMap_[i]*rowMap_[j];
+              count+=rowMap_[i]*colMap_[j];
               });
         }
         return count;
@@ -143,8 +166,8 @@ namespace Dune {
         for (size_t i = 0; i < n_; i++) {
           auto& Qi = matrix_[i];
           MatrixVector::sparseRangeFor(Qi, [&](auto&& Qij, auto&&j) {
-              Qij.set(currentPtr, rowMap_[i], rowMap_[j]);
-              currentPtr += rowMap_[i]*rowMap_[j]; // ptr arithmetic, move to point after current block
+              Qij.set(currentPtr, rowMap_[i], colMap_[j]);
+              currentPtr += rowMap_[i]*colMap_[j]; // ptr arithmetic, move to point after current block
               });
         }
       }
@@ -153,6 +176,7 @@ namespace Dune {
       size_t n_;
       size_t m_;
       std::vector<size_t> rowMap_; // stores the number of rows each block row has
+      std::vector<size_t> colMap_; // stores the number of rows each block row has
       BCRS matrix_;
       size_t size_;
       std::unique_ptr<field_type[]> data_;

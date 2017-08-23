@@ -99,6 +99,7 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
     dynMatrix.finishIdx();
     for (size_t i = 0; i <matrix.N(); i++)
       dynMatrix.blockRows(i) = blockSize;
+    dynMatrix.setSquare();
     dynMatrix.update();
 
     auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>();

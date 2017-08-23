@@ -29,6 +29,7 @@ TestSuite test_dynamicbcrs() {
   dynbcrs.finishIdx();
   dynbcrs.blockRows(0) = 5; // first block row has 5 rows
   dynbcrs.blockRows(1) = 4; // second block row has only 4 rows
+  dynbcrs.setSquare();
   dynbcrs.update(); // crucial!
 
   // bcrs is bound to the dynbcrs object, so we do not have to change anything on it.
