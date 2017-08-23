@@ -112,18 +112,7 @@ namespace Dune {
         // the coarse matrix will have the same block structure as the fine matrix.
 
         Dune::MatrixIndexSet idx(fineMat.N(), fineMat.M());
-
-        // Copy indices from the fine matrix into the coarse matrix
-        for (size_t i = 0; i<fineMat.N(); ++i) {
-          const auto& row = fineMat[i];
-
-          auto it = row.begin();
-          auto end = row.end();
-          for (; it!=end; ++it) {
-            auto j = it.index();
-            idx.add(i, j);
-          }
-        }
+        idx.import(fineMat);
         idx.exportIdx(coarseMat);
       }
 
