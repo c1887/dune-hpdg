@@ -247,7 +247,7 @@ namespace Dune {
       DynamicBlockVector<field_type> v;
       v.setSize(matrix.N());
       for (size_t i = 0; i < matrix.N(); i++)
-        v.blockRows(i)=matrix.blockRows(i);
+        v.blockRows(i)=matrix.blockColumns(i);
       v.update();
       return v;
     }
