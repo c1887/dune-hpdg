@@ -133,13 +133,13 @@ namespace Dune
 
       const row_type& mat_access(size_type i) const {
         DUNE_ASSERT_BOUNDS(i < n_);
-        rowAccess.set(data_ + i*n_, m_); // pointer arithmetic, f*ck yeah!
+        rowAccess.set(data_ + i*m_, m_);
         return rowAccess;
       }
 
       row_type& mat_access(size_type i) {
         DUNE_ASSERT_BOUNDS(i < n_);
-        rowAccess.set(data_ + i*n_, m_); // pointer arithmetic, f*ck yeah!
+        rowAccess.set(data_ + i*m_, m_);
         return rowAccess;
       }
 
