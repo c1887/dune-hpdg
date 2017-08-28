@@ -42,7 +42,7 @@ namespace Impl {
     FECache cache_;
 
     using FE = typename FECache::FiniteElementType;
-    MatrixType makeTransferMatrix(const FE &fineFE, const FE &coarseFE) {
+    MatrixType makeTransferMatrix(const FE &coarseFE, const FE &fineFE) {
       auto numCoarse = coarseFE.size();
       auto numFine = fineFE.size();
 
@@ -97,6 +97,15 @@ namespace Impl {
 
   };
 
+  int blockSizeToOrder(const size_t& blockSize, int dim) {
+    auto val = std::pow(blockSize, 1.0/dim);
+    return (int) val-1;
+  }
+  size_t orderToBlockSize(const int& order, int dim) {
+    return (size_t) std::pow(order+1, dim);
+  }
+
+
 }
 
 template <class VectorType, int dim>
@@ -107,20 +116,41 @@ class DynamicOrderTransfer {
   using MatrixType = Dune::HPDG::DynamicBCRSMatrix<field_type>;
 
   /** \brief Restrict a function from the fine onto the coarse grid
+   *
+   * The polynomial degrees are extracted from the sizes of the vector blocks.
+   * So, make sure theses are correctly set!
   */
-  //template <typename CoarseVectorType>
-  //void restrict(const VectorType &fineVector,
-                //CoarseVectorType &coarseVector) const {
-    //Dune::HPDG::scaleByTransposedBlock(matrix_, fineVector, coarseVector);
-  //}
+  void restrict(const VectorType &fineVector, VectorType &coarseVector) const {
+    for (size_t i = 0; i < fineVector.N(); i++) {
+      const auto& fineBlock = fineVector[i];
+      auto& coarseBlock = coarseVector[i];
+      auto fineDegree = Impl::blockSizeToOrder(fineBlock.N(), dim);
+      auto coarseDegree = Impl::blockSizeToOrder(coarseBlock.N(), dim);
+      if (fineDegree == coarseDegree)
+        coarseBlock = fineBlock;
+      else {
+        const auto& transfer = matrix_(fineDegree, coarseDegree);
+        transfer.mtv(fineBlock, coarseBlock);
+      }
+    }
+  }
 
   /** \brief Prolong a function from the coarse onto the fine grid
   */
-  //template <typename CoarseVectorType>
-  //void prolong(const CoarseVectorType &coarseVector,
-               //VectorType &fineVector) const {
-    //Dune::HPDG::scaleByBlock(matrix_, coarseVector, fineVector);
-  //}
+  void prolong(const VectorType& coarseVector, VectorType& fineVector) const {
+    for (size_t i = 0; i < fineVector.N(); i++) {
+      auto& fineBlock = fineVector[i];
+      const auto& coarseBlock = coarseVector[i];
+      auto fineDegree = Impl::blockSizeToOrder(fineBlock.N(), dim);
+      auto coarseDegree = Impl::blockSizeToOrder(coarseBlock.N(), dim);
+      if (fineDegree == coarseDegree)
+        fineBlock = coarseBlock;
+      else {
+        const auto& transfer = matrix_(fineDegree, coarseDegree);
+        transfer.mv(coarseBlock, fineBlock);
+      }
+    }
+  }
 
   /** \brief Galerkin assemble a coarse stiffness matrix. All orders higher than input maxOrder will be restricted to
    * maxOrder. Lower orders will not be affected
@@ -133,7 +163,7 @@ class DynamicOrderTransfer {
     // On all others, there is an identity blocks, where we don't do anything.
     // Instead of computing the global transfer, we only compute the local blocks once (in the matrix_ cache)
     //
-    auto maxBlockSize = orderToBlockSize(maxOrder);
+    auto maxBlockSize = Impl::orderToBlockSize(maxOrder, dim);
 
     for (std::size_t i = 0; i < coarseMat.matrix().N(); i++) {
       auto &Ci = coarseMat.matrix()[i]; // current row
@@ -144,7 +174,7 @@ class DynamicOrderTransfer {
 
       if (fineMat.blockRows(i)>maxBlockSize) {
         rowIsIdentity = false;
-        rowMatrix = &matrix_(blockSizeToOrder(fineMat.blockRows(i)), maxOrder);
+        rowMatrix = &matrix_(Impl::blockSizeToOrder(fineMat.blockRows(i), dim), maxOrder);
       }
       else
         rowMatrix = &identity_(fineMat.blockRows(i));
@@ -156,7 +186,7 @@ class DynamicOrderTransfer {
         }
         else {
           if (fineMat.blockRows(j)>maxBlockSize) {
-            colMatrix = &matrix_(this->blockSizeToOrder(fineMat.blockRows(j)), maxOrder);
+            colMatrix = &matrix_(Impl::blockSizeToOrder(fineMat.blockRows(j), dim), maxOrder);
           }
           else
             colMatrix = &identity_(fineMat.blockRows(j));
@@ -188,23 +218,16 @@ class DynamicOrderTransfer {
     coarseMat.finishIdx();
 
     // set blockrow's rows: if greater than maxSize, truncate to maxSize, else copy from fineMat
-    auto maxSize= orderToBlockSize(order);
+    auto maxSize= Impl::orderToBlockSize(order, dim);
     for (size_t i = 0; i < coarseMat.matrix().N(); i++)
       coarseMat.blockRows(i) = (fineMat.blockRows(i) > maxSize) ? maxSize : fineMat.blockRows(i);
 
     // finish setup
     coarseMat.update();
+
   }
 
 private:
-  int blockSizeToOrder(const size_t& blockSize) const {
-    auto val = std::pow(blockSize, 1.0/dim);
-    return (int) val-1;
-  }
-  size_t orderToBlockSize(const int& order) const {
-    return (size_t) std::pow(order+1, dim);
-  }
-
   using TransferType = Dune::DynamicMatrix<double>; // TODO: Think about proper matrix type
   mutable Impl::TransferMatrixCache<TransferType, dim> matrix_;
   mutable Impl::IdentityCache<TransferType> identity_;
