@@ -9,6 +9,7 @@
 #include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
+#include <dune/hpdg/common/dynamicbvector.hh>
 
 /** Assemble a stiffness matrix */
 template<int k, class GridType>
@@ -145,6 +146,39 @@ auto rightHandSide(const GridType& grid, double force=-10.0) {
 
   using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
   Basis basis{grid.leafGridView()};
+  auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
+
+  using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
+
+  // assemble standard function \int fv
+  {
+    const ConstantFunction<Dune::FieldVector<double, dim>, Dune::FieldVector<double, 1> > f(force);
+    const L2FunctionalAssembler<GridType, FiniteElement> rhsLocalAssembler(f);
+    const auto localRHSlambda = [&](const auto& element, auto& localV, const auto& localView) {
+      rhsLocalAssembler.assemble(element, localV, localView.tree().finiteElement());
+    };
+    Dune::Fufem::DuneFunctionsFunctionalAssembler<Basis> rhsAssembler(basis);
+    rhsAssembler.assembleBulk(rhsBE, localRHSlambda);
+  }
+
+  return rhs;
+}
+
+template<class GridType>
+auto dynamicRightHandSide(const GridType& grid, int k=1, double force=-10.0) {
+  constexpr auto dim = GridType::dimensionworld;
+  //using Vector = Dune::BlockVector<Dune::FieldVector<double, Dune::StaticPower<k+1, dim>::power> >;
+  using Vector = Dune::HPDG::DynamicBlockVector<double>;
+  int blockSize = (int) std::pow(k+1, (int) dim);
+  Vector rhs(grid.leafGridView().size(0), blockSize);
+  rhs.update();
+
+  //using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
+  //Basis basis{grid.leafGridView()};
+
+  using Basis = Dune::Functions::DynamicDGQkGLBlockBasis<typename GridType::LeafGridView>;
+  Basis basis{grid.leafGridView(), k};
+
   auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
 
   using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
