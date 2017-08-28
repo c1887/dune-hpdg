@@ -101,7 +101,7 @@ namespace Dune
         DUNE_ASSERT_BOUNDS(n_==matrix.N() and m_ == matrix.M());
         for (size_t i = 0; i < n_; i++) {
           for (size_t j = 0; j < m_; j++) {
-            data_[i*n_ + j]= matrix[i][j];
+            data_[i*m_ + j]= matrix[i][j];
           }
         }
         return *this;
