@@ -107,12 +107,14 @@ namespace Dune {
       }
 
       DynamicBlockVector& operator+=(const DynamicBlockVector& other) {
+        DUNE_ASSERT_BOUNDS(other.n_==n_);
         for (size_t i = 0; i < size_; i++)
           data_[i] += other.data_[i];
         return *this;
       }
 
       DynamicBlockVector& operator-=(const DynamicBlockVector& other) {
+        DUNE_ASSERT_BOUNDS(other.n_==n_);
         for (size_t i = 0; i < size_; i++)
           data_[i] -= other.data_[i];
         return *this;
@@ -131,12 +133,14 @@ namespace Dune {
       }
 
       DynamicBlockVector operator+(const DynamicBlockVector& other) const {
+        DUNE_ASSERT_BOUNDS(other.n_==n_);
         auto v=*this;
         v+=other;
         return v;
       }
 
       DynamicBlockVector operator-(const DynamicBlockVector& other) const {
+        DUNE_ASSERT_BOUNDS(other.n_==n_);
         auto v=*this;
         v-=other;
         return v;
@@ -150,6 +154,7 @@ namespace Dune {
 
       // scalar product
       field_type operator*(const DynamicBlockVector& other) {
+        DUNE_ASSERT_BOUNDS(other.n_==n_);
         field_type sum =0;
         for (size_t i = 0; i < size_; i++)
           sum+=data_[i]*other.data_[i];
@@ -178,9 +183,11 @@ namespace Dune {
 
       // give STL-like access
       auto& at(size_t i) {
+        DUNE_ASSERT_BOUNDS(i<n_);
         return vector_[i];
       }
       const auto& at(size_t i) const {
+        DUNE_ASSERT_BOUNDS(i<n_);
         return vector_[i];
       }
       auto& front() {
@@ -202,9 +209,16 @@ namespace Dune {
        *
        * If memory has been allocated before,
        * it will be released and new memory will be allocated!
+       *
        */
       void allocateMemory() {
+        const auto oldSize = size_;
         size_ = calculateSize();
+
+        // if the old and new size match, do not allocate again
+        if (size_ == oldSize)
+          return;
+
         if (data_ != nullptr) {
           data_.reset(new K[size_]);
         }
@@ -224,7 +238,7 @@ namespace Dune {
 
       /** Sets the pointers in the vector windows, aka. initializes the blocks */
       void resetBlocks() {
-        auto currentPtr = data_.get();
+        auto* currentPtr = data_.get();
         for (size_t i = 0; i < n_; i++) {
           auto& Vi = vector_[i]; // get i-th block
           Vi.set(currentPtr, rowMap_[i]);
@@ -240,12 +254,13 @@ namespace Dune {
       size_t size_;
     };
 
-    /** Return a readily allocated dynamic BlockVector with the same blocking as a given DynamicBCRSMatrix
+    /** Return a readily allocated dynamic BlockVector with the same blocking as a given DynamicBCRSMatrix M,
+     * i.e. one such that M*v is valid.
      */
     template<class field_type>
     DynamicBlockVector<field_type> makeDynamicBlockVector(const DynamicBCRSMatrix<field_type>& matrix) {
       DynamicBlockVector<field_type> v;
-      v.setSize(matrix.N());
+      v.setSize(matrix.M());
       for (size_t i = 0; i < matrix.N(); i++)
         v.blockRows(i)=matrix.blockColumns(i);
       v.update();
