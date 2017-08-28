@@ -34,7 +34,6 @@ namespace Dune
 
     typedef row_type &row_reference;
     typedef const row_type &const_row_reference;
-
     typedef std::vector<K> container_type;
     typedef K value_type;
     typedef typename container_type::size_type size_type;
@@ -111,7 +110,7 @@ namespace Dune
         if (data_==nullptr)
           DUNE_THROW(Dune::Exception, "Trying to write through uninitialized MatrixWindow (you need to set the ptr to some valid place!)");
 
-        DUNE_ASSERT_BOUNDS(other.n_ == n_ and other.m_ == m_)
+        DUNE_ASSERT_BOUNDS(other.n_ == n_ and other.m_ == m_);
         if (data_== other.data_) return *this;
 
         for (size_t i = 0; i < n_*m_; i++) data_[i]=other.data_[i];

@@ -105,27 +105,9 @@ namespace Dune {
       const K* py = y.data_;
       // compute scalar product directly on the C-array
       for (size_t i = 0; i < n_; i++)
-        sum+= *pthis++ * *py++;
+        sum+= *pthis++ * *py++; // aka. sum+= (*this)[i]*y[i]
       return sum;
     }
-
-    //==== forward some methods of std::vector
-    /** \brief Number of elements for which memory has been allocated.
-
-        capacity() is always greater than or equal to size().
-     */
-    //size_type capacity() const
-    //{
-      //return _data.capacity();
-    //}
-    //void resize (size_type n, value_type c = value_type() )
-    //{
-      //_data.resize(n,c);
-    //}
-    //void reserve (size_type n)
-    //{
-      //_data.reserve(n);
-    //}
 
     size_type size() const {
       return n_;
