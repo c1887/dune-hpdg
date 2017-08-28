@@ -215,12 +215,12 @@ namespace Dune {
         const auto oldSize = size_;
         size_ = calculateSize();
 
-        // if the old and new size match, do not allocate again
-        if (size_ == oldSize)
-          return;
-
         if (data_ != nullptr) {
-          data_.reset(new K[size_]);
+          // if the old and new size match, do not allocate again
+          if (size_ == oldSize)
+            return;
+          else
+            data_.reset(new K[size_]);
         }
         else {
           data_ = std::make_unique<K[]>(size_);
