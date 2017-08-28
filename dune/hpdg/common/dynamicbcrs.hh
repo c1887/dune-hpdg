@@ -162,7 +162,7 @@ namespace Dune {
 
       /** Sets the pointers in the matrix windows, aka. initializes the blocks */
       void resetBlocks() {
-        auto currentPtr = data_.get();
+        auto* currentPtr = data_.get();
         for (size_t i = 0; i < n_; i++) {
           auto& Qi = matrix_[i];
           MatrixVector::sparseRangeFor(Qi, [&](auto&& Qij, auto&&j) {
