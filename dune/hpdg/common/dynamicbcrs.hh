@@ -123,6 +123,8 @@ namespace Dune {
         resetBlocks();
       }
 
+      // get the look&feel of an actual BCRS matrix object
+
       auto N() const {
         return n_;
       }
@@ -130,6 +132,67 @@ namespace Dune {
       auto M() const {
         return m_;
       }
+
+      template<class X, class Y>
+      void mv(const X& x, Y& y) const {
+        matrix_.mv(x,y);
+      }
+
+      template<class X, class Y>
+      void mmv(const X& x, Y& y) const {
+        matrix_.mmv(x,y);
+      }
+
+      template<class X, class Y>
+      void mtv(const X& x, Y& y) const {
+        matrix_.mtv(x,y);
+      }
+
+      template<class X, class Y>
+      void umv(const X& x, Y& y) const {
+        matrix_.umv(x,y);
+      }
+
+      template<class X, class Y>
+      void umtv(const X& x, Y& y) const {
+        matrix_.umtv(x,y);
+      }
+
+      auto& operator[](size_t i) {
+        return matrix_[i];
+      }
+
+      const auto& operator[](size_t i) const {
+        return matrix_[i];
+      }
+
+      DynamicBCRSMatrix& operator=(const DynamicBCRSMatrix& other) {
+        n_=other.n_;
+        m_=other.m_;
+        rowMap_= other.rowMap_;
+        colMap_= other.colMap_;
+        {
+          matrix_ = BCRS();
+          auto idx = Dune::MatrixIndexSet(n_, m_);
+          idx.import(other.matrix_);
+          idx.exportIdx(matrix_);
+        }
+        update();
+
+        // copy data from one C-array to the other
+        K* data = data_.get();
+        K* otherdata = other.data_.get();
+        for (size_t i = 0; i < size_; i++)
+          *data++ = *otherdata++;
+
+        return *this;
+      }
+
+      DynamicBCRSMatrix& operator=(K scalar) {
+        for (size_t i = 0; i < size_; i++)
+          data_[i]=scalar;
+      }
+
 
       private:
 
