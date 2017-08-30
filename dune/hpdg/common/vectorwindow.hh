@@ -11,6 +11,7 @@
 #include <initializer_list>
 #include <limits>
 #include <utility>
+#include <memory>
 
 #include <dune/common/boundschecking.hh>
 #include <dune/common/exceptions.hh>
@@ -48,6 +49,11 @@ namespace Dune {
     K* data_;
     size_t n_;
 
+    // Some algorithms require to make a copy from this vector. Though I don't 
+    // very much like this fact, I don't want to rewrite every single of them.
+    // Hence, if requested, this vector window can actually manage its own memory.
+    std::unique_ptr<K[]> ownData_ = nullptr;
+
     typedef DenseVector< VectorWindow<K> > Base;
   public:
     typedef typename Base::size_type size_type;
@@ -55,8 +61,24 @@ namespace Dune {
 
     //typedef Allocator allocator_type;
 
-    // Don't you dare...
-    VectorWindow(const VectorWindow& x) = delete;
+    /** Construct as a copy. This is, however, not the intended use of this class! */
+    VectorWindow(const VectorWindow& x) {
+      ownData_ = std::make_unique<K[]>(x.n_);
+      data_=ownData_.get();
+      n_=x.n_;
+      for (size_t i = 0; i < n_; i++)
+        data_[i] = x.data_[i];
+    }
+
+    /** Resize window. This implies new memory allocation. Do this at your own risk.
+     * Do not cry at me if you break your performance because your memory is no longer
+     * contiguous.
+     */
+    void resize(size_t i) {
+      ownData_ = std::make_unique<K[]>(i);
+      data_=ownData_.get();
+      n_=i;
+    }
 
     // TODO: I cannot imagine a situation where this should be used, but feel free to implement.
     VectorWindow(VectorWindow&& x) {
