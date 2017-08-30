@@ -15,11 +15,12 @@ namespace Dune {
     template<class K>
     class DynamicBlockVector {
       using BlockType = Dune::HPDG::VectorWindow<K>;
-      enum {blocklevel = BlockType::blocklevel +1 };
 
       public:
 
+      enum {blocklevel = BlockType::blocklevel +1 };
       using field_type = K;
+      using real_type = K;
       using size_type = size_t;
       using block_type = BlockType;
 
@@ -153,7 +154,7 @@ namespace Dune {
       }
 
       // scalar product
-      field_type operator*(const DynamicBlockVector& other) {
+      field_type operator*(const DynamicBlockVector& other) const {
         DUNE_ASSERT_BOUNDS(other.n_==n_);
         field_type sum =0;
         for (size_t i = 0; i < size_; i++)
@@ -201,6 +202,14 @@ namespace Dune {
       }
       const auto& back() const {
         return vector_.back();
+      }
+
+      auto two_norm() const {
+        return std::sqrt((*this)*(*this));
+      }
+
+      auto two_norm2() const {
+        return (*this)*(*this);
       }
 
       private:
@@ -267,5 +276,18 @@ namespace Dune {
       return v;
     }
   }
+  template<class T>
+  struct FieldTraits<HPDG::DynamicBlockVector<T>>
+  {
+    typedef typename HPDG::DynamicBlockVector<T>::field_type field_type;
+    typedef typename HPDG::DynamicBlockVector<T>::real_type real_type;
+  };
+  template<class T>
+  struct FieldTraits<const HPDG::DynamicBlockVector<T>>
+  {
+    typedef typename HPDG::DynamicBlockVector<T>::field_type field_type;
+    typedef typename HPDG::DynamicBlockVector<T>::real_type real_type;
+  };
+
 }
 #endif//DUNE_HPDG_DYNAMIC_BLOCKVECTOR_HH

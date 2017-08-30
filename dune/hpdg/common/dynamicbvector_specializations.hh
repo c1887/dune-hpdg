@@ -1,15 +1,16 @@
 // -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 // vi: set et ts=4 sw=2 sts=2:
-#ifndef DUNE_HPDG_COMMON_RESIZE_HH
-#define DUNE_HPDG_COMMON_RESIZE_HH
-
-#include <dune/common/indices.hh>
-#include <dune/common/concept.hh>
-#include <dune/common/typetraits.hh>
+#ifndef DUNE_HPDG_COMMON_DYNAMIC_BLOCKVECTOR_SPECIALIZATIONS_HH
+#define DUNE_HPDG_COMMON_DYNAMIC_BLOCKVECTOR_SPECIALIZATIONS_HH
 
 #include <dune/solvers/common/resize.hh>
+#include <dune/solvers/common/defaultbitvector.hh>
 
 #include <dune/hpdg/common/dynamicbvector.hh>
+
+/* This file includes some template specializations such that the DynamicBlockVector can be better
+ * used in other, in particular dune-solvers, modules.
+ */
 
 namespace Dune {
 namespace Solvers {
@@ -22,6 +23,16 @@ void resizeInitialize(Dune::HPDG::DynamicBlockVector<K>& x, const Dune::HPDG::Dy
   x=y;
   x=value;
 }
+
+} // namespace Impl
+
+namespace Imp {
+
+template<class T>
+struct DefaultBitVector<HPDG::DynamicBlockVector<T>>
+{
+  using type = std::vector<std::vector<char>>;
+};
 
 } // namespace Impl
 
@@ -60,4 +71,4 @@ void resizeInitializeZero(HPDG::DynamicBlockVector<K>& x, const HPDG::DynamicBlo
 } // end namespace Solvers
 } // end namespace Dune
 
-#endif // DUNE_HPDG_COMMON_RESIZE_HH
+#endif // DUNE_HPDG_COMMON_DYNAMIC_BLOCKVECTOR_SPECIALIZATIONS_HH
