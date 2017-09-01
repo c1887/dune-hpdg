@@ -191,7 +191,8 @@ auto dynamicRightHandSide(const GridType& grid, int k=1, double force=-10.0) {
       rhsLocalAssembler.assemble(element, localV, localView.tree().finiteElement());
     };
     Dune::Fufem::DuneFunctionsFunctionalAssembler<Basis> rhsAssembler(basis);
-    rhsAssembler.assembleBulk(rhsBE, localRHSlambda);
+    // We only have the correct vector size, hence we only need to assemble the Entries
+    rhsAssembler.assembleBulkEntries(rhsBE, localRHSlambda);
   }
 
   return rhs;
