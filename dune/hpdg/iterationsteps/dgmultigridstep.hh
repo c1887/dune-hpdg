@@ -3,6 +3,7 @@
 
 #include <dune/common/tupleutility.hh>
 #include <dune/common/hybridutilities.hh>
+#include <dune/common/typetraits.hh>
 
 #include <dune/istl/bcrsmatrix.hh>
 
@@ -209,10 +210,10 @@ namespace Dune {
                 DuneSolversLoopSolver* loopBaseSolver = dynamic_cast<DuneSolversLoopSolver*> (this->basesolver_);
 
                 typedef LinearIterationStep<Matrix, Vector> SmootherType;
-                assert(dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_));
+                assert(dynamic_cast<SmootherType*>(&(loopBaseSolver->getIterationStep())));
 
-                dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->setProblem(matrix, x, res);
-                dynamic_cast<SmootherType*>(loopBaseSolver->iterationStep_)->preprocess();
+                dynamic_cast<SmootherType*>(&(loopBaseSolver->getIterationStep()))->setProblem(matrix, x, res);
+                dynamic_cast<SmootherType*>(&(loopBaseSolver->getIterationStep()))->preprocess();
               }
               else if (dynamic_cast<LinearSolver<Matrix, Vector>*>(this->basesolver_)) {
 
