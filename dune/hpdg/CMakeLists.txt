@@ -1,5 +1,6 @@
 add_subdirectory("assemblers")
 add_subdirectory("common")
+add_subdirectory("estimators")
 add_subdirectory("functionspacebases")
 add_subdirectory("iterationsteps")
 add_subdirectory("localfunctions")
