@@ -252,14 +252,18 @@ public:
 
 
   //! Maps from subtree index set [0..size-1] to a globally unique multi index in global basis
-  MultiIndex index(size_type i) const
+  template<class It>
+  It indices(It it) const
   {
-    const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
-    const auto& element = node_->element();
+    for (size_t i =0, end = node_->finiteElement().size(); i <end; i++, ++it) {
+      const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
+      const auto& element = node_->element();
 
-    // Our Gauss-Lobatto basis is defined for tensor-product bases on cubic grids only. Hence, we do not have
-    // to differentiate between the different geometries and dimensions.
-    return {{gridIndexSet.subIndex(element, 0, 0), i}};
+      // Our Gauss-Lobatto basis is defined for tensor-product bases on cubic grids only. Hence, we do not have
+      // to differentiate between the different geometries and dimensions.
+      *it= {{gridIndexSet.subIndex(element, 0, 0), i}};
+    }
+    return it;
   }
 
 protected:

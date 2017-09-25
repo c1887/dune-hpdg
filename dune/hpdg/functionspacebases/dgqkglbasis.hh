@@ -302,75 +302,65 @@ public:
   }
 
   //! Maps from subtree index set [0..size-1] to a globally unique multi index in global basis
-  MultiIndex index(size_type i) const
+  template<class It>
+  It indices(It it) const
   {
     const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
     const auto& element = node_->element();
+    for (size_t i =0, end = node_->finiteElement().size(); i<end; ++i, ++it) {
+      if (useTwoLevelIndex) {
+        switch (dim)
+        {
+          case 1:
+            *it= {{gridIndexSet.subIndex(element, 0, 0), i}};
+            continue;
+          case 2:
+          {
+            if (element.type().isQuadrilateral()) {
+              *it= {{nodeFactory_->quadrilateralOffset_ + gridIndexSet.subIndex(element, 0,0), i}};
+              continue;
+            }
+            else
+              DUNE_THROW(Dune::NotImplemented, "2d elements have to be quadrilaterals");
+          }
+          case 3:
+            if (element.type().isHexahedron()) {
+              *it= {{nodeFactory_->hexahedronOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
+              continue;
+            }
+            else
+              DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+        }
+      }
 
-    if (useTwoLevelIndex) {
       switch (dim)
       {
         case 1:
-          return {{gridIndexSet.subIndex(element, 0, 0), i}};
+        {
+          *it= {{nodeFactory_->dofsPerEdge*gridIndexSet.subIndex(element,0,0) + i}};
+          continue;
+        }
         case 2:
         {
-          if (element.type().isTriangle())
-            return {{gridIndexSet.subIndex(element, 0, 0), i}};
-          else if (element.type().isQuadrilateral())
-            return {{nodeFactory_->quadrilateralOffset_ + gridIndexSet.subIndex(element, 0,0), i}};
+          if (element.type().isQuadrilateral())
+            *it= {{nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i}};
           else
-            DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+            DUNE_THROW(Dune::NotImplemented, "DGQkGL in 2d is only implemented on quadrilaterals");
+          continue;
         }
         case 3:
-          if (element.type().isTetrahedron())
-            return {{gridIndexSet.subIndex(element, 0, 0), i}};
-          else if (element.type().isPrism())
-            return {{nodeFactory_->prismOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
-          else if (element.type().isHexahedron())
-            return {{nodeFactory_->hexahedronOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
-          else if (element.type().isPyramid())
-            return {{nodeFactory_->pyramidOffset_+ gridIndexSet.subIndex(element, 0,0), i}};
+        {
+          if (element.type().isHexahedron())
+          {
+            *it = {{nodeFactory_->hexahedronOffset_ + nodeFactory_->dofsPerHexahedron*gridIndexSet.subIndex(element,0,0) + i}};
+          }
           else
-            DUNE_THROW(Dune::NotImplemented, "2d elements have to be triangles or quadrilaterals");
+            DUNE_THROW(Dune::NotImplemented, "3d elements have to be tetrahedrons, prisms, hexahedrons or pyramids");
+        }
       }
+      DUNE_THROW(Dune::NotImplemented, "No index method for " << dim << "d grids available yet!");
     }
-
-    switch (dim)
-    {
-      case 1:
-      {
-        return {{nodeFactory_->dofsPerEdge*gridIndexSet.subIndex(element,0,0) + i}};
-      }
-      case 2:
-      {
-        if (element.type().isQuadrilateral())
-          return {{nodeFactory_->quadrilateralOffset_ + nodeFactory_->dofsPerQuad*gridIndexSet.subIndex(element,0,0) + i}};
-        else
-          DUNE_THROW(Dune::NotImplemented, "DGQkGL in 2d is only implemented on quadrilaterals");
-      }
-      case 3:
-      {
-        if (element.type().isTetrahedron())
-        {
-          return {{nodeFactory_->dofsPerTetrahedron*gridIndexSet.subIndex(element,0,0) + i}};
-        }
-        else if (element.type().isPrism())
-        {
-          return {{nodeFactory_->prismOffset_ + nodeFactory_->dofsPerPrism*gridIndexSet.subIndex(element,0,0) + i}};
-        }
-        else if (element.type().isHexahedron())
-        {
-          return {{nodeFactory_->hexahedronOffset_ + nodeFactory_->dofsPerHexahedron*gridIndexSet.subIndex(element,0,0) + i}};
-        }
-        else if (element.type().isPyramid())
-        {
-          return {{nodeFactory_->pyramidOffset_ + nodeFactory_->dofsPerPyramid*gridIndexSet.subIndex(element,0,0) + i}};
-        }
-        else
-          DUNE_THROW(Dune::NotImplemented, "3d elements have to be tetrahedrons, prisms, hexahedrons or pyramids");
-      }
-    }
-    DUNE_THROW(Dune::NotImplemented, "No index method for " << dim << "d grids available yet!");
+    return it;
   }
 
 protected:
