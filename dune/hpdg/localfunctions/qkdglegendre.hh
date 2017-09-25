@@ -337,7 +337,7 @@ namespace Dune
 
     public:
 
-      DGLegendreLocalInterpolation () : gt(Dune::GeometryType::cube,d)
+      DGLegendreLocalInterpolation () : gt(Dune::GeometryTypes::cube(d))
       {}
 
       //! \brief Local interpolation of a function
@@ -435,9 +435,7 @@ namespace Dune
     /** \todo Please doc me !
      */
     QkDGLegendreLocalFiniteElement ()
-    {
-      gt.makeCube(d);
-    }
+      : gt(GeometryTypes::cube(d)) {}
 
     /** \todo Please doc me !
      */

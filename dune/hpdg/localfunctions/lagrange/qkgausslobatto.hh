@@ -34,9 +34,7 @@ namespace Dune
     /** \todo Please doc me !
      */
     QkGaussLobattoLocalFiniteElement ()
-    {
-      gt.makeCube(d);
-    }
+      : gt(GeometryTypes::cube(d)) {}
 
     /** \todo Please doc me !
      */
@@ -75,6 +73,10 @@ namespace Dune
     QkGaussLobattoLocalFiniteElement* clone () const
     {
       return new QkGaussLobattoLocalFiniteElement(*this);
+    }
+
+    int order() const {
+      return k;
     }
 
   private:

@@ -97,25 +97,20 @@ public:
     edgeOffset_          = vertexOffset_          + dofsPerVertex * gridView_.size(dim);
     triangleOffset_      = edgeOffset_            + dofsPerEdge * gridView_.size(dim-1);
 
-    GeometryType triangle;
-    triangle.makeTriangle();
+    auto triangle = GeometryTypes::triangle;
     quadrilateralOffset_ = triangleOffset_        + dofsPerTriangle * gridView_.size(triangle);
 
-    Dune::GeometryType quadrilateral;
-    quadrilateral.makeQuadrilateral();
+    auto quadrilateral = GeometryTypes::quadrilateral;
     if (dim==3) {
       tetrahedronOffset_   = quadrilateralOffset_ + dofsPerQuad * gridView_.size(quadrilateral);
 
-      GeometryType tetrahedron;
-      tetrahedron.makeSimplex(3);
+      auto tetrahedron = GeometryTypes::simplex(3);
       prismOffset_         = tetrahedronOffset_   +   dofsPerTetrahedron * gridView_.size(tetrahedron);
 
-      GeometryType prism;
-      prism.makePrism();
+      auto prism = GeometryTypes::prism;
       hexahedronOffset_    = prismOffset_         +   dofsPerPrism * gridView_.size(prism);
 
-      GeometryType hexahedron;
-      hexahedron.makeCube(3);
+      auto hexahedron = GeometryTypes::cube(3);
       pyramidOffset_       = hexahedronOffset_    +   dofsPerHexahedron * gridView_.size(hexahedron);
     }
   }
