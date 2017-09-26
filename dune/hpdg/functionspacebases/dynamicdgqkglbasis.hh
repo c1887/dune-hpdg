@@ -52,8 +52,7 @@ public:
   using GridView = GV;
   using size_type = std::size_t;
 
-  using ElementIndex = typename MultipleCodimMultipleGeomTypeMapper<GridView>::Index;
-  using DegreeMap = std::map<ElementIndex, int>;
+  using DegreeMap = std::vector<int>;
   template<class TP>
   using Node = DynamicQkGLNode<GV, TP, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
   //using Node = QkGLNode<GV, k, TP>;
@@ -72,6 +71,7 @@ public:
     mcmgMapper_(gv, mcmgElementLayout())
   {
     // fill Degreemap
+    degreeMap_.resize(mcmgMapper_.size());
     for (const auto& e : elements(gridView_))
       degreeMap_[mcmgMapper_.index(e)]=k;
   }
@@ -114,9 +114,6 @@ public:
   template<class TP>
   Node<TP> node(const TP& tp) const
   {
-    // TODO: Hier muss irgendwie eine Degreemap abgerufen werden, die dann an den Node mitgegeben wird.
-    // Frage, muss die map sich auf elemente beziehen oder auf Knoten des Baumes?
-    //return Node<TP>{tp};
     return Node<TP>{tp, &mcmgMapper_, &degreeMap_};
   }
 
@@ -167,15 +164,14 @@ public:
   {
     size_type count = 0;
     for (const auto& e: degreeMap_)
-      count += std::pow(e.second+1, dim);
+      count += std::pow(e+1, dim);
     return count;
   }
 
   size_type maxNodeSize() const
   {
     // find highest degree
-    auto m = std::max_element(std::begin(degreeMap_), std::end(degreeMap_),
-        [] (const auto& a, const auto& b) { return a.second < b.second;})->second;
+    auto m = *std::max_element(std::begin(degreeMap_), std::end(degreeMap_));
 
     // return tensor-product size
     return std::pow((size_type)m+1, dim);
