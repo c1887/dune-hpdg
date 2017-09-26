@@ -12,14 +12,45 @@
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
 
+
+namespace Dune {
+  namespace HPDG {
+    namespace Impl {
+
+      // modified code from dune-matrix-vector for FieldMatrices
+      template<class K>
+      void addTransformedMatrix(MatrixWindow<K>& A, const MatrixWindow<K>& T1,
+          const MatrixWindow<K>& B,
+          const MatrixWindow<K>& T2) {
+
+        //Dune::FieldMatrix<K1, m, n> T1transposedB;
+        //auto T1transposedB = Dune::DynamicMatrix<double>(T1.M(), B.M());
+        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<double,1,1>>(T1.M(), B.M());
+        //auto data = std::make_unique<K>(T1.M()*B.M());
+        //MatrixWindow<K> T1transposedB(data.get(), T1.M(), B.M());
+        // TODO: Hier ein MatrixWindow zu nutzen scheint nicht zu funktioneren, man schreibt da irgendwie an falsche stellen.
+        // Da frag ich mich dann doch, warum.
+        T1transposedB = 0;
+        for (size_t i = 0; i < T1.M(); ++i)
+          for (size_t k = 0; k < B.N(); ++k)
+            if (T1[k][i] != 0)
+              for (size_t l = 0; l < B.M(); ++l)
+                T1transposedB[i][l] += T1[k][i] * B[k][l];
+        for (size_t k = 0; k < T2.N(); ++k)
+          for (size_t l = 0; l < T2.M(); ++l)
+            if (T2[k][l] != 0)
+              for (size_t i = 0; i < A.N(); ++i)
+                A[i][l] += T1transposedB[i][k] * T2[k][l];
+
+      }
+    }
+
 /** \brief Galerkin restriction and prolongation for Discontinuous Galerkin stiffness matrices
  *
  * This class implements the Galerkin restriciton and prolongation between DG bases of different orders on the same grid.
  * Matrices and vectors have to be blocked element-wise(!). This leads to very efficient computations since the transfer matrices are
  * block diagonal.
  */
-namespace Dune {
-  namespace HPDG {
     template<class VectorType, int dim>
     class DGOrderTransfer
     {
@@ -66,9 +97,8 @@ namespace Dune {
           auto blocks = fineReference.blockRows(i);
           // case 1: block is not too large, we can put an identity
           if (blocks<=maxBlockSize) {
-            DUNE_THROW(Dune::Exception, "HERES STILL A BUG"); // TODO: die schleifen unten sind falsch. die matrizen sind nicht immer blocks x blocks
-            for (size_t i = 0; i < blocks; i++)
-              for (size_t j = 0; j < blocks; j++)
+            for (size_t i = 0; i < transferBlock.N(); i++)
+              for (size_t j = 0; j < transferBlock.M(); j++)
                 transferBlock[i][j]= (i==j) ? 1.0 : 0.0;
           }
           // case 2: block (and hence order) too large, put transferblock to maxOrder here
@@ -116,19 +146,19 @@ namespace Dune {
         auto& coarseMat = coarseMatrix.matrix();
         coarseMat = 0;
 
-        // We do not directly call the multipl. method on the global matrices since we want to use the block diagonal structure
-        // to avoid expensive exists() calls
-
-        // Loop over nonzero entries of the fine matrix
-        for (size_t r=0; r <fineMat.N(); r++) {
-          const auto& row = fineMat[r];
-          auto cIt = row.begin();
-          const auto& cEnd = row.end();
-          for (; cIt!=cEnd; ++cIt) {
-            auto c = cIt.index(); // we're at index (r,c)
-            // R^T *A * R (blockwise multiplication as R is block diagonal)
-            Dune::MatrixVector::addTransformedMatrix(coarseMat[r][c], matrix_.matrix()[r][r], fineMat[r][c], matrix_.matrix()[c][c]);
-          }
+        // code from block transfer. TODO Check it carefully!
+        for (std::size_t i =0; i< fineMat.N(); i++) {
+          const auto& Ai = fineMat[i];
+          Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
+            const auto& Ti = matrix_.matrix()[i];
+            const auto& Tj = matrix_.matrix()[j];
+            Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
+              Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
+                  //Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
+                  Impl::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
+              });
+            });
+          });
         }
       }
 

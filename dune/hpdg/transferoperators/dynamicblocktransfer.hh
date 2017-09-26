@@ -11,6 +11,7 @@
 
 #include <dune/hpdg/common/dynamicbcrs.hh>
 
+#include <dune/hpdg/transferoperators/ordertransfer.hh>
 /** \brief Galerkin restriction and prolongation for blocked matrices
  * Essentially the same as DGMultigridTransfer but this does not assume that we have a block-diagonal transfer operator
  *
@@ -82,7 +83,8 @@ namespace Dune {
             const auto& Tj = matrix_->matrix()[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
-                  Dune::MatrixVector::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
+                  //Dune::MatrixVector::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
+                  Impl::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
               });
             });
           });
