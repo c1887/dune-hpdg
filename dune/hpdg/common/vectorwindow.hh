@@ -80,10 +80,14 @@ namespace Dune {
       n_=i;
     }
 
-    // TODO: I cannot imagine a situation where this should be used, but feel free to implement.
     VectorWindow(VectorWindow&& x) {
       this->n_ = x.n_;
-      this->data_ = x.data_;
+      if (x.ownData_ != nullptr) {
+        this->ownData_ = std::move(x.ownData_);
+        this->data_=this->ownData_.get();
+      }
+      else
+        this->data_ = x.data_;
       x.data_ = nullptr;
     }
 
