@@ -56,7 +56,7 @@ public:
    */
   const FiniteElement& finiteElement() const
   {
-    return *finiteElement_;
+    return cache_.get(degree_);
   }
 
   //! Bind to element.
@@ -65,7 +65,8 @@ public:
     element_ = &e;
     auto i = mcmgMapper_->index(e);
 
-    finiteElement_ = &(cache_.get(degreeMap_->at(i)));
+    degree_ = degreeMap_->at(i);
+    finiteElement_ = &(cache_.get(degree_));
     this->setSize(finiteElement_->size());
   }
 
@@ -76,6 +77,7 @@ protected:
   const Element* element_;
   const Mapper* mcmgMapper_;
   const DegreeMap* degreeMap_;
+  int degree_ = 1;
 };
 
 
