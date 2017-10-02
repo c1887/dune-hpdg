@@ -130,6 +130,20 @@ namespace Dune
         return this->mat_cols();
       }
 
+      /**
+       * \brief Access to underlying data.
+       */
+      const K* data() const {
+        return data_;
+      }
+
+      /**
+       * \brief Access to underlying data.
+       */
+      K* data() {
+        return data_;
+      }
+
       const row_type& mat_access(size_type i) const {
         DUNE_ASSERT_BOUNDS(i < n_);
         rowAccess.set(data_ + i*m_, m_);
