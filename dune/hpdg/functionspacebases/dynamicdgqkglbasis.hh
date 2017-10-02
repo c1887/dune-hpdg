@@ -111,6 +111,12 @@ public:
     return gridView_;
   }
 
+  void update(const GridView& gv) {
+    gridView_ = gv;
+    mcmgMapper_.update();
+    degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
+  }
+
   template<class TP>
   Node<TP> node(const TP& tp) const
   {
@@ -183,7 +189,7 @@ public:
   }
 
 //protected:
-  const GridView gridView_;
+  GridView gridView_;
   MultipleCodimMultipleGeomTypeMapper<GridView> mcmgMapper_;
   DegreeMap degreeMap_;
 
