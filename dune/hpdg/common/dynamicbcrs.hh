@@ -16,11 +16,11 @@ namespace Dune {
 
     template<class K>
     class DynamicBCRSMatrix {
-      using BlockType = Dune::HPDG::MatrixWindow<K>;
-      using BCRS = Dune::BCRSMatrix<BlockType>;
 
       public:
 
+      using BlockType = Dune::HPDG::MatrixWindow<K>;
+      using BCRS = Dune::BCRSMatrix<BlockType>;
       using Matrix = Dune::BCRSMatrix<BlockType>;
       using field_type = K;
 
