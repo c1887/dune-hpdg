@@ -70,11 +70,16 @@ namespace Dune {
         data_[i] = x.data_[i];
     }
 
-    /** Resize window. This implies new memory allocation. Do this at your own risk.
+    /** Resize window. This may imply new memory allocation. Do this at your own risk.
      * Do not cry at me if you break your performance because your memory is no longer
      * contiguous.
      */
     void resize(size_t i) {
+      // if our window already has the right size plus some memory it points to,
+      // nothing should be done
+      if (n_==i and data_!= nullptr)
+        return;
+      // otherwise, allocate new memory
       ownData_ = std::make_unique<K[]>(i);
       data_=ownData_.get();
       n_=i;
