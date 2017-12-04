@@ -63,7 +63,7 @@ TestSuite test_DGMultigridStep() {
 #endif
 
   auto norm = EnergyNorm<Matrix, Vector>{matrix};
-  auto solver = ::LoopSolver<Vector>{&multigridStep, 99, 1e-13, &norm, Solver::FULL};
+  auto solver = ::LoopSolver<Vector>{multigridStep, 99, 1e-13, norm, Solver::FULL};
 
   solver.preprocess();
   solver.solve();
