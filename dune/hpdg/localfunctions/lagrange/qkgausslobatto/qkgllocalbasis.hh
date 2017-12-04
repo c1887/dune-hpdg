@@ -81,7 +81,7 @@ namespace Dune
 
   public:
 
-    typedef LocalBasisTraits<D,d,Dune::FieldVector<D,d>,R,1,Dune::FieldVector<R,1>,Dune::FieldMatrix<R,1,d>, 1> Traits;
+    typedef LocalBasisTraits<D,d,Dune::FieldVector<D,d>,R,1,Dune::FieldVector<R,1>,Dune::FieldMatrix<R,1,d>> Traits;
 
     //! \brief number of shape functions
     unsigned int size () const
@@ -184,13 +184,11 @@ namespace Dune
      * \param [in]  in        Position where to evaluate
      * \param [out] out       The return value
      */
-    template<int diffOrder>
     inline void evaluate(
       const std::array<int,1>& direction,
       const typename Traits::DomainType& in,
       std::vector<typename Traits::RangeType>& out) const
     {
-      static_assert(diffOrder == 1, "We only can compute first derivatives");
       out.resize(size());
 
       // Loop over all shape functions

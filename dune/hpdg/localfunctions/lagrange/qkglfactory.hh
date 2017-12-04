@@ -30,7 +30,7 @@ namespace Dune
   template<class D, class R, int d, int k>
   struct DimSpecificQkGLLocalFiniteElementFactory
   {
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,d>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename P0LocalFiniteElement<D,R,d>::Traits::LocalBasisType::Traits T;
 
     //! create finite element for given GeometryType
     static LocalFiniteElementVirtualInterface<T>* create(const GeometryType& gt)
@@ -45,7 +45,7 @@ namespace Dune
   template<class D, class R, int dim, int k>
   struct QkGLLocalFiniteElementFactory
   {
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FiniteElementType;
     using QkGL = QkGaussLobattoLocalFiniteElement<D, R, dim, k>;
 
@@ -76,7 +76,7 @@ namespace Dune
   class QkGLLocalFiniteElementCache
   {
   protected:
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FE;
     typedef typename std::map<GeometryType,FE*> FEMap;
 
@@ -128,7 +128,7 @@ namespace Dune
   template<class D, class R, int dim>
   struct DynamicOrderQkGLLocalFiniteElementFactory
   {
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FiniteElementType;
     template<int k>
     using QkGL = QkGaussLobattoLocalFiniteElement<D, R, dim, k>;
@@ -170,7 +170,7 @@ namespace Dune
   class DynamicOrderQkGLLocalFiniteElementCache
   {
   protected:
-    typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FE;
     typedef typename std::map<int,FE*> FEMap;
 

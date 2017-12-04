@@ -484,7 +484,7 @@ namespace Dune
   template<class D, class R, int dim>
   struct DynamicOrderLegendreLocalFiniteElementFactory
   {
-    typedef typename FixedOrderLocalBasisTraits<typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits T;
     //typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FiniteElementType;
     template<int k>
@@ -525,7 +525,7 @@ namespace Dune
   class DynamicOrderLegendreLocalFiniteElementCache
   {
   protected:
-    typedef typename FixedOrderLocalBasisTraits<typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
+    typedef typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits T;
     //typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
     typedef LocalFiniteElementVirtualInterface<T> FE;
     typedef typename std::map<int,FE*> FEMap;
