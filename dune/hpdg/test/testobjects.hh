@@ -39,9 +39,7 @@ auto stiffnessMatrix(const GridType& grid, double penaltyFactor=1.5) {
     patternBuilder.setupMatrix();
 
 
-    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>();
-    vintageIPDGAssembler.sigma0=penalty;
-    vintageIPDGAssembler.dirichlet = true;
+    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>(penalty);
     auto localBlockAssembler = [&](const auto& edge, auto& matrixContainer,
         auto&& insideTrialLocalView, auto&& insideAnsatzLocalView, auto&& outsideTrialLocalView, auto&& outsideAnsatzLocalView)
     {
@@ -103,9 +101,7 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
     dynMatrix.setSquare();
     dynMatrix.update();
 
-    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>();
-    vintageIPDGAssembler.sigma0=penalty;
-    vintageIPDGAssembler.dirichlet = true;
+    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>(penalty);
     auto localBlockAssembler = [&](const auto& edge, auto& matrixContainer,
         auto&& insideTrialLocalView, auto&& insideAnsatzLocalView, auto&& outsideTrialLocalView, auto&& outsideAnsatzLocalView)
     {
