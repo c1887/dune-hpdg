@@ -49,7 +49,7 @@ namespace Dune {
     K* data_;
     size_t n_;
 
-    // Some algorithms require to make a copy from this vector. Though I don't 
+    // Some algorithms require to make a copy from this vector. Though I don't
     // very much like this fact, I don't want to rewrite every single of them.
     // Hence, if requested, this vector window can actually manage its own memory.
     std::unique_ptr<K[]> ownData_ = nullptr;
@@ -73,6 +73,8 @@ namespace Dune {
     /** Resize window. This may imply new memory allocation. Do this at your own risk.
      * Do not cry at me if you break your performance because your memory is no longer
      * contiguous.
+     * Also, note that when used inside a DynamicBlockVector, the block vector's rows might
+     * be affected.
      */
     void resize(size_t i) {
       // if our window already has the right size plus some memory it points to,
@@ -151,6 +153,32 @@ namespace Dune {
     const K & operator[](size_type i) const {
       DUNE_ASSERT_BOUNDS(i < size());
       return data_[i];
+    }
+
+    VectorWindow& operator+=(const VectorWindow& other) {
+      DUNE_ASSERT_BOUNDS(other.n_==n_);
+      for (size_t i = 0; i < n_; i++)
+        data_[i]+=other.data_[i];
+      return *this;
+    }
+
+    VectorWindow& operator-=(const VectorWindow& other) {
+      DUNE_ASSERT_BOUNDS(other.n_==n_);
+      for (size_t i = 0; i < n_; i++)
+        data_[i]-=other.data_[i];
+      return *this;
+    }
+
+    VectorWindow& operator*=(const K& k) {
+      for (size_t i = 0; i < n_; i++)
+        data_[i] *= k;
+      return *this;
+    }
+
+    VectorWindow& operator/=(const K& k) {
+      for (size_t i = 0; i < n_; i++)
+        data_[i] /= k;
+      return *this;
     }
   };
 

@@ -109,15 +109,15 @@ namespace Dune {
 
       DynamicBlockVector& operator+=(const DynamicBlockVector& other) {
         DUNE_ASSERT_BOUNDS(other.n_==n_);
-        for (size_t i = 0; i < size_; i++)
-          data_[i] += other.data_[i];
+        for (size_t i = 0; i < n_; i++)
+          vector_[i]+=other[i];
         return *this;
       }
 
       DynamicBlockVector& operator-=(const DynamicBlockVector& other) {
         DUNE_ASSERT_BOUNDS(other.n_==n_);
-        for (size_t i = 0; i < size_; i++)
-          data_[i] -= other.data_[i];
+        for (size_t i = 0; i < n_; i++)
+          vector_[i]-=other[i];
         return *this;
       }
 
