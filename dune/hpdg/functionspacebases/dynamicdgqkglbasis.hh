@@ -159,10 +159,9 @@ public:
     if (prefix.size() == 0)
       return size();
     else if (prefix.size() == 1)
-      return maxNodeSize();
+      return static_cast<size_type>(std::pow(degreeMap_.at(prefix[0])+1, dim));
     else
       return 0;
-    assert(false);
   }
 
   /** \todo This method has been added to the interface without prior discussion. */
