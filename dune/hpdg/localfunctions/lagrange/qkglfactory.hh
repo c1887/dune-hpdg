@@ -20,6 +20,8 @@
 #include <dune/localfunctions/lagrange/pyramidp1.hh>
 #include <dune/localfunctions/lagrange/pyramidp2.hh>
 
+#include <dune/hpdg/localfunctions/lagrange/qkdynamicordercache.hh>
+
 namespace Dune
 {
 
@@ -33,7 +35,7 @@ namespace Dune
     typedef typename P0LocalFiniteElement<D,R,d>::Traits::LocalBasisType::Traits T;
 
     //! create finite element for given GeometryType
-    static LocalFiniteElementVirtualInterface<T>* create(const GeometryType& gt)
+    static LocalFiniteElementVirtualInterface<T>* create(const GeometryType&)
     {
       return 0;
     }
@@ -167,57 +169,7 @@ namespace Dune
 
 
   template<class D, class R, int dim>
-  class DynamicOrderQkGLLocalFiniteElementCache
-  {
-  protected:
-    typedef typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits T;
-    typedef LocalFiniteElementVirtualInterface<T> FE;
-    typedef typename std::map<int,FE*> FEMap;
-
-  public:
-    /** \brief Type of the finite elements stored in this cache */
-    typedef FE FiniteElementType;
-
-    /** \brief Default constructor */
-    DynamicOrderQkGLLocalFiniteElementCache() {}
-
-    /** \brief Copy constructor */
-    DynamicOrderQkGLLocalFiniteElementCache(const DynamicOrderQkGLLocalFiniteElementCache& other)
-    {
-      typename FEMap::iterator it = other.cache_.begin();
-      typename FEMap::iterator end = other.cache_.end();
-      for(; it!=end; ++it)
-        cache_[it->first] = (it->second)->clone();
-    }
-
-    ~DynamicOrderQkGLLocalFiniteElementCache()
-    {
-      typename FEMap::iterator it = cache_.begin();
-      typename FEMap::iterator end = cache_.end();
-      for(; it!=end; ++it)
-        delete it->second;
-    }
-
-    //! Get local finite element for given GeometryType
-    const FiniteElementType& get(const int& gt) const
-    {
-      typename FEMap::const_iterator it = cache_.find(gt);
-      if (it==cache_.end())
-      {
-        FiniteElementType* fe = DynamicOrderQkGLLocalFiniteElementFactory<D,R,dim>::create(gt);
-        if (fe==0)
-          DUNE_THROW(Dune::NotImplemented,"No Qk Gauss-Lobatto like local finite element available order " << gt);
-
-        cache_[gt] = fe;
-        return *fe;
-      }
-      return *(it->second);
-    }
-
-  protected:
-    mutable FEMap cache_;
-
-  };
+  using DynamicOrderQkGLLocalFiniteElementCache = DynamicOrderQkLocalFiniteElementCache<D, R, dim, DynamicOrderQkGLLocalFiniteElementFactory<D,R,dim>>;
 }
 
 #endif
