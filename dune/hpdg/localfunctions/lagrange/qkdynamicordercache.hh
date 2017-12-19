@@ -23,11 +23,31 @@ namespace Dune
     using FEFactory = Factory;
     using T = typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits;
     using FE = LocalFiniteElementVirtualInterface<T>;
-    using FEMap = typename std::map<int, std::unique_ptr<FE>>;
+    using FEMap = typename std::map<int, FE*>;
 
   public:
     /** \brief Type of the finite elements stored in this cache */
     using FiniteElementType = FE;
+
+    /** \brief Default constructor */
+    DynamicOrderQkLocalFiniteElementCache() {}
+
+    /** \brief Copy constructor */
+    DynamicOrderQkLocalFiniteElementCache(const DynamicOrderQkLocalFiniteElementCache& other)
+    {
+      auto it = other.cache_.begin();
+      auto end = other.cache_.end();
+      for(; it!=end; ++it)
+        cache_[it->first] = (it->second)->clone();
+    }
+
+    ~DynamicOrderQkLocalFiniteElementCache()
+    {
+      auto it = cache_.begin();
+      auto end = cache_.end();
+      for(; it!=end; ++it)
+        delete it->second;
+    }
 
     //! Get local finite element for given GeometryType
     const FiniteElementType& get(const int& gt) const
@@ -35,7 +55,7 @@ namespace Dune
       auto it = cache_.find(gt);
       if (it==cache_.end())
       {
-        cache_[gt] = std::unique_ptr<FE>(FEFactory::create(gt));
+        cache_[gt] = FEFactory::create(gt);
 
         if (cache_[gt]==nullptr)
           DUNE_THROW(Dune::NotImplemented,"No Qk local finite element available for order " << gt);
