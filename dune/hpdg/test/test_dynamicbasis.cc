@@ -10,6 +10,8 @@
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkgausslegendrebasis.hh>
 #include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
+#include <dune/hpdg/common/dynamicbcrs.hh>
+#include <dune/hpdg/common/resizehelper.hh>
 
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/utility/structuredgridfactory.hh>
@@ -18,11 +20,10 @@
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 
-#include <dune/matrix-vector/algorithm.hh>
 using namespace Dune;
 
 template<class Basis, class Grid>
-TestSuite test_makedgtransfertuple(Basis& basis, const Grid& grid) {
+TestSuite test_dynamicBasis(Basis& basis, const Grid& grid) {
   TestSuite suite;
 
 
@@ -38,57 +39,28 @@ TestSuite test_makedgtransfertuple(Basis& basis, const Grid& grid) {
   suite.check(basis.dimension() == (size_t) (grid.leafGridView().size(0)-1)*4 +9, "Check if dimension was calculated correctly");
 
   // now, assemble a matrix
-  using Matrix = BCRSMatrix<DynamicMatrix<double>>;
+  using Matrix = HPDG::DynamicBCRSMatrix<double>;
   auto matrix = Matrix{};
   using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
   auto assembler = Assembler{basis, basis};
   using FE = std::decay_t<decltype(lv.tree().finiteElement())>;
   auto laplace = LaplaceAssembler<Grid, FE, FE>{};
 
-  auto mBE = Dune::Fufem::istlMatrixBackend(matrix);
+  // set matrix pattern
+  auto mBE = Dune::Fufem::istlMatrixBackend(matrix.matrix());
   { // setup pattern
     auto pb = mBE.patternBuilder();
     assembler.assembleBulkPattern(pb);
     pb.setupMatrix();
   }
 
-  // now comes the ugly part, setting the sizes of the local blocks.
-  for (const auto& e: elements(grid.leafGridView())) {
-    lv.bind(e);
-    li.bind(lv);
-    auto i = li.index(0)[0]; // element index in this basis
-    auto n = lv.size();
-    matrix[i][i].resize(n,n);
-
-    // the following is only needed if also intersections are assembled, the bulk is on one element for DG
-    /*
-    for (const auto& is: intersections(grid->leafGridView(), e)) {
-      if (not is.neighbor()) continue;
-      const auto& out = is.outside();
-      lv.bind(out);
-      li.bind(lv);
-      auto j = li.index(0)[0]; // element index in this basis
-      auto m = lv.size();
-      if (not matrix.exists(i,j)) DUNE_THROW(Dune::Exception, "Yo, no such entry");
-      matrix[i][j].resize(n,m);
-    }
-    */
-  }
+  // set block sizes and allocate memory:
+  Dune::HPDG::resizeFromBasis(matrix, basis);
+  matrix.update();
 
   // now, assemble:
   assembler.assembleBulkEntries(mBE, laplace);
 
-  // print two blocks:
-  //for (size_t idx = 0; idx<2; idx++) {
-    //std::cout << "Block " << idx <<", " << idx <<std::endl;
-    //const auto& mii = matrix[idx][idx];
-    //for (size_t i = 0; i <mii.N(); i++) {
-      //for (size_t j = 0; j <mii.M(); j++) {
-        //std::cout << mii[i][j] << " ";
-      //}
-      //std::cout << std::endl;
-    //}
-  //}
   return suite;
 }
 
@@ -102,10 +74,10 @@ int main(int argc, char** argv) {
   TestSuite suite;
 
   auto gaussLobattoBasis = Dune::Functions::DynamicDGQkGLBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
-  suite.subTest(test_makedgtransfertuple(gaussLobattoBasis, *grid));
+  suite.subTest(test_dynamicBasis(gaussLobattoBasis, *grid));
 
   auto gaussLegendreBasis = Dune::Functions::DynamicDGQkGaussLegendreBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
-  suite.subTest(test_makedgtransfertuple(gaussLegendreBasis, *grid));
+  suite.subTest(test_dynamicBasis(gaussLegendreBasis, *grid));
 
   return suite.exit();
 }
