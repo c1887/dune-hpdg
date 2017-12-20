@@ -1,3 +1,4 @@
+// TODO: Aufräumen!
 #include <config.h>
 #include <dune/common/test/testsuite.hh>
 #include <dune/common/parallel/mpihelper.hh>
@@ -7,6 +8,8 @@
 #include <dune/common/dynmatrix.hh>
 
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
+#include <dune/hpdg/functionspacebases/dynamicdgqkgausslegendrebasis.hh>
+#include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
 
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/utility/structuredgridfactory.hh>
@@ -18,25 +21,21 @@
 #include <dune/matrix-vector/algorithm.hh>
 using namespace Dune;
 
-TestSuite test_makedgtransfertuple() {
+template<class Basis, class Grid>
+TestSuite test_makedgtransfertuple(Basis& basis, const Grid& grid) {
   TestSuite suite;
 
-  using Grid = YaspGrid<2>;
-  auto grid = StructuredGridFactory<Grid>::createCubeGrid({0,0}, {1.0,1.0}, {{4,4}});
-
-  auto basis = Dune::Functions::DynamicDGQkGLBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
-  using Basis = decltype(basis);
 
   auto lv = basis.localView();
   auto li = basis.localIndexSet();
   // set one arbitrary node to have degree 2 (all others have degree 1)
-  for (const auto& e: elements(grid->leafGridView())) {
+  for (const auto& e: elements(grid.leafGridView())) {
     basis.nodeFactory().degree(e) = 2;
     break;
   }
 
   // check dimension: should be (#elements-1)*4+ 9 as all but one elements have 4 DoFs and the other one has 9
-  suite.check(basis.dimension() == (size_t) (grid->leafGridView().size(0)-1)*4 +9, "Check if dimension was calculated correctly");
+  suite.check(basis.dimension() == (size_t) (grid.leafGridView().size(0)-1)*4 +9, "Check if dimension was calculated correctly");
 
   // now, assemble a matrix
   using Matrix = BCRSMatrix<DynamicMatrix<double>>;
@@ -54,7 +53,7 @@ TestSuite test_makedgtransfertuple() {
   }
 
   // now comes the ugly part, setting the sizes of the local blocks.
-  for (const auto& e: elements(grid->leafGridView())) {
+  for (const auto& e: elements(grid.leafGridView())) {
     lv.bind(e);
     li.bind(lv);
     auto i = li.index(0)[0]; // element index in this basis
@@ -96,7 +95,17 @@ TestSuite test_makedgtransfertuple() {
 int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
+  using Grid = YaspGrid<2>;
+  auto grid = StructuredGridFactory<Grid>::createCubeGrid({0,0}, {1.0,1.0}, {{4,4}});
+
+
   TestSuite suite;
-  suite.subTest(test_makedgtransfertuple());
+
+  auto gaussLobattoBasis = Dune::Functions::DynamicDGQkGLBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
+  suite.subTest(test_makedgtransfertuple(gaussLobattoBasis, *grid));
+
+  auto gaussLegendreBasis = Dune::Functions::DynamicDGQkGaussLegendreBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
+  suite.subTest(test_makedgtransfertuple(gaussLegendreBasis, *grid));
+
   return suite.exit();
 }
