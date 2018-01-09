@@ -40,8 +40,15 @@ namespace Dune
     public:
       GaussKronrodLagrangePolynomials ()
       {
-        auto rule = Dune::HPDG::GaussKronrod1DRule(k+1);
+        // rationale: Every Gauss-Kronrod rule has size 2*n+1, hence, you'd get
+        // polynamials of order 2*n, which obviously can only be even
+        if (k%2!=0)
+          DUNE_THROW(Dune::NotImplemented, "No odd-sized Gauss-Kronrod rules!");
+
+        auto rule = Dune::HPDG::GaussKronrod1DRule(k/2);
         auto matched_size = rule.size();
+        assert(matched_size == k+1);
+
         size_t count=0;
         for (auto it=rule.begin(); it!=rule.end(); ++it)
         {

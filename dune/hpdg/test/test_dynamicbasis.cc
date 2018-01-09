@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
   auto gaussLegendreBasis = Dune::Functions::DynamicDGQkGaussLegendreBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
   suite.subTest(test_dynamicBasis(gaussLegendreBasis, *grid));
 
-  auto gaussKronrodBasis = Dune::Functions::DynamicDGQkGaussKronrodBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
+  auto gaussKronrodBasis = Dune::Functions::DynamicDGQkGaussKronrodBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 2};
   suite.subTest(test_dynamicBasis(gaussLegendreBasis, *grid));
 
   return suite.exit();
