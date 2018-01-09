@@ -21,3 +21,5 @@ dune_add_test(
   SOURCES test_dynamicbcrs.cc)
 dune_add_test(
   SOURCES test_dynamicblockgs.cc)
+dune_add_test(
+  SOURCES test_gausskronrodrule.cc)
