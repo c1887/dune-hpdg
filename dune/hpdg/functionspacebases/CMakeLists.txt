@@ -4,6 +4,7 @@ install(FILES
   qkglnodalbasis.hh
   lagrangedgblockbasis.hh
   dynamicdgqkglbasis.hh
+  dynamicdgqkgausskronrodbasis.hh
   dynamicdgqkgausslegendrebasis.hh
   dynamicqknode.hh
   globalbasis.hh

@@ -9,6 +9,7 @@
 
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkgausslegendrebasis.hh>
+#include <dune/hpdg/functionspacebases/dynamicdgqkgausskronrodbasis.hh>
 #include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/resizehelper.hh>
@@ -77,6 +78,9 @@ int main(int argc, char** argv) {
   suite.subTest(test_dynamicBasis(gaussLobattoBasis, *grid));
 
   auto gaussLegendreBasis = Dune::Functions::DynamicDGQkGaussLegendreBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
+  suite.subTest(test_dynamicBasis(gaussLegendreBasis, *grid));
+
+  auto gaussKronrodBasis = Dune::Functions::DynamicDGQkGaussKronrodBlockBasis<Grid::LeafGridView>{grid->leafGridView(), 1};
   suite.subTest(test_dynamicBasis(gaussLegendreBasis, *grid));
 
   return suite.exit();

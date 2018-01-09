@@ -8,6 +8,7 @@
 
 #include <dune/hpdg/localfunctions/lagrange/qkglfactory.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslegendre.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkgausskronrod.hh>
 
 #include <dune/typetree/leafnode.hh>
 
@@ -87,6 +88,9 @@ using DynamicQkGLNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkG
 
 template<typename GV, typename TP, typename Mapper, typename DGM>
 using DynamicQkGaussLegendreNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkGaussLegendreLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
+
+template<typename GV, typename TP, typename Mapper, typename DGM>
+using DynamicQkGaussKronrodNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkGaussKronrodLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
 
 } // end namespace Functions
 } // end namespace Dune
