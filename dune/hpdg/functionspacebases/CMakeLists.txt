@@ -1,4 +1,5 @@
 install(FILES
+  gridadaptor.hh
   lagrangedgbasis.hh
   dgqkglbasis.hh
   qkglnodalbasis.hh
