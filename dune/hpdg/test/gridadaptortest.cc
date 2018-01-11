@@ -13,7 +13,7 @@
 #include <dune/grid/utility/structuredgridfactory.hh>
 #include <dune/functions/functionspacebases/pq1nodalbasis.hh>
 
-#include <dune/functions/functionspacebases/gridadaptor.hh>
+#include <dune/hpdg/functionspacebases/gridadaptor.hh>
 #include <dune/functions/functionspacebases/hierarchicvectorwrapper.hh>
 #include <dune/functions/functionspacebases/interpolate.hh>
 
