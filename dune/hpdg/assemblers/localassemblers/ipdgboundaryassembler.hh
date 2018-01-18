@@ -43,10 +43,10 @@ class IPDGBoundaryAssembler :
          * \param order The quadrature order used for numerical integration
          */
         template <class F>
-        IPDGBoundaryAssembler(const F& neumann, int order=2, bool bdrType=true) :
+        IPDGBoundaryAssembler(const F& neumann, bool bdrType=true, bool varyingDegree=false) :
             bdrFunction_(Dune::stackobject_to_shared_ptr(neumann)),
-            order_(order),
-            dirichlet(bdrType)
+            dirichlet(bdrType),
+            varyingDegree_(varyingDegree)
         {}
 
         /** \brief Constructor
@@ -55,9 +55,8 @@ class IPDGBoundaryAssembler :
          * \param bdrType True means we assemble for Dirichlet data, false means Neumann data
          */
         template <class F>
-        IPDGBoundaryAssembler(std::shared_ptr<const F> f, int order=2, bool bdrType=true)
-            : bdrFunction_(f)
-            , order_(order),
+        IPDGBoundaryAssembler(std::shared_ptr<const F> f, bool bdrType=true)
+            : bdrFunction_(f),
               dirichlet(bdrType)
         {}
 
@@ -81,6 +80,15 @@ class IPDGBoundaryAssembler :
 
             localVector = 0.0;
 
+            double penalty = sigma0;
+            if (varyingDegree_) {
+                auto degree = tFE.localBasis().order();
+                penalty*= degree*degree;
+            }
+            const auto edgeLength = it->geometry().volume();
+            penalty/=edgeLength;
+
+
             // geometry of the boundary face
             const typename BoundaryIterator::Intersection::Geometry segmentGeometry = it->geometry();
 
@@ -98,7 +106,6 @@ class IPDGBoundaryAssembler :
 
             const auto inside = it->inside();
 
-            const auto edgeLength = it->geometry().volume();
             const auto outerNormal = it->centerUnitOuterNormal();
 
 
@@ -138,7 +145,6 @@ class IPDGBoundaryAssembler :
                     bdrFunction_->evaluate(segmentGeometry.global(quadPos), dirichletVal);
 
                 // and vector entries
-                double penalty = sigma0/edgeLength;
                 for (size_t i=0; i<values.size(); ++i)
                 {
                     double factor =quad[pt].weight()*integrationElement*(penalty*values[i] + DGType_*(gradients[i]*outerNormal));
@@ -162,8 +168,8 @@ class IPDGBoundaryAssembler :
         const std::shared_ptr<const Function> bdrFunction_;
         
         // quadrature order
-        const int order_;
         bool dirichlet;
+        bool varyingDegree_;
         double DGType_ = -1.0;
 };
 
