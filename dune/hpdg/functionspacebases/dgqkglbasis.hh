@@ -258,6 +258,7 @@ public:
   using MultiIndex = MI;
 
   using NodeFactory = DGQkGLNodeFactory<GV, k, MI, useTwoLevelIndex>;
+  using PreBasis = NodeFactory;
 
   using Node = typename NodeFactory::template Node<TP>;
 

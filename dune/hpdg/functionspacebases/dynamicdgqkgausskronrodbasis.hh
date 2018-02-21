@@ -212,6 +212,7 @@ public:
   using MultiIndex = MI;
 
   using NodeFactory = DynamicDGQkGaussKronrodNodeFactory<GV, MI>;
+  using PreBasis = NodeFactory;
 
   using Node = typename NodeFactory::template Node<TP>;
 

@@ -20,14 +20,14 @@ class GlobalBasis : public DefaultGlobalBasis<NF>
   public:
   template<class... T,
     disableCopyMove<GlobalBasis, T...> = 0,
-    enableIfConstructible<typename Base::NodeFactory, T...> = 0>
+    enableIfConstructible<typename Base::PreBasis, T...> = 0>
   GlobalBasis(T&&... t) :
     Base(std::forward<T>(t)...) {}
 
   /** Access NodeFactory in a non-const way */
-  auto& nodeFactory()
+  auto& preBasis()
   {
-    return this->nodeFactory_;
+    return this->preBasis_;
   }
 
 };
