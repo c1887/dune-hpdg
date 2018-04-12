@@ -39,7 +39,7 @@ namespace Impl {
 
       auto lv = persistentBasis_.localView(e);
       auto li = persistentBasis_.localIndexSet(e);
-      // some bases do not like if you bind you're views again. Others, on the other hand, need this.
+      // some bases do not like if you bind your views again. Others, on the other hand, need this.
       if (allowRebind_)
         lv.bind(e);
 
