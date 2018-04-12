@@ -32,7 +32,7 @@ TestSuite test_dynamicBasis(Basis& basis, const Grid& grid) {
   auto li = basis.localIndexSet();
   // set one arbitrary node to have degree 2 (all others have degree 1)
   for (const auto& e: elements(grid.leafGridView())) {
-    basis.nodeFactory().degree(e) = 2;
+    basis.preBasis().degree(e) = 2;
     break;
   }
 
