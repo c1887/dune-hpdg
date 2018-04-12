@@ -268,6 +268,30 @@ protected:
   const Node* node_;
 };
 
+namespace BasisBuilder {
+
+namespace Imp {
+
+class DynamicDGQkGlPreBasisFactory
+{
+public:
+  static const std::size_t requiredMultiIndexSize = 2;
+
+  template<class MultiIndex, class GridView>
+  auto makePreBasis(const GridView& gridView) const
+  {
+    return DynamicDGQkGLNodeFactory<GridView, MultiIndex>(gridView);
+  }
+
+};
+
+} // end namespace BasisBuilder::Imp
+
+auto dynamicDG() {
+  return Imp::DynamicDGQkGlPreBasisFactory();
+}
+
+} // end namespace BasisBuilder
 
 
 // *****************************************************************************

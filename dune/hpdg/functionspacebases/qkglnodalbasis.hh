@@ -407,36 +407,6 @@ protected:
 };
 
 
-
-namespace BasisBuilder {
-
-namespace Imp {
-
-template<std::size_t k>
-struct QkGLNodeFactoryBuilder
-{
-  static const std::size_t requiredMultiIndexSize=1;
-
-  template<class MultiIndex, class GridView>
-  auto build(const GridView& gridView)
-    -> QkGLNodeFactory<GridView, k, MultiIndex>
-  {
-    return {gridView};
-  }
-};
-
-} // end namespace BasisBuilder::Imp
-
-template<std::size_t k>
-Imp::QkGLNodeFactoryBuilder<k> pq()
-{
-  return{};
-}
-
-} // end namespace BasisBuilder
-
-
-
 // *****************************************************************************
 // This is the actual global basis implementation based on the reusable parts.
 // *****************************************************************************

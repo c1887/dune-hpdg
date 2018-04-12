@@ -76,6 +76,8 @@ public:
     gridView_(gv)
   {}
 
+  /** Dummy function such that the concept passes */
+  void update(const GridView&) {};
 
   void initializeIndices()
   {
@@ -216,9 +218,8 @@ public:
       assert(false);
     }
 
-    if (prefix.size() == 0)
-      return size();
-    //assert(false);
+    assert(prefix.size() == 0 || prefix.size() == 1);
+    return (prefix.size() == 0) ? size() : 0;
   }
 
   /** \todo This method has been added to the interface without prior discussion. */
