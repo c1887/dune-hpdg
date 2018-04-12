@@ -1,3 +1,4 @@
+
 // -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 // vi: set et ts=4 sw=2 sts=2:
 
@@ -11,7 +12,7 @@
 
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/utility/structuredgridfactory.hh>
-#include <dune/functions/functionspacebases/pq1nodalbasis.hh>
+#include <dune/functions/functionspacebases/pqknodalbasis.hh>
 
 #include <dune/hpdg/functionspacebases/gridadaptor.hh>
 #include <dune/functions/functionspacebases/hierarchicvectorwrapper.hh>
@@ -28,7 +29,7 @@ auto checkGridAdaptor() {
     ::createCubeGrid({{0,0}}, {{1,1}}, {{2,2}});
 
   // Basis
-  using Basis = Dune::Functions::PQ1NodalBasis<GridType::LeafGridView>;
+  using Basis = Dune::Functions::PQkNodalBasis<GridType::LeafGridView, 1>;
   Basis basis(grid->leafGridView());
 
   Functions::Impl::PersistentBasis<Basis> persistentBasis(basis);
