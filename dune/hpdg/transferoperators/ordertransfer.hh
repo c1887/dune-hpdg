@@ -2,6 +2,7 @@
 #define DUNE_HPDG_DG_MULTIGRID_ORDER_TRANSFER_HH
 
 #include <memory>
+#include <dune/istl/matrix.hh>
 #include <dune/istl/bcrsmatrix.hh>
 #include <dune/istl/matrixindexset.hh>
 #include <dune/common/fmatrix.hh>
@@ -23,9 +24,7 @@ namespace Dune {
           const MatrixWindow<K>& B,
           const MatrixWindow<K>& T2) {
 
-        //Dune::FieldMatrix<K1, m, n> T1transposedB;
-        //auto T1transposedB = Dune::DynamicMatrix<double>(T1.M(), B.M());
-        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<double,1,1>>(T1.M(), B.M());
+        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<K,1,1>>(T1.M(), B.M());
         //auto data = std::make_unique<K>(T1.M()*B.M());
         //MatrixWindow<K> T1transposedB(data.get(), T1.M(), B.M());
         // TODO: Hier ein MatrixWindow zu nutzen scheint nicht zu funktioneren, man schreibt da irgendwie an falsche stellen.
@@ -33,15 +32,19 @@ namespace Dune {
         T1transposedB = 0;
         for (size_t i = 0; i < T1.M(); ++i)
           for (size_t k = 0; k < B.N(); ++k)
-            if (T1[k][i] != 0)
+            if (T1[k][i] != 0) {
               for (size_t l = 0; l < B.M(); ++l)
-                T1transposedB[i][l] += T1[k][i] * B[k][l];
-        for (size_t k = 0; k < T2.N(); ++k)
-          for (size_t l = 0; l < T2.M(); ++l)
-            if (T2[k][l] != 0)
-              for (size_t i = 0; i < A.N(); ++i)
-                A[i][l] += T1transposedB[i][k] * T2[k][l];
+                T1transposedB[i][l] += T1[k][i]*B[k][l];
+            }
 
+        // multiply such that row-major format is better used
+        for (size_t i = 0; i < A.N(); i++) {
+          for (size_t j = 0; j < A.M(); j++) {
+            auto& Aij = A[i][j];
+            for (size_t l = 0; l < T2.N(); l++)
+              Aij+= T1transposedB[i][l]*T2[l][j];
+          }
+        }
       }
     }
 
