@@ -72,8 +72,8 @@ public:
   {
     // fill Degreemap
     degreeMap_.resize(mcmgMapper_.size());
-    for (const auto& e : elements(gridView_))
-      degreeMap_[mcmgMapper_.index(e)]=k;
+    for (auto& v: degreeMap_)
+      v=k;
   }
 
 
@@ -113,7 +113,7 @@ public:
 
   void update(const GridView& gv) {
     gridView_ = gv;
-    mcmgMapper_.update();
+    mcmgMapper_.update();// TODO: This does not work if the supplied 'gv' is not the very same thing as the former gridView_
     degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
   }
 
@@ -251,13 +251,14 @@ public:
   template<class It>
   It indices(It it) const
   {
+    const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
+    const auto& element = node_->element();
+    auto elementIdx = gridIndexSet.subIndex(element, 0, 0);
     for (size_t i =0, end = node_->finiteElement().size(); i <end; i++, ++it) {
-      const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
-      const auto& element = node_->element();
 
       // Our Gauss-Lobatto basis is defined for tensor-product bases on cubic grids only. Hence, we do not have
       // to differentiate between the different geometries and dimensions.
-      *it= {{gridIndexSet.subIndex(element, 0, 0), i}};
+      *it= {{elementIdx, i}};
     }
     return it;
   }
