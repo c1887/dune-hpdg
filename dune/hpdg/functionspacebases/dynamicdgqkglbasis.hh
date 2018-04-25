@@ -76,6 +76,12 @@ public:
       v=k;
   }
 
+  DynamicDGQkGLNodeFactory(const GridView& gv, const DegreeMap& degrees) :
+    gridView_(gv),
+    mcmgMapper_(gv, mcmgElementLayout())
+  {
+    setDegrees(degrees);
+  }
 
   void initializeIndices()
   {
@@ -185,6 +191,17 @@ public:
   template<typename Element>
   auto& degree(const Element& e){
     return degreeMap_.at(mcmgMapper_.index(e));
+  }
+
+  /** Get vector that maps (mcmg) element index to local degree */
+  DegreeMap degreeMap() const {
+    return degreeMap_;
+  }
+
+  void setDegrees(const DegreeMap& degrees) {
+    if(degrees.size() != mcmgMapper_.size())
+      DUNE_THROW(Dune::Exception, "Supplied map in setDegrees() has wrong size!");
+    degreeMap_=degrees;
   }
 
 //protected:
