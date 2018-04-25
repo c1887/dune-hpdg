@@ -76,10 +76,12 @@ namespace Dune {
       }
 
       const BlockType& operator[](size_t i) const {
+        DUNE_ASSERT_BOUNDS(i<n_);
         return vector_[i];
       }
 
       BlockType& operator[](size_t i) {
+        DUNE_ASSERT_BOUNDS(i<n_);
         return vector_[i];
       }
 
