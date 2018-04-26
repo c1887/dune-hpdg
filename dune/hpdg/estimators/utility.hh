@@ -48,6 +48,31 @@ namespace HPDG {
     return K(0.0);
   }
 
+  /** \brief Marks an element e for refinement and gurantees that the level difference
+   * between two neighboring elements is not greater than a given value.
+   *
+   * \warning Note that this might have bad complexity, I never checked.
+   */
+  template<class G, class E>
+  void marker(G& grid, const E& e, int max_diff) {
+
+    // mark the element e
+    grid.mark(1, e);
+
+    // check if neighbors are too coarse, i.e. there level difference is too big. If so, refine them too
+    auto level = e.level()+1; // +1 from the refinement above
+    for (auto& is : intersections(grid.leafGridView(), e)) {
+      if (!is.neighbor())
+        continue;
+      auto outside = is.outside();
+      auto outsidelevel = outside.level() + grid.getMark(outside);
+      if (level - outsidelevel > max_diff) {
+        if (not grid.getMark(outside))
+          marker(grid, outside, max_diff);
+      }
+    }
+  }
+
 }} // end namespace Dune::HPDG
 
 #endif//DUNE_HPDG_ESTIMATORS_UTILITY_HH
