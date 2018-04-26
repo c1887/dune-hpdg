@@ -26,11 +26,11 @@ int main(int argc, char** argv) {
   double quant = 0.5;
   // We expect 51 as the 50%-quantile (median) because
   // our implementation only returns actual values (no averages)
-  suite.check(HPDG::quantile(vec, quant) == 51, "Check quantile function") 
+  suite.check(HPDG::quantile(vec, quant) == 51, "Check quantile function")
     << "Expected 51, got " << HPDG::quantile(vec, quant);
 
   // test fraction
-  
+
   // the sum over all elements is n(n+1)/2, hence for n=100 it is 5050.
   // Say we want the 10% fraction, that is the largest element v, such that
   // the sum over all elements bigger or equal to v is larger or equal to 505.

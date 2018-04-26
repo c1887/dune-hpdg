@@ -6,7 +6,7 @@
 #include <cassert>
 namespace Dune {
 namespace HPDG {
-  /** \brief Returns the value at a given quantile of a vector 
+  /** \brief Returns the value at a given quantile of a vector
    *
    *  This might be inaccurate if the vector has many equal elements.
    */
@@ -32,7 +32,7 @@ namespace HPDG {
     auto fullSum = std::accumulate(std::begin(vec_sorted), std::end(vec_sorted), 0);
 
     auto thresh = frac*fullSum;
-    
+
     if (thresh==0.0)
       return K(0.0);
 
