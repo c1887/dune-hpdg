@@ -44,7 +44,8 @@ namespace Dune {
         // TODO: What if some values are zero? We get inf from the logarithms :(
         // for now, we treat this as being a sign for smoothness and hence return a low
         // value. However, this should be justified at some point.
-        if (std::isnan(slope)) return 0.0;
+        if (std::isnan(slope))
+          return 0.0;
         return std::exp(-slope);
       }
 
@@ -89,7 +90,6 @@ namespace Dune {
       }
 
       DynamicOrderLegendreLocalFiniteElementCache<field_type, field_type, dim> feCache_;
-      //DynamicOrderQkGLLocalFiniteElementCache<typename GV::ctype, field_type, dim> feCache_;
     };
   }
 }
