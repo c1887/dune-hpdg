@@ -138,25 +138,10 @@ public:
 
   size_type size() const
   {
-    switch (dim)
-    {
-      case 1:
-        return gridView_.size(0);
-      case 2:
-        {
-          auto quad = GeometryTypes::quadrilateral;
-          return gridView_.size(quad);
-        }
-      case 3:
-        {
-          auto tetrahedron = GeometryTypes::tetrahedron;
-          auto pyramid = GeometryTypes::pyramid;
-          auto prism = GeometryTypes::prism;
-          auto hexahedron = GeometryTypes::cube(3);
-          return gridView_.size(tetrahedron) + gridView_.size(pyramid)
-            + gridView_.size(prism) + gridView_.size(hexahedron);
-        }
-    }
+    // return the number of elements.
+    // This is exactly the number of possible values
+    // in the next multi-index digit.
+    return gridView_.size(0);
   }
 
   //! Return number possible values for next position in multi index
