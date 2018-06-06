@@ -289,6 +289,21 @@ namespace Dune {
         }
       }
     }
+
+    /** Free function returning a vector containing the transfer
+     * matrices used for geometric multigrid with a DG<k> basis.
+     */
+    template<typename M, typename G, int k=1>
+    std::vector<std::shared_ptr<M>> dgGridTransferHierarchy(const G& grid) {
+      auto m = std::vector<std::shared_ptr<M>>(grid.maxLevel());
+
+      for (auto& t: m)
+        t = std::make_shared<M>();
+
+      assembleDGGridTransferHierarchy(m, grid);
+
+      return m;
+    }
   } // end namespace HPDG
 } // end namespace Dune
 #endif
