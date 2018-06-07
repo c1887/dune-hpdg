@@ -10,6 +10,12 @@
 #include <dune/solvers/iterationsteps/lineariterationstep.hh>
 namespace Dune {
   namespace HPDG {
+
+    /** This is just a very reduced version of the BlockGS in dune-solvers.
+     *
+     * The feature of this implementation is that it can be used with dynamic matrix and vector
+     * structures.
+     */
     template<class Matrix, class Vector, class BitVector=std::vector<std::vector<bool>>>
     class DynamicBlockGS : public Dune::Solvers::LinearIterationStep<Matrix, Vector, BitVector>{
 
@@ -24,7 +30,7 @@ namespace Dune {
         auto& x = *this->x_;
         auto r = b;
 
-        auto blockStep = [&](size_t i) {
+        for (size_t i = 0; i < x.size(); ++i) {
           const auto& row_i = m[i];
 
 
@@ -35,25 +41,21 @@ namespace Dune {
           for (auto cIt = row_i.begin(); cIt != row_i.end(); ++cIt) {
             size_t j = cIt.index();
             cIt->mmv(x[j], ri);
-            if (j == i)
-              diag = &*cIt;
           }
 
-          //using Ignore = std::bitset<V::block_type::dimension>;
+          if (m.exists(i,i)) {
+            diag = &(m[i][i]);
+          }
+          else
+            DUNE_THROW(Dune::Exception, "Pointer is null");
 
           // Update iterate with correction
           auto corr = gs(*diag, ri);
           auto& xi = x[i];
           for (size_t k = 0; k < corr.size(); k++)
             xi[k]+=corr[k];
-        };
+        }
 
-        //if (direction != Direction::BACKWARD)
-          for (size_t i = 0; i < x.size(); ++i)
-            blockStep(i);
-        //if (direction != Direction::FORWARD)
-          //for (size_t i = x.size(); i > 0; --i)
-            //blockStep(i - 1);
       }
 
       private:
@@ -62,7 +64,8 @@ namespace Dune {
       template<class MB, class VB>
       auto gs(const MB& m, const VB& b, double tol = defaultGsTol) {
         using K = typename VB::field_type;
-        std::vector<K> x(b.size());
+        auto x =b;
+        x=0;
         for (size_t i = 0; i < m.N(); ++i) {
           const auto& mi = m[i];
           const auto& mii = mi[i];
