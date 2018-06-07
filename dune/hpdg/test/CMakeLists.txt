@@ -24,6 +24,4 @@ dune_add_test(
 dune_add_test(
   SOURCES test_gausskronrodrule.cc)
 dune_add_test(
-  SOURCES gridadaptortest.cc)
-dune_add_test(
   SOURCES testestimatorutility.cc)
