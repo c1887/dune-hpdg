@@ -11,7 +11,6 @@
 #include <dune/functions/functionspacebases/flatmultiindex.hh>
 #include <dune/hpdg/functionspacebases/qkglnodalbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicqknode.hh>
-#include <dune/hpdg/functionspacebases/globalbasis.hh>
 
 #include <dune/grid/common/mcmgmapper.hh>
 
