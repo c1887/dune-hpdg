@@ -279,8 +279,7 @@ protected:
  * \tparam GV The GridView that the space is defined on
  */
 template<typename GV>
-//using DynamicDGQkGaussKronrodBlockBasis = DefaultGlobalBasis<DynamicDGQkGaussKronrodNodeFactory<GV, std::array<std::size_t, 2> > >;
-using DynamicDGQkGaussKronrodBlockBasis = GlobalBasis<DynamicDGQkGaussKronrodNodeFactory<GV, std::array<std::size_t, 2> > >;
+using DynamicDGQkGaussKronrodBlockBasis = DefaultGlobalBasis<DynamicDGQkGaussKronrodNodeFactory<GV, std::array<std::size_t, 2> > >;
 
 
 } // end namespace Functions

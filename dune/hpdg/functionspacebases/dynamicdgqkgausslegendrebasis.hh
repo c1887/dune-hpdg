@@ -279,8 +279,7 @@ protected:
  * \tparam GV The GridView that the space is defined on
  */
 template<typename GV>
-//using DynamicDGQkGaussLegendreBlockBasis = DefaultGlobalBasis<DynamicDGQkGaussLegendreNodeFactory<GV, std::array<std::size_t, 2> > >;
-using DynamicDGQkGaussLegendreBlockBasis = GlobalBasis<DynamicDGQkGaussLegendreNodeFactory<GV, std::array<std::size_t, 2> > >;
+using DynamicDGQkGaussLegendreBlockBasis = DefaultGlobalBasis<DynamicDGQkGaussLegendreNodeFactory<GV, std::array<std::size_t, 2> > >;
 
 
 } // end namespace Functions
