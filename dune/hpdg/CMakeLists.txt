@@ -7,3 +7,6 @@ add_subdirectory("iterationsteps")
 add_subdirectory("localfunctions")
 add_subdirectory("test")
 add_subdirectory("transferoperators")
+install(FILES
+  dunefunctionsdiscretizationerror.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg)
