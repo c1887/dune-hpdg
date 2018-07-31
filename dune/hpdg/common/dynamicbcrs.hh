@@ -191,6 +191,7 @@ namespace Dune {
       DynamicBCRSMatrix& operator=(K scalar) {
         for (size_t i = 0; i < size_; i++)
           data_[i]=scalar;
+        return *this;
       }
 
 
