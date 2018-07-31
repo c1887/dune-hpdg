@@ -29,12 +29,10 @@ namespace Dune {
       const auto& fgridView = fineBasis.gridView();
       const auto maxLevel = fgridView.grid().maxLevel();
 
-      // dune-functions' typical views and index sets
+      // dune-functions' typical views
       auto fineView = fineBasis.localView();
-      auto fineIndexSet = fineBasis.localIndexSet();
 
       auto coarseView = coarseBasis.localView();
-      auto coarseIndexSet = coarseBasis.localIndexSet();
 
       // set index set
       matrix.setSize(fineBasis.size(), coarseBasis.size());
@@ -43,17 +41,15 @@ namespace Dune {
       for (const auto& element: elements(cgridView))
       {
         coarseView.bind(element);
-        coarseIndexSet.bind(coarseView);
         const auto numCoarse = coarseView.size();
 
         if (element.isLeaf()) {
           fineView.bind(element);
-          fineIndexSet.bind(fineView);
-          const auto elementIndex = fineIndexSet.index(0)[0];
+          const auto elementIndex = fineView.index(0)[0];
 
           for (size_t j = 0; j<numCoarse; j++)
           {
-            auto globalCoarseIndex = coarseIndexSet.index(j);
+            auto globalCoarseIndex = coarseView.index(j);
             indices.add(elementIndex, globalCoarseIndex);
           }
         }
@@ -61,12 +57,11 @@ namespace Dune {
         else {
           for (const auto& leaf : descendantElements(element, std::min(element.level()+1, maxLevel))) {
             fineView.bind(leaf);
-            fineIndexSet.bind(fineView);
-            const auto elementIndex = fineIndexSet.index(0)[0];
+            const auto elementIndex = fineView.index(0)[0];
 
             for (size_t j = 0; j<numCoarse; j++)
             {
-              auto globalCoarseIndex = coarseIndexSet.index(j);
+              auto globalCoarseIndex = coarseView.index(j);
 
               indices.add(elementIndex, globalCoarseIndex);
             }
@@ -81,14 +76,12 @@ namespace Dune {
       for (const auto& element: elements(cgridView))
       {
         coarseView.bind(element);
-        coarseIndexSet.bind(coarseView);
         // TODO: this works only for trivial ansatz trees
         const auto& coarseFE = coarseView.tree().finiteElement();
         const auto numCoarse = coarseView.size();
         if (element.isLeaf()) {
           fineView.bind(element);
-          fineIndexSet.bind(fineView);
-          const auto elementIndex = fineIndexSet.index(0)[0];
+          const auto elementIndex = fineView.index(0)[0];
 
           // TODO: this works only for trivial ansatz trees
           const auto& fineFE = fineView.tree().finiteElement();
@@ -100,14 +93,14 @@ namespace Dune {
           {
             /* Interpolate values of the j-th coarse function*/
             coarseBasisFunction.setIndex(j);
-            auto globalCoarseIndex = coarseIndexSet.index(j);
+            auto globalCoarseIndex = coarseView.index(j);
             fineFE.localInterpolation().interpolate(coarseBasisFunction, values);
 
 
             /* copy them into the local block */
             auto& localElementMatrix = matrix[elementIndex][globalCoarseIndex];
             for (size_t i = 0; i < fineView.size(); i++) {
-              auto localFine = fineIndexSet.index(i)[1];
+              auto localFine = fineView.index(i)[1];
               localElementMatrix[localFine][0]+=values[i];
             }
           }
@@ -117,8 +110,7 @@ namespace Dune {
             if (element.level() == leaf.level()) continue;
 
             fineView.bind(leaf);
-            fineIndexSet.bind(fineView);
-            const auto elementIndex = fineIndexSet.index(0)[0];
+            const auto elementIndex = fineView.index(0)[0];
             const auto numFine = fineView.size();
 
             const auto& cgeo = leaf.geometryInFather();
@@ -138,9 +130,9 @@ namespace Dune {
               coarseFE.localBasis().evaluateFunction(local, values);
 
               /* copy them into the local block */
-              auto localFine = fineIndexSet.index(j)[1];
+              auto localFine = fineView.index(j)[1];
               for (size_t i = 0; i < coarseView.size(); i++) {
-                auto globalCoarseIndex = coarseIndexSet.index(i);
+                auto globalCoarseIndex = coarseView.index(i);
                 auto& localElementMatrix = matrix[elementIndex][globalCoarseIndex];
                 localElementMatrix[localFine][0]+=values[i];
               }

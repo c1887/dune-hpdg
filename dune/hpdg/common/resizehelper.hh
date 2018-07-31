@@ -12,11 +12,9 @@ namespace HPDG {
   void resizeFromBasis(DynamicBCRSMatrix<K>& matrix, const B& basis) {
     matrix.finishIdx();
     auto localView = basis.localView();
-    auto localIS = basis.localIndexSet();
     for (const auto& e : elements(basis.gridView())) {
       localView.bind(e);
-      localIS.bind(localView);
-      matrix.blockRows(localIS.index(0)[0]) = localIS.size();
+      matrix.blockRows(localView.index(0)[0]) = localView.size();
     }
     matrix.setSquare();
   }
@@ -25,11 +23,9 @@ namespace HPDG {
   void resizeFromBasis(DynamicBlockVector<K>& v, const B& basis) {
     v.setSize(basis.size());
     auto localView = basis.localView();
-    auto localIS = basis.localIndexSet();
     for (const auto& e : elements(basis.gridView())) {
       localView.bind(e);
-      localIS.bind(localView);
-      v.blockRows(localIS.index(0)[0]) = localIS.size();
+      v.blockRows(localView.index(0)[0]) = localView.size();
     }
   }
 }

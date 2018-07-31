@@ -26,22 +26,18 @@ namespace Dune {
 
       // dune-functions' typical views and index sets
       auto fineView = fineBasis.localView();
-      auto fineIndexSet = fineBasis.localIndexSet();
 
       auto coarseView = coarseBasis.localView();
-      auto coarseIndexSet = coarseBasis.localIndexSet();
 
       for (const auto& element: elements(gridView))
       {
         fineView.bind(element);
-        fineIndexSet.bind(fineView);
 
         coarseView.bind(element);
-        coarseIndexSet.bind(coarseView);
 
         // Get element index; this is the first index of the twolevel index and should match for coarse and fine basis
-        const auto elementIndex = coarseIndexSet.index(0)[0];
-        assert(elementIndex == fineIndexSet.index(0)[0]); // todo remove this check?
+        const auto elementIndex = coarseView.index(0)[0];
+        assert(elementIndex == fineView.index(0)[0]); // todo remove this check?
         auto& localElementMatrix = matrix[elementIndex][elementIndex];
 
         // TODO: this works only for trivial ansatz trees
@@ -59,9 +55,9 @@ namespace Dune {
           fineFE.localInterpolation().interpolate(coarseBasisFunction, values);
 
           /* copy them into the local block */
-          auto localCoarse = coarseIndexSet.index(j)[1];
+          auto localCoarse = coarseView.index(j)[1];
           for (size_t i = 0; i < fineView.size(); i++) {
-            auto localFine = fineIndexSet.index(i)[1];
+            auto localFine = fineView.index(i)[1];
             localElementMatrix[localFine][localCoarse]=values[i];
           }
 

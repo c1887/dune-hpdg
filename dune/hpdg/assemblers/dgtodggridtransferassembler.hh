@@ -120,9 +120,7 @@ namespace Dune {
         const auto cbasis = LevelBasis(grid.levelGridView(level));
         const auto fbasis = LevelBasis(grid.levelGridView(level+1));
         auto fineView = fbasis.localView();
-        auto fineIndexSet = fbasis.localIndexSet();
         auto coarseView = cbasis.localView();
-        auto coarseIndexSet = fbasis.localIndexSet();
 
         auto& matrix = *(matrixVector[level]); // alias for convenience
         // iterate over level elements:
@@ -140,7 +138,6 @@ namespace Dune {
           else {
             // Assemble transfer to next level
             coarseView.bind(element);
-            coarseIndexSet.bind(coarseView);
 
             const auto& coarseFE = coarseView.tree().finiteElement();
             const auto numCoarse = coarseView.size();
@@ -149,7 +146,6 @@ namespace Dune {
               if (son.level()==level) continue;
               auto& localElementMatrix = matrix[multiLevelBasis.index(son, level+1)][multiLevelBasis.index(element, level)];
               fineView.bind(son);
-              fineIndexSet.bind(fineView);
               const auto& fineFE = fineView.tree().finiteElement();
               const auto numFine = fineView.size();
 
@@ -168,9 +164,9 @@ namespace Dune {
                 coarseFE.localBasis().evaluateFunction(local, values);
 
                 /* copy them into the local block */
-                auto localFine = fineIndexSet.index(j)[1];
+                auto localFine = fineView.index(j)[1];
                 for (std::size_t i = 0; i < coarseView.size(); i++) {
-                  auto localCoarse = coarseIndexSet.index(i)[1];
+                  auto localCoarse = coarseView.index(i)[1];
                   localElementMatrix[localFine][localCoarse]+=values[i];
                 }
               }
@@ -230,9 +226,7 @@ namespace Dune {
         const auto cbasis = LevelBasis(grid.levelGridView(level));
         const auto fbasis = LevelBasis(grid.levelGridView(level+1));
         auto fineView = fbasis.localView();
-        auto fineIndexSet = fbasis.localIndexSet();
         auto coarseView = cbasis.localView();
-        auto coarseIndexSet = fbasis.localIndexSet();
 
         auto& matrix = *(matrixVector[level]); // alias for convenience
         // iterate over level elements:
@@ -250,7 +244,6 @@ namespace Dune {
           else {
             // Assemble transfer to next level
             coarseView.bind(element);
-            coarseIndexSet.bind(coarseView);
 
             const auto& coarseFE = coarseView.tree().finiteElement();
             const auto numCoarse = coarseView.size();
@@ -259,7 +252,6 @@ namespace Dune {
               if (son.level()==level) continue;
               auto& localElementMatrix = matrix.matrix()[multiLevelBasis.index(son, level+1)][multiLevelBasis.index(element, level)];
               fineView.bind(son);
-              fineIndexSet.bind(fineView);
               const auto& fineFE = fineView.tree().finiteElement();
               const auto numFine = fineView.size();
 
@@ -278,9 +270,9 @@ namespace Dune {
                 coarseFE.localBasis().evaluateFunction(local, values);
 
                 /* copy them into the local block */
-                auto localFine = fineIndexSet.index(j)[1];
+                auto localFine = fineView.index(j)[1];
                 for (std::size_t i = 0; i < coarseView.size(); i++) {
-                  auto localCoarse = coarseIndexSet.index(i)[1];
+                  auto localCoarse = coarseView.index(i)[1];
                   localElementMatrix[localFine][localCoarse]+=values[i];
                 }
               }

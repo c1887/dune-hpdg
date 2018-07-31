@@ -24,10 +24,8 @@ namespace Dune {
 
       // dune-functions' typical views and index sets
       auto fineView = fineBasis.localView();
-      auto fineIndexSet = fineBasis.localIndexSet();
 
       auto coarseView = coarseBasis.localView();
-      auto coarseIndexSet = coarseBasis.localIndexSet();
 
       // set index set
       matrix.setSize(fineBasis.size(), coarseBasis.size());
@@ -36,18 +34,16 @@ namespace Dune {
       for (const auto& element: elements(gridView))
       {
         fineView.bind(element);
-        fineIndexSet.bind(fineView);
 
         coarseView.bind(element);
-        coarseIndexSet.bind(coarseView);
 
-        const auto elementIndex = fineIndexSet.index(0)[0];
+        const auto elementIndex = fineView.index(0)[0];
 
         const auto numCoarse = coarseView.size();
 
         for (size_t j = 0; j<numCoarse; j++)
         {
-          auto globalCoarseIndex = coarseIndexSet.index(j);
+          auto globalCoarseIndex = coarseView.index(j);
 
           indices.add(elementIndex, globalCoarseIndex);
         }
@@ -60,12 +56,10 @@ namespace Dune {
       for (const auto& element: elements(gridView))
       {
         fineView.bind(element);
-        fineIndexSet.bind(fineView);
 
         coarseView.bind(element);
-        coarseIndexSet.bind(coarseView);
 
-        const auto elementIndex = fineIndexSet.index(0)[0];
+        const auto elementIndex = fineView.index(0)[0];
 
         // TODO: this works only for trivial ansatz trees
         const auto& fineFE = fineView.tree().finiteElement();
@@ -79,13 +73,13 @@ namespace Dune {
         {
           /* Interpolate values of the j-th coarse function*/
           coarseBasisFunction.setIndex(j);
-          auto globalCoarseIndex = coarseIndexSet.index(j);
+          auto globalCoarseIndex = coarseView.index(j);
           fineFE.localInterpolation().interpolate(coarseBasisFunction, values);
 
           /* copy them into the local block */
           auto& localElementMatrix = matrix[elementIndex][globalCoarseIndex];
           for (size_t i = 0; i < fineView.size(); i++) {
-            auto localFine = fineIndexSet.index(i)[1];
+            auto localFine = fineView.index(i)[1];
             localElementMatrix[localFine][0]+=values[i];
           }
         }
