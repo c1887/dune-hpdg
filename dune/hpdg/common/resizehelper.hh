@@ -17,6 +17,9 @@ namespace HPDG {
       matrix.blockRows(localView.index(0)[0]) = localView.size();
     }
     matrix.setSquare();
+
+    // allocate memory
+    matrix.update();
   }
 
   template <class K, class B>
@@ -27,6 +30,9 @@ namespace HPDG {
       localView.bind(e);
       v.blockRows(localView.index(0)[0]) = localView.size();
     }
+
+    // allocate memory
+    v.update();
   }
 }
 }
