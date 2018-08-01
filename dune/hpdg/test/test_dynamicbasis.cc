@@ -56,7 +56,6 @@ TestSuite test_dynamicBasis(Basis& basis, const Grid& grid) {
 
   // set block sizes and allocate memory:
   Dune::HPDG::resizeFromBasis(matrix, basis);
-  matrix.update();
 
   // now, assemble:
   assembler.assembleBulkEntries(mBE, laplace);
