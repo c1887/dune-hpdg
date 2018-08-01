@@ -50,6 +50,18 @@ namespace Dune {
        */
       void setSize(size_t n) {
         n_=n;
+
+        // Reset the vector windows (i.e. set its length to zero
+        // and the data ptr to nullptr. Moreover, release any self managed
+        // memory (though there should not be any).
+        // Otherwise, when the old entries will be copied
+        // into the new one when resizing the vector_,
+        // each VectorWindow will get his own data.
+        // (This whole self managing design is kinda broken,
+        // but there are too many places relying on it).
+        for (auto& v: vector_) {
+          v.reset();
+        }
         vector_.resize(n_);
         rowMap_.resize(n_);
       }
@@ -101,6 +113,11 @@ namespace Dune {
       DynamicBlockVector& operator=(const DynamicBlockVector& other) {
         n_ = other.n_;
         rowMap_ = other.rowMap_;
+
+        // Reset the old entries, see comment in method 'setSize'.
+        for (auto& v: vector_) {
+          v.reset();
+        }
         vector_.resize(n_);
         update();
         for (size_t i = 0; i < size_; i++)

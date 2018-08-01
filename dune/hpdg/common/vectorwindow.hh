@@ -63,9 +63,11 @@ namespace Dune {
 
     /** Construct as a copy. This is, however, not the intended use of this class! */
     VectorWindow(const VectorWindow& x) {
+      n_=x.n_;
+      if(x.data_ == nullptr)
+        return;
       ownData_ = std::make_unique<K[]>(x.n_);
       data_=ownData_.get();
-      n_=x.n_;
       for (size_t i = 0; i < n_; i++)
         data_[i] = x.data_[i];
     }
@@ -112,23 +114,34 @@ namespace Dune {
     //! Copy assignment operator
     VectorWindow &operator=(const VectorWindow &other)
     {
-      data_= other.data_;
-      n_ = other.n_;
+      if (other.n_ != n_)
+        DUNE_THROW(Dune::Exception, "Attempting to copy-assign from a VectorWindow of wrong size!");
+      for(size_t i = 0; i < n_; i++)
+        data_[i] = other.data_[i];
+
       return *this;
     }
 
     //! Move assignment operator
     VectorWindow &operator=(VectorWindow &&other)
     {
-      data_=other.data_;
-      n_ = other.n_;
-      other.data_=nullptr;
+      if (other.n_ != n_)
+        DUNE_THROW(Dune::Exception, "Attempting to move-assign from a VectorWindow&& of wrong size!");
+      for(size_t i = 0; i < n_; i++)
+        data_[i] = other.data_[i];
       return *this;
     }
 
     void set(K* data, size_t n) {
       data_=data;
       n_=n;
+    }
+
+    void reset() {
+      if (ownData_ != nullptr)
+        ownData_.release();
+      data_=nullptr;
+      n_=0;
     }
 
     value_type operator*(const VectorWindow& y) const {
