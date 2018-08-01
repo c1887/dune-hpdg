@@ -87,6 +87,20 @@ namespace Dune {
         resetBlocks();
       }
 
+      /** Checks if any entries went rogue, i.e.
+       * carry their own storage instead of being part of this
+       * blockvector's memory.
+       */
+      bool checkValidity() const {
+
+        for (const auto& vw: vector_) {
+          if (vw.ownData_ != nullptr)
+            return false;
+        }
+
+        return true;
+      }
+
       const BlockType& operator[](size_t i) const {
         DUNE_ASSERT_BOUNDS(i<n_);
         return vector_[i];

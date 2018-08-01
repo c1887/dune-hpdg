@@ -42,10 +42,15 @@ namespace Dune {
   };
 
   namespace HPDG {
+
+  // forward declaration
+  template<class K>
+  class DynamicBlockVector;
+
   template<class K>
   class VectorWindow : public DenseVector< VectorWindow<K> >
   {
-    //std::vector< K, Allocator > _data;
+    friend class DynamicBlockVector<K>;
     K* data_;
     size_t n_;
 
