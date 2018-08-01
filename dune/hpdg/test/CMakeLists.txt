@@ -8,10 +8,6 @@ dune_add_test(
 dune_add_test(
   SOURCES test_arraytotuple.cc)
 dune_add_test(
-  SOURCES test_makedgtransfertuple.cc)
-dune_add_test(
-  SOURCES test_dgmultigridstep.cc)
-dune_add_test(
   SOURCES test_geometricdgmultigrid.cc)
 dune_add_test(
   SOURCES test_dynamicbasis.cc)
