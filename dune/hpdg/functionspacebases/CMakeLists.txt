@@ -8,4 +8,5 @@ install(FILES
   dynamicdgqkgausskronrodbasis.hh
   dynamicdgqkgausslegendrebasis.hh
   dynamicqknode.hh
+  persistentgridview.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/functionspacebases)
