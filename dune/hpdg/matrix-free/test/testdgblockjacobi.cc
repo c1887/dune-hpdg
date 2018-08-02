@@ -8,9 +8,9 @@
 #include <dune/istl/bvector.hh>
 #include <dune/istl/bcrsmatrix.hh>
 
-#include <dune/fufem/matrix-free/operator.hh>
-#include <dune/fufem/matrix-free/localoperators/ipdgblockjacobi.hh>
-#include <dune/fufem/matrix-free/localoperators/ipdgoperator.hh>
+#include <dune/hpdg/matrix-free/operator.hh>
+#include <dune/hpdg/matrix-free/localoperators/ipdgblockjacobi.hh>
+#include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>

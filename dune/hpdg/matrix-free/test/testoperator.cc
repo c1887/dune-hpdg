@@ -8,11 +8,11 @@
 #include <dune/istl/bvector.hh>
 #include <dune/istl/bcrsmatrix.hh>
 
-#include <dune/fufem/matrix-free/operator.hh>
-#include <dune/fufem/matrix-free/localoperators/identityoperator.hh>
-#include <dune/fufem/matrix-free/localoperators/localassembleroperator.hh>
-#include <dune/fufem/matrix-free/localoperators/laplaceoperator.hh>
-#include <dune/fufem/matrix-free/localoperators/uniformlaplaceoperator.hh>
+#include <dune/hpdg/matrix-free/operator.hh>
+#include <dune/hpdg/matrix-free/localoperators/identityoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/localassembleroperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
 
 #include <dune/functions/functionspacebases/pqknodalbasis.hh>
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>

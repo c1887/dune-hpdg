@@ -8,9 +8,9 @@
 #include <dune/istl/bvector.hh>
 #include <dune/istl/bcrsmatrix.hh>
 
-#include <dune/fufem/matrix-free/operator.hh>
-#include <dune/fufem/matrix-free/localoperators/laplacepointjacobi.hh>
-#include <dune/fufem/matrix-free/localoperators/laplaceoperator.hh>
+#include <dune/hpdg/matrix-free/operator.hh>
+#include <dune/hpdg/matrix-free/localoperators/laplacepointjacobi.hh>
+#include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
 
 #include <dune/functions/functionspacebases/pqknodalbasis.hh>
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>
