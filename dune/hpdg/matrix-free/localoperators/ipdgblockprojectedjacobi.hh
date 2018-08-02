@@ -20,7 +20,6 @@ namespace MatrixFree {
   class IPDGBlockProjectedJacobi : public LocalOperator<V, GV> {
     using Base = LocalOperator<V, GV>;
     using LV = typename Basis::LocalView;
-    using LIS = typename Basis::LocalIndexSet;
     using FE = std::decay_t<decltype(std::declval<LV>().tree().finiteElement())>;
     using Field = typename V::field_type;
     //using LocalMatrix = Dune::Matrix<FieldBlock>;
@@ -38,15 +37,13 @@ namespace MatrixFree {
         penalty_(penalty),
         dirichlet_(dirichlet),
         localView_(basis_.localView()),
-        localIndexSet_(basis_.localIndexSet()),
         localSolver_(std::forward<LS>(localSolver)) {}
 
       void bind(const typename Base::Entity& e)
       {
         localView_.bind(e);
-        localIndexSet_.bind(localView_);
 
-        localVector_.resize(localIndexSet_.size());
+        localVector_.resize(localView_.size());
         for(auto& e: localVector_)
           e=0;
         localMatrix_.setSize(localVector_.size(), localVector_.size());
@@ -160,9 +157,9 @@ namespace MatrixFree {
         auto lowerBE = Fufem::istlVectorBackend<const Field>(lower_);
         auto upperBE = Fufem::istlVectorBackend<const Field>(upper_);
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
-          insideCoeffs[i] = inputBackend(localIndexSet_.index(i));
-          lowerC[i] = lowerBE(localIndexSet_.index(i));
-          upperC[i] = upperBE(localIndexSet_.index(i));
+          insideCoeffs[i] = inputBackend(localView_.index(i));
+          lowerC[i] = lowerBE(localView_.index(i));
+          upperC[i] = upperBE(localView_.index(i));
         }
 
         localSolver_(localMatrix_, insideCoeffs, localVector_, lowerC, upperC);
@@ -177,9 +174,9 @@ namespace MatrixFree {
           return;
 
         auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
-        for (size_t localRow=0; localRow<localIndexSet_.size(); ++localRow)
+        for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localIndexSet_.index(localRow));
+          auto& rowEntry = outputBackend(localView_.index(localRow));
           rowEntry += localVector_[localRow];
         }
       }
@@ -196,7 +193,6 @@ namespace MatrixFree {
       double penalty_;
       bool dirichlet_;
       LV localView_;
-      LIS localIndexSet_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       LocalSolver localSolver_;
       LocalMatrix localMatrix_;
