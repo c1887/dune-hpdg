@@ -4,4 +4,4 @@ install_files(
   localassembleroperator.hh
   laplaceoperator.hh
   uniformlaplaceoperator.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/fufem/matrix-free/localoperators)
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/matrix-free/localoperators)
