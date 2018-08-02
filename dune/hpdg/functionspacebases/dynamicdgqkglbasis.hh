@@ -173,6 +173,11 @@ public:
   }
 
   template<typename Element>
+  const auto& degree(const Element& e) const {
+    return degreeMap_.at(mcmgMapper_.index(e));
+  }
+
+  template<typename Element>
   auto& degree(const Element& e){
     return degreeMap_.at(mcmgMapper_.index(e));
   }
