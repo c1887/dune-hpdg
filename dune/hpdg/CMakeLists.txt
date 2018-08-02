@@ -5,6 +5,7 @@ add_subdirectory("functionspacebases")
 add_subdirectory("gridfunctions")
 add_subdirectory("iterationsteps")
 add_subdirectory("localfunctions")
+add_subdirectory("matrix-free")
 add_subdirectory("test")
 add_subdirectory("transferoperators")
 install(FILES
