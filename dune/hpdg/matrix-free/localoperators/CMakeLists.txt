@@ -1,4 +1,5 @@
 install_files(
+  dgrestrict.hh
   identityoperator.hh
   ipdgoperator.hh
   localassembleroperator.hh
