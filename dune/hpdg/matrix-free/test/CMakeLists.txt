@@ -4,3 +4,5 @@ dune_add_test(
   SOURCES testdg.cc)
 dune_add_test(
   SOURCES testdgblockjacobi.cc)
+dune_add_test(
+  SOURCES testsumfactor.cc)
