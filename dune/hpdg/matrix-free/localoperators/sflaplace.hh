@@ -164,14 +164,6 @@ namespace MatrixFree {
       }
 
       template<class X, class Q>
-      inline double lagrange(const X& x, size_t i, const Q& quad) const {
-       double result = 1.;
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i) result *= (x-quad.at(j).position())/(quad.at(i).position()-quad.at(j).position());
-        return result;
-      }
-
-      template<class X, class Q>
       inline double lagrangePrime(const X& x, size_t i, const Q& quad) const {
         double result = 0.;
 
