@@ -23,7 +23,10 @@ namespace MatrixFree {
    * In particular, it relies on several implementation details
    *
    * TODO:
-   * Right now, this is in an extremely messy state and also
+   *
+   * - Generalize to dimensons != 2
+   *
+   * - Right now, this is in an extremely messy state and also
    * severly inefficient!
    */
   template<class V, class GV, class Basis>
@@ -37,6 +40,7 @@ namespace MatrixFree {
     using LM = LocalMatrix; // TODO Remove this. Nur fürs schnellere schreiben
 
     static constexpr int dim = GV::dimension;
+    static_assert(dim==2, "Sumfactorized Laplace only for dim=2 currently");
 
     public:
 
@@ -51,31 +55,59 @@ namespace MatrixFree {
         localVector_.resize(localView_.size());
         for (auto& entry: localVector_)
           entry=0;
+
+        // get order:
+        localDegree_ = basis_.preBasis().degree(e);
+
+        // check if order is already in cache:
+        {
+          auto it = cache_.find(localDegree_);
+          if (it != cache_.end()) {
+            lp_ = &(it->second);
+            rule_ = &(rules_[localDegree_]);
+            return;
+          }
+        }
+
+        auto order = 2*localDegree_ - 1;
+        // get quadrature rule:
+        rules_[localDegree_] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+        
+        rule_ = &(rules_[localDegree_]);
+
+        // sort quad points (they're also ordered for the basis)
+        std::sort(rule_->begin(), rule_->end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+
+        // save all derivatives of 1-d basis functions at the quad points, i.e.
+        // lp_ij = l_i' (xi_j)
+        LocalMatrix lp(localDegree_+1, localDegree_+1);
+        for (std::size_t i = 0; i < lp.N(); i++) {
+          for (std::size_t j = 0; j < lp.M(); j++) {
+            lp[i][j]=lagrangePrime((*rule_)[i].position(),j, *rule_);
+          }
+        }
+        cache_[localDegree_]=std::move(lp);
+        lp_ = &(cache_[localDegree_]);
+
       }
 
 
       void compute() {
-
-        const auto& fe = localView_.tree().finiteElement();
-
         // compute needed order:
-        auto degree = fe.localBasis().order() +1; // if order p, we want p+1 nodes
-        auto order = 2*degree - 3;
-        // get quadrature rule:
-        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+        auto degree = localDegree_ +1; // if order p, we want p+1 nodes
 
-        // sort quad points (they're also ordered for the basis)
-        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-            return a.position() < b.position();
-            });
 
         const auto& geometry = localView_.element().geometry();
 
-        // we need the coefficients at every quadrature point. We extract and order them once:
+        // TODO: If grid is very simple, one can compute jac and gamma once here.
+
+        // find the first entry in input vector. Because we know DG indices are contiguous and
+        // the local 0 idx is also the lowest global index, we can perform this little
+        // hack to circumvent using a buffer and several calls do localView.index(foo).
         auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
         const auto* coeffs = &(inputBackend(localView_.index(0))); // using DG structure here
-
-        assert(dim==2); // TODO. Implement other cases
 
         using FV = Dune::FieldVector<double, dim>;
 
@@ -88,7 +120,7 @@ namespace MatrixFree {
           // one for-loop.
           for(std::size_t i = 0; i < degree; i++) {
             auto idx = flatindex({{ direction == 0 ? i : i0, direction == 1 ? i: i1}}, degree-1);
-            res+= coeffs[idx]*lagrangePrime(rule[pos].position(), i, rule);
+            res+= coeffs[idx]*((*lp_)[pos][i]);
           }
           return res;
         };
@@ -107,23 +139,26 @@ namespace MatrixFree {
           double out=0.;
           auto mm = multiindex(k, degree-1);
           for(std::size_t r = 0; r < dim; r++) {
-            for(std::size_t i0 = 0; i0 < rule.size(); i0++) {
-              if (r!=0 and mm[0]!=i0)
-                continue;
-              for(std::size_t i1 = 0; i1 < rule.size(); i1++) {
-                if (r!=1 and mm[1]!=i1)
-                  continue;
+            auto fixed_weight = r==0 ? (*rule_)[mm[1]].weight() : (*rule_)[mm[0]].weight();
 
-                // get jac: this should actually be always the same for a aligned grid.
-                FV pos{rule[i0].position(), rule[i1].position()};
-                const auto& jac = geometry.jacobianInverseTransposed(pos);
-                auto gamma = geometry.integrationElement(pos);
-                auto weight = rule[i0].weight()*rule[i1].weight();
+            for(std::size_t i = 0; i < rule_->size(); i++) {
+              auto i0 = r==0 ? i : mm[0];
+              auto i1 = r==1 ? i : mm[1];
 
-                // compute x factor
-                auto x = computeX(i0,i1, jac)[r]*gamma*weight;
-                out+= computeFaktor(rule, 0, r, mm[0], i0)*computeFaktor(rule, 1, r, mm[1], i1)*x;
+              // get jac: TODO: this should actually be always the same for a aligned grid.
+              FV pos{(*rule_)[i0].position(), (*rule_)[i1].position()};
+              const auto& jac = geometry.jacobianInverseTransposed(pos);
+              auto gamma = geometry.integrationElement(pos);
 
+              auto weight = (*rule_)[i].weight()*fixed_weight;
+
+              // compute x factor
+              auto x = computeX(i0,i1, jac)[r]*gamma*weight;
+              if (r==0) {
+                out+= (*lp_)[mm[0]][i]*x;
+              }
+              else if (r==1) {
+                out+= (*lp_)[i][mm[1]]*x;
               }
             }
           }
@@ -179,18 +214,14 @@ namespace MatrixFree {
         return result;
       }
 
-      template<class Q>
-      double computeFaktor(const Q& quad, size_t q, size_t r, size_t alpha, size_t beta) const {
-        if (q!=r)
-          return alpha==beta ? 1. : 0.; // we use the underlying quadrature formula for the quadrature here
-        else
-          return lagrangePrime(quad[beta].position(), alpha, quad);
-      }
-
-
       const Basis& basis_;
       LV localView_;
+      std::map<size_t, LocalMatrix> cache_;
+      std::map<size_t, Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
+      size_t localDegree_;
+      const LocalMatrix* lp_;
+      Dune::QuadratureRule<typename GV::Grid::ctype,1>* rule_;
   };
 }
 }

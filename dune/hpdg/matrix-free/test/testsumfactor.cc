@@ -30,13 +30,15 @@ TestSuite test_bulk(const GV& gv, int k) {
   auto Ax=x;
   Ax=0.0;
 
+  std::array<double, 2> time;
+
   auto sf_laplace = Dune::Fufem::MatrixFree::SumFactLaplaceperator<Vector, GV, decltype(basis)>(basis);
   auto op = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(sf_laplace)>(gv, sf_laplace);
   {
     Dune::Timer timer;
     op.apply(x, Ax);
-    auto time = timer.stop();
-    std::cout << "Sum-factorized Laplace with order " << k <<" took: " << time << std::endl;
+    time[0] = timer.stop();
+    std::cout << "Sum-factorized Laplace with order " << k <<" took: " << time[0] << std::endl;
   }
 
   // for test, do the same with standard Laplace matrix-free
@@ -47,9 +49,10 @@ TestSuite test_bulk(const GV& gv, int k) {
   {
     Dune::Timer timer;
     op_mf.apply(x, Ax_mf);
-    auto time = timer.stop();
-    std::cout << "Standard Laplace with order " << k <<" took: " << time << std::endl;
+    time[1] = timer.stop();
+    std::cout << "Standard Laplace with order " << k <<" took: " << time[1] << std::endl;
   }
+  std::cout << "Sumfactored Laplace was " << time[1]/time[0] << " times faster!" << std::endl;
 
   Ax-=Ax_mf;
   auto error = Ax.two_norm();
