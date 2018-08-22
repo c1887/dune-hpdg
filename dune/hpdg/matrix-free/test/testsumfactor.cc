@@ -8,7 +8,7 @@
 
 #include <dune/hpdg/matrix-free/operator.hh>
 #include <dune/hpdg/matrix-free/localoperators/sflaplace.hh>
-#include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
@@ -42,7 +42,7 @@ TestSuite test_bulk(const GV& gv, int k) {
   }
 
   // for test, do the same with standard Laplace matrix-free
-  auto laplace = Dune::Fufem::MatrixFree::LaplaceOperator<Vector, GV, decltype(basis)>(basis);
+  auto laplace = Dune::Fufem::MatrixFree::UniformLaplaceOperator<Vector, GV, decltype(basis)>(basis);
   auto op_mf = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(laplace)>(gv, laplace);
   auto Ax_mf = Ax;
   Ax_mf=0.;
