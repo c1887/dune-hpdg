@@ -30,7 +30,7 @@ namespace MatrixFree {
    * severly inefficient!
    */
   template<class V, class GV, class Basis>
-  class SumFactLaplaceperator : public LocalOperator<V, GV> {
+  class SumFactLaplaceOperator : public LocalOperator<V, GV> {
     using Base = LocalOperator<V, GV>;
     using LV = typename Basis::LocalView;
     using FE = std::decay_t<decltype(std::declval<LV>().tree().finiteElement())>;
@@ -44,7 +44,7 @@ namespace MatrixFree {
 
     public:
 
-      SumFactLaplaceperator(const Basis& b) :
+      SumFactLaplaceOperator(const Basis& b) :
         basis_(b),
         localView_(basis_.localView()) {}
 

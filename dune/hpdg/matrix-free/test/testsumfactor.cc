@@ -32,7 +32,7 @@ TestSuite test_bulk(const GV& gv, int k) {
 
   std::array<double, 2> time;
 
-  auto sf_laplace = Dune::Fufem::MatrixFree::SumFactLaplaceperator<Vector, GV, decltype(basis)>(basis);
+  auto sf_laplace = Dune::Fufem::MatrixFree::SumFactLaplaceOperator<Vector, GV, decltype(basis)>(basis);
   auto op = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(sf_laplace)>(gv, sf_laplace);
   {
     Dune::Timer timer;
