@@ -72,7 +72,7 @@ namespace MatrixFree {
         auto order = 2*localDegree_ - 1;
         // get quadrature rule:
         rules_[localDegree_] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
-        
+
         rule_ = &(rules_[localDegree_]);
 
         // sort quad points (they're also ordered for the basis)
@@ -135,34 +135,28 @@ namespace MatrixFree {
           return p;
         };
 
-        for (size_t k = 0; k < localView_.size(); k++) {
-          double out=0.;
-          auto mm = multiindex(k, degree-1);
-          for(std::size_t r = 0; r < dim; r++) {
-            auto fixed_weight = r==0 ? (*rule_)[mm[1]].weight() : (*rule_)[mm[0]].weight();
+        LocalMatrix X(lp_->N(), lp_->M());
+        for(size_t i0=0; i0<lp_->N(); i0++) {
+          for(size_t i1=0; i1<lp_->M(); i1++) {
+            FV pos{(*rule_).at(i0).position(), (*rule_).at(i1).position()};
+            const auto& jac = geometry.jacobianInverseTransposed(pos);
+            auto gamma = geometry.integrationElement(pos);
 
-            for(std::size_t i = 0; i < rule_->size(); i++) {
-              auto i0 = r==0 ? i : mm[0];
-              auto i1 = r==1 ? i : mm[1];
+            auto weight = (*rule_)[i0].weight()*(*rule_)[i1].weight();
 
-              // get jac: TODO: this should actually be always the same for a aligned grid.
-              FV pos{(*rule_)[i0].position(), (*rule_)[i1].position()};
-              const auto& jac = geometry.jacobianInverseTransposed(pos);
-              auto gamma = geometry.integrationElement(pos);
-
-              auto weight = (*rule_)[i].weight()*fixed_weight;
-
-              // compute x factor
-              auto x = computeX(i0,i1, jac)[r]*gamma*weight;
-              if (r==0) {
-                out+= (*lp_)[mm[0]][i]*x;
-              }
-              else if (r==1) {
-                out+= (*lp_)[i][mm[1]]*x;
-              }
-            }
+            auto x = computeX(i0,i1, jac);
+            x*=weight;
+            x*=gamma;
+            X[i0][i1]=x[0]+x[1];
           }
-        localVector_[k] = out;
+        }
+
+        auto prod = *lp_ * X;
+
+        for(size_t i0=0; i0<prod.N(); i0++) {
+          for(size_t i1=0; i1<prod.M(); i1++) {
+            localVector_[flatindex({{i0, i1}}, localDegree_)]=prod[i0][i1];
+          }
         }
       }
 
@@ -205,10 +199,10 @@ namespace MatrixFree {
         for (size_t j=0; j<quad.size(); j++)
           if (j!=i)
           {
-            double prod= 1.0/(quad.at(i).position()-quad.at(j).position());
+            double prod= 1.0/(quad[i].position()-quad[j].position());
             for (size_t l=0; l<quad.size(); l++)
               if (l!=i && l!=j)
-                prod *= (x-quad.at(l).position())/(quad.at(i).position()-quad.at(l).position());
+                prod *= (x-quad[l].position())/(quad[i].position()-quad[l].position());
             result += prod;
           }
         return result;
