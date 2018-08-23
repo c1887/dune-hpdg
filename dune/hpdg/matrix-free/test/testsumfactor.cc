@@ -13,6 +13,7 @@
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
 
+#include <dune/functions/functionspacebases/interpolate.hh>
 using namespace Dune;
 
 // Tests if sumfactorized and standard matrix-free bulk laplace yield the same vectors
@@ -26,7 +27,11 @@ TestSuite test_bulk(const GV& gv, int k) {
   std::cout << "\nTesting Bulk Laplace with Order " << k << " (" << basis.dimension() <<" unknowns):" << std::endl;
   Vector x;
   Dune::HPDG::resizeFromBasis(x, basis);
-  x=1.0;
+  auto func=[](auto&& x) {
+    return x*x;
+  };
+  auto xbe = Dune::Functions::hierarchicVector(x);
+  Dune::Functions::interpolate(basis, xbe, func);
   auto Ax=x;
   Ax=0.0;
 
