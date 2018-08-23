@@ -16,6 +16,7 @@
 
 #include <dune/functions/functionspacebases/pqknodalbasis.hh>
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>
+#include <dune/functions/functionspacebases/interpolate.hh>
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
@@ -109,7 +110,10 @@ TestSuite test_operator(const GV& gv) {
   {
     auto basis = basisPair.first;
     std::cout << "\nTesting with " << basisPair.second<< " basis (" << basis.dimension() <<" unknowns):" << std::endl;
+    // interpolate a example function
+    auto func=[](auto&& x) { return x*x;};
     x.resize(basis.dimension());
+    Dune::Functions::interpolate(basis, x, func);
     Ax.resize(x.size());
 
     using FE = std::decay_t<decltype(basis.localView().tree().finiteElement())>;

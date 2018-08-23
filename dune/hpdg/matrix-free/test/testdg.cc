@@ -12,6 +12,7 @@
 #include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>
+#include <dune/functions/functionspacebases/interpolate.hh>
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
@@ -92,8 +93,10 @@ TestSuite test_sipg(const GV& gv) {
   auto basis = Dune::Functions::LagrangeDGBasis<GV, order>(gv);
 
   std::cout << "\nTesting SIPG with DG Q2 basis (" << basis.dimension() <<" unknowns):" << std::endl;
+  // interpolate a example function
+  auto func=[](auto&& x) { return x*x;};
   x.resize(basis.dimension());
-  x=1.0;
+  Dune::Functions::interpolate(basis, x, func);
   Vector Ax(x.size());
   Ax=0.0;
 
