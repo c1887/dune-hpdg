@@ -145,6 +145,11 @@ public:
     return *vector_;
   }
 
+  template<typename E>
+  HierarchicVectorWrapper& operator=(const E& e) {
+    *vector_ = e;
+    return *this;
+  }
 private:
 
   Vector* vector_;
