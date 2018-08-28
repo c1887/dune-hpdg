@@ -180,6 +180,12 @@ namespace Dune {
       return *this;
     }
 
+    VectorWindow& operator+=(double other) {
+      assert(n_ == 1);
+      data_[0] = other;
+      return *this;
+    }
+
     VectorWindow& operator-=(const VectorWindow& other) {
       DUNE_ASSERT_BOUNDS(other.n_==n_);
       for (size_t i = 0; i < n_; i++)
