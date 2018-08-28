@@ -174,10 +174,10 @@ namespace MatrixFree {
           return;
 
         auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto* rowEntry = &(outputBackend(localView_.index(0)));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
-          rowEntry += localVector_[localRow];
+          rowEntry[localRow] += localVector_[localRow];
         }
       }
 
