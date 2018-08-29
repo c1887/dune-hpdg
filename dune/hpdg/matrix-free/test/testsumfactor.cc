@@ -10,6 +10,7 @@
 #include <dune/hpdg/matrix-free/localoperators/sflaplace.hh>
 #include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
@@ -62,9 +63,17 @@ TestSuite test_bulk(const GV& gv, int k) {
   }
   std::cout << "Sumfactored Laplace was " << time[1]/time[0] << " times faster!" << std::endl;
 
-  Ax-=Ax_mf;
-  //auto error = Ax.two_norm();
-  auto error = Ax[0]*Ax[0];
+  // Test with ipdg energy norm:
+  double error;
+  {
+    Ax-=Ax_mf;
+    auto ipdg = Dune::Fufem::MatrixFree::IPDGOperator<Vector, GV, decltype(basis)>(basis);
+    auto ipdgop = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(ipdg)>(gv, ipdg);
+
+    auto dummy= Ax;
+    ipdgop.apply(Ax, dummy);
+    error = Ax*dummy;
+  }
   std::cout << error << std::endl;
   suite.check(error<1e-12, "Check if sumfacttorized and standard matrix free Laplace yield the same") << "Difference for order " <<k <<" is " << error << std::endl;
 
