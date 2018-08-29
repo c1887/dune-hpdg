@@ -11,6 +11,7 @@
 #include <dune/localfunctions/lagrange/qk/qklocalcoefficients.hh>
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
+#include <dune/hpdg/common/mmmatrix.hh>
 #include "localoperator.hh"
 
 namespace Dune {
@@ -37,7 +38,6 @@ namespace MatrixFree {
     using Field = typename V::field_type;
 
     using LocalMatrix = Dune::Matrix<Dune::FieldMatrix<double, 1, 1>>;
-    using LM = LocalMatrix; // TODO Remove this. Nur fürs schnellere schreiben
 
     static constexpr int dim = GV::dimension;
     static_assert(dim==2, "Sumfactorized Laplace only for dim=2 currently");
@@ -63,40 +63,44 @@ namespace MatrixFree {
         {
           auto it = cache_.find(localDegree_);
           if (it != cache_.end()) {
-            lp_ = &(it->second);
+            matrixPair_ = &(it->second);
             rule_ = &(rules_[localDegree_]);
             return;
           }
         }
 
-        auto order = 2*localDegree_ - 1;
+        int order = 2*localDegree_ - 1;
         // get quadrature rule:
-        rules_[localDegree_] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
+        rules_[localDegree_] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order+2, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
 
         rule_ = &(rules_[localDegree_]);
 
         // sort quad points (they're also ordered for the basis)
-        std::sort(rule_->begin(), rule_->end(), [](auto&& a, auto&& b) {
+        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
           return a.position() < b.position(); });
 
 
         // save all derivatives of 1-d basis functions at the quad points, i.e.
-        // lp_ij = l_i' (xi_j)
-        LocalMatrix lp(localDegree_+1, localDegree_+1);
+        // matrixPair_ij = l_i' (xi_j)
+        LocalMatrix lp(localDegree_+1, rule_->size());
+        // same for the function values
+        LocalMatrix l(localDegree_+1, rule_->size());
         for (std::size_t i = 0; i < lp.N(); i++) {
           for (std::size_t j = 0; j < lp.M(); j++) {
-            lp[i][j]=lagrangePrime((*rule_)[i].position(),j, *rule_);
+            lp[i][j]=lagrangePrime((*rule_)[j].position(),i, gauss_lobatto);
+            l[i][j]=lagrange((*rule_)[j].position(),i, gauss_lobatto);
           }
         }
-        cache_[localDegree_]=std::move(lp);
-        lp_ = &(cache_[localDegree_]);
+        cache_[localDegree_]=std::array<LocalMatrix, 2>{{std::move(l), std::move(lp)}};
+        matrixPair_ = &(cache_[localDegree_]);
 
       }
 
 
       void compute() {
         // compute needed order:
-        auto degree = localDegree_ +1; // if order p, we want p+1 nodes
+        //auto degree = localDegree_ +1; // if order p, we want p+1 nodes
 
 
         const auto& geometry = localView_.element().geometry();
@@ -111,56 +115,60 @@ namespace MatrixFree {
 
         using FV = Dune::FieldVector<double, dim>;
 
-        // returns \partial_direction \hat{u}(\xi_{i0, i1})
-        auto localDev =[&](const auto& i0, const auto& i1, const auto& direction) {
-          double res =0;
-          auto pos = direction == 0 ? i0 : i1; // the relevant index, the other one won't be used, see below.
+        // precompute the derivatives of the local function at each (tensor-product) quad point
+        auto dx_u = Dune::HPDG::BtUL((*matrixPair_)[0], coeffs, (*matrixPair_)[1]); // matrix contains \partial_x u(xi_{i0, i1})
+        auto dy_u = Dune::HPDG::BtUL((*matrixPair_)[1], coeffs, (*matrixPair_)[0]); // matrix contains \partial_y u(xi_{i0, i1})
 
-          // here, we use the fact that \phi_alpha(x_beta) = alpha==beta, therefore we only need
-          // one for-loop.
-          for(std::size_t i = 0; i < degree; i++) {
-            auto idx = flatindex({{ direction == 0 ? i : i0, direction == 1 ? i: i1}}, degree-1);
-            res+= coeffs[idx]*((*lp_)[pos][i]);
-          }
-          return res;
-        };
-
+        // i0 and i1 are indices wrt to the RULE, not the basis
         auto computeX= [&](auto i0, auto i1, const auto& jacT) {
-          FV p;
-          p[0]=localDev(i0, i1, 0);
-          p[1]=localDev(i0, i1, 1);
+          FV gradU {dx_u[i0][i1], dy_u[i0][i1]};
           FV dummy;
-          jacT.mv(p, dummy);
-          jacT.mtv(dummy, p);
-          return p;
+          jacT.mv(gradU, dummy);
+          jacT.mtv(dummy, gradU);
+          return gradU;
         };
 
-        LocalMatrix X(lp_->N(), lp_->M());
-        for(size_t i0=0; i0<lp_->N(); i0++) {
-          for(size_t i1=0; i1<lp_->M(); i1++) {
-            FV pos{(*rule_).at(i0).position(), (*rule_).at(i1).position()};
+        auto i_length = rule_->size(); // number of quadrature points
+
+        std::array<Dune::Matrix<Dune::FieldMatrix<double,1,1>>, dim> innerValues; // TODO: document exactly what's in here
+        for (auto& iv: innerValues)
+          iv.setSize(i_length, i_length);
+
+        // pre-compute inner values
+        for(std::size_t i1 = 0; i1 < i_length; i1++) {
+          FV pos{0, (*rule_).at(i1).position()};
+          for(std::size_t i0 = 0; i0 < i_length; i0++) {
+            pos[0]=(*rule_).at(i0).position();
+            // compute jacobian
             const auto& jac = geometry.jacobianInverseTransposed(pos);
             auto gamma = geometry.integrationElement(pos);
 
-            auto weight = (*rule_)[i0].weight()*(*rule_)[i1].weight();
-
-            auto x = computeX(i0,i1, jac);
-            x*=weight;
-            x*=gamma;
-            X[i0][i1]=x[0]+x[1];
+            auto x_values = computeX(i0,i1,jac);
+            x_values *= gamma*(*rule_)[i0].weight()*(*rule_)[i1].weight();
+            for (size_t r=0; r<dim; r++) {
+              innerValues[r][i0][i1]=x_values[r];
+            }
           }
         }
 
-        auto prod = *lp_ * X;
+        // compute all the integrals for the given dimension at once
+        for(size_t r=0; r <dim; r++) {
+          const auto& matrix0 = (*matrixPair_)[r==0 ? 1 : 0];
+          const auto& matrix1 = (*matrixPair_)[r==1 ? 1 : 0];
 
-        for(size_t i0=0; i0<prod.N(); i0++) {
-          for(size_t i1=0; i1<prod.M(); i1++) {
-            localVector_[flatindex({{i0, i1}}, localDegree_)]=prod[i0][i1];
-          }
+          Dune::HPDG::CplusAXtBt(matrix1, innerValues[r], matrix0, localVector_.data());
+
+          // This here is a nice use of the common DG hack. However, be aware that this would
+          // probably not be thread-safe!
+          //auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+          //auto* out = &(outputBackend(localView_.index(0)));
+          //Dune::HPDG::CplusAXtBt(matrix1, innerValues[r], matrix0, out);
         }
       }
 
       void write(double factor) {
+        // if the DG hack was used in compute, return here:
+        // return;
 
         if (factor!=1.0)
           for (auto& entry: localVector_)
@@ -177,20 +185,6 @@ namespace MatrixFree {
       }
 
     private:
-      std::vector<unsigned int> multiindex (unsigned int i, unsigned int k) const
-      {
-        std::vector<unsigned int> alpha(k);
-        for (int j=0; j<dim; j++)
-        {
-          alpha[j] = i % (k+1);
-          i = i/(k+1);
-        }
-        return alpha;
-      }
-
-      unsigned int flatindex(std::array<size_t, 2> multi, unsigned int k) const {
-        return multi[0] + multi[1]*(k+1);
-      }
 
       template<class X, class Q>
       inline double lagrangePrime(const X& x, size_t i, const Q& quad) const {
@@ -208,13 +202,27 @@ namespace MatrixFree {
         return result;
       }
 
+      template<class X, class Q>
+      inline double lagrange(const X& x, size_t i, const Q& quad) const {
+        double result = 1.;
+
+        auto xi= quad[i].position();
+
+        for (size_t j=0; j<quad.size(); j++)
+          if (j!=i)
+          {
+            result*= (x-quad[j].position())/(xi-quad[j].position());
+          }
+        return result;
+      }
+
       const Basis& basis_;
       LV localView_;
-      std::map<size_t, LocalMatrix> cache_;
+      std::map<size_t, std::array<LocalMatrix, 2>> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
       std::map<size_t, Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
-      size_t localDegree_;
-      const LocalMatrix* lp_;
+      int localDegree_;
+      const typename decltype(cache_)::mapped_type* matrixPair_; // Current matrix pair
       Dune::QuadratureRule<typename GV::Grid::ctype,1>* rule_;
   };
 }

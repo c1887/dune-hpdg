@@ -9,6 +9,8 @@
 #include <dune/hpdg/matrix-free/operator.hh>
 #include <dune/hpdg/matrix-free/localoperators/sflaplace.hh>
 #include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
+#include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
@@ -23,12 +25,13 @@ TestSuite test_bulk(const GV& gv, int k) {
   using Vector = Dune::HPDG::DynamicBlockVector<double>;
 
   auto basis = Dune::Functions::DynamicDGQkGLBlockBasis<GV>(gv, k);
+  basis.preBasis().degree(*(gv.template begin<0>())) = k+1;
 
   std::cout << "\nTesting Bulk Laplace with Order " << k << " (" << basis.dimension() <<" unknowns):" << std::endl;
   Vector x;
   Dune::HPDG::resizeFromBasis(x, basis);
   auto func=[](auto&& x) {
-    return x*x;
+    return exp(x*x);
   };
   auto xbe = Dune::Functions::hierarchicVector(x);
   Dune::Functions::interpolate(basis, xbe, func);
@@ -47,7 +50,8 @@ TestSuite test_bulk(const GV& gv, int k) {
   }
 
   // for test, do the same with standard Laplace matrix-free
-  auto laplace = Dune::Fufem::MatrixFree::UniformLaplaceOperator<Vector, GV, decltype(basis)>(basis);
+  //auto laplace = Dune::Fufem::MatrixFree::UniformLaplaceOperator<Vector, GV, decltype(basis)>(basis);
+  auto laplace = Dune::Fufem::MatrixFree::LaplaceOperator<Vector, GV, decltype(basis)>(basis);
   auto op_mf = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(laplace)>(gv, laplace);
   auto Ax_mf = Ax;
   Ax_mf=0.;
@@ -59,8 +63,18 @@ TestSuite test_bulk(const GV& gv, int k) {
   }
   std::cout << "Sumfactored Laplace was " << time[1]/time[0] << " times faster!" << std::endl;
 
-  Ax-=Ax_mf;
-  auto error = Ax.two_norm();
+  // Test with ipdg energy norm:
+  double error;
+  {
+    Ax-=Ax_mf;
+    auto ipdg = Dune::Fufem::MatrixFree::IPDGOperator<Vector, GV, decltype(basis)>(basis);
+    auto ipdgop = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(ipdg)>(gv, ipdg);
+
+    auto dummy= Ax;
+    ipdgop.apply(Ax, dummy);
+    error = Ax*dummy;
+  }
+  std::cout << error << std::endl;
   suite.check(error<1e-12, "Check if sumfacttorized and standard matrix free Laplace yield the same") << "Difference for order " <<k <<" is " << error << std::endl;
 
   return suite;
@@ -72,7 +86,7 @@ int main(int argc, char** argv) {
   constexpr int dim =2;
   YaspGrid<dim> grid({1,1},{{16,16}});
   TestSuite suite;
-  for (int k=1; k < 8; k++)
+  for (int k=1; k < 9; k++)
     suite.subTest(test_bulk(grid.leafGridView(), k));
   return suite.exit();
 }
