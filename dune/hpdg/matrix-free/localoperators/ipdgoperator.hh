@@ -126,7 +126,7 @@ namespace MatrixFree {
 
           auto penalty = penalty_ * std::pow(maxOrder, 2.0);
 
-          auto quadKey = QuadratureRuleKey(is.type(), maxOrder).derivative().square();
+          auto quadKey = QuadratureRuleKey(is.type(), maxOrder).square();
           auto quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
 
           auto outerNormal = is.centerUnitOuterNormal();
@@ -304,7 +304,7 @@ namespace MatrixFree {
 
         auto maxOrder = insideFE.localBasis().order();
 
-        auto quadKey = QuadratureRuleKey(is.type(), maxOrder).derivative().square();
+        auto quadKey = QuadratureRuleKey(is.type(), maxOrder).square();
         auto quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
 
         auto outerNormal = is.centerUnitOuterNormal();
