@@ -192,7 +192,7 @@ namespace MatrixFree {
           {
             if(dirichlet_ && is.boundary()) {
               // TODO Do something for Dirichlet data
-              continue;
+              computeDirichletBoundaryEdge(is);
             }
             else
               continue;
@@ -321,6 +321,74 @@ namespace MatrixFree {
         }
 
       }
+
+      template<class IS>
+      void computeDirichletBoundaryEdge(const IS& is) {
+        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
+        auto* coeffs = &(inputBackend(localView_.index(0)));
+
+        auto innerIdx = is.indexInInside();
+
+        // penalty= sigma p^2 / |e|
+        auto penalty = penalty_*std::pow(localDegree_, 2)
+          /is.geometry().volume();
+        auto outerNormal = is.centerUnitOuterNormal();
+
+        // prepare some values for inner and outer u
+        BV u_diff(rule_->size());
+        BV du_sum(rule_->size());
+
+        auto inner_X = LocalMatrix(2, rule_->size());
+
+        auto inner_coeffs = coefficientsOnEdge(coeffs, localDegree_, innerIdx);
+        (*matrixPair_)[0].mtv(inner_coeffs, u_diff);
+
+        // prepare derivatives
+        auto dx_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 0);
+        auto dy_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 1);
+
+        // multiply with integration weight and Jacobian determinant (TODO: Maybe do this later)
+        for(std::size_t i = 0; i < rule_->size(); i++) {
+          auto pos = (*rule_).at(i).position();
+
+          const auto& jac_i = is.inside().geometry().jacobianInverseTransposed(is.geometryInInside().global(pos));
+          auto gamma = is.geometry().integrationElement(pos);
+
+          auto factor =(*rule_)[i].weight()*gamma;
+          u_diff[i]*=factor;
+
+          auto gradU_i = FV{dx_i[i], dy_i[i]};
+          auto dummy = gradU_i;
+          jac_i.mv(gradU_i, dummy);
+          du_sum[i] = (dummy*outerNormal)*factor;
+
+          FV tmp_i;
+          jac_i.mtv(outerNormal, tmp_i);
+
+          for (int r = 0; r < dim; r++) {
+            inner_X[r][i]=-tmp_i[r];
+          }
+
+        }
+
+        computeDPhi(localVector_, *matrixPair_, inner_X, u_diff, innerIdx);
+
+        {
+          BV tmp(localDegree_+1,0);
+          // - {du/dn}[phi]
+          (*matrixPair_)[0].mmv(du_sum, tmp);
+          addOnEdge(localVector_, tmp, innerIdx); // phi lives on inner here
+        }
+
+        // Penalty term sigma/|e| [u][phi_i]
+        {
+          u_diff *= penalty;
+          BV tmp(localDegree_+1);
+          (*matrixPair_)[0].mv(u_diff, tmp);
+          addOnEdge(localVector_, tmp, innerIdx);
+        }
+      }
+
       void setupMatrixPair(IndexPair idx) {
 
         const auto& basis_degree = idx[0];
