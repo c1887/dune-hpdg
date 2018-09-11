@@ -218,6 +218,20 @@ namespace MatrixFree {
             // This computes outer matrix pair and also readjust the inner matrix pair if needed.
             outerBind(is.outside());
 
+            decltype(nonConformingMatrices(is)) nc_matrices;
+            auto* inner_edgePair = matrixPair_;
+            auto* outer_edgePair = outerMatrixPair_;
+
+            if(not is.conforming())
+            {
+              // compute 1d values at nonconforming edge
+              nc_matrices = nonConformingMatrices(is);
+
+              // set the corresponding pointers
+              inner_edgePair = &((*nc_matrices)[0]);
+              outer_edgePair = &((*nc_matrices)[1]);
+            }
+
             const auto* outsideCoeffs = &(inputBackend(outerView_.index(0)));
 
             // penalty= sigma p^2 / |e|
@@ -233,16 +247,16 @@ namespace MatrixFree {
             auto outer_X = LocalMatrix(2, rule_->size());
 
             auto inner_coeffs = coefficientsOnEdge(coeffs, localDegree_, innerIdx);
-            (*matrixPair_)[0].mtv(inner_coeffs, u_diff);
+            (*inner_edgePair)[0].mtv(inner_coeffs, u_diff); // CONF
 
             auto outer_coeffs = coefficientsOnEdge(outsideCoeffs, outerLocalDegree_, outerIdx);
-            (*outerMatrixPair_)[0].mmtv(outer_coeffs, u_diff);
+            (*outer_edgePair)[0].mmtv(outer_coeffs, u_diff); // CONF
 
             // prepare derivatives
-            auto dx_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 0);
-            auto dy_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 1);
-            auto dx_o = computeDerivatives(outsideCoeffs, *outerMatrixPair_, outerIdx, 0);
-            auto dy_o = computeDerivatives(outsideCoeffs, *outerMatrixPair_, outerIdx, 1);
+            auto dx_i = computeDerivatives(coeffs, *matrixPair_, *inner_edgePair, innerIdx, 0); // CONF
+            auto dy_i = computeDerivatives(coeffs, *matrixPair_, *inner_edgePair, innerIdx, 1); // CONF
+            auto dx_o = computeDerivatives(outsideCoeffs, *outerMatrixPair_, *outer_edgePair, outerIdx, 0); // CONF
+            auto dy_o = computeDerivatives(outsideCoeffs, *outerMatrixPair_, *outer_edgePair, outerIdx, 1); // CONF
 
             // multiply with integration weight and Jacobian determinant (TODO: Maybe do this later)
             for(std::size_t i = 0; i < rule_->size(); i++) {
@@ -273,14 +287,14 @@ namespace MatrixFree {
               }
 
             }
-            computeDPhi(localVector_, *matrixPair_, inner_X, u_diff, innerIdx);
-            computeDPhi(outerLocalVector_, *outerMatrixPair_, outer_X, u_diff, outerIdx);
+            computeDPhi(localVector_, *matrixPair_, *inner_edgePair, inner_X, u_diff, innerIdx);
+            computeDPhi(outerLocalVector_, *outerMatrixPair_, *outer_edgePair, outer_X, u_diff, outerIdx);
             // inner
             //if(false)
             {
               BV tmp(localDegree_+1,0);
               // - {du/dn}[phi]
-              (*matrixPair_)[0].mmv(du_sum, tmp);
+              (*inner_edgePair)[0].mmv(du_sum, tmp);
               //tmp*=-1;
               addOnEdge(localVector_, tmp, innerIdx); // phi lives on inner here
             }
@@ -291,7 +305,7 @@ namespace MatrixFree {
               // - {du/dn}[phi]
               //
               // Since phi is negative for the outer side, the minus cancel out. TODO wirklich?
-              (*outerMatrixPair_)[0].umv(du_sum, tmp);
+              (*outer_edgePair)[0].umv(du_sum, tmp);
               addOnEdge(outerLocalVector_, tmp, outerIdx);
             }
 
@@ -302,12 +316,12 @@ namespace MatrixFree {
               u_diff *= penalty;
               {
                 BV tmp(localDegree_+1);
-                (*matrixPair_)[0].mv(u_diff, tmp);
+                (*inner_edgePair)[0].mv(u_diff, tmp);
                 addOnEdge(localVector_, tmp, innerIdx);
               }
 
               BV tmp(outerLocalDegree_+1,0);
-              (*outerMatrixPair_)[0].mmv(u_diff, tmp);
+              (*outer_edgePair)[0].mmv(u_diff, tmp);
               addOnEdge(outerLocalVector_, tmp, outerIdx);
             }
 
@@ -319,7 +333,6 @@ namespace MatrixFree {
             }
           }
         }
-
       }
 
       template<class IS>
@@ -344,8 +357,8 @@ namespace MatrixFree {
         (*matrixPair_)[0].mtv(inner_coeffs, u_diff);
 
         // prepare derivatives
-        auto dx_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 0);
-        auto dy_i = computeDerivatives(coeffs, *matrixPair_, innerIdx, 1);
+        auto dx_i = computeDerivatives(coeffs, *matrixPair_, *matrixPair_, innerIdx, 0);
+        auto dy_i = computeDerivatives(coeffs, *matrixPair_, *matrixPair_, innerIdx, 1);
 
         // multiply with integration weight and Jacobian determinant (TODO: Maybe do this later)
         for(std::size_t i = 0; i < rule_->size(); i++) {
@@ -371,7 +384,7 @@ namespace MatrixFree {
 
         }
 
-        computeDPhi(localVector_, *matrixPair_, inner_X, u_diff, innerIdx);
+        computeDPhi(localVector_, *matrixPair_, *matrixPair_, inner_X, u_diff, innerIdx);
 
         {
           BV tmp(localDegree_+1,0);
@@ -477,9 +490,10 @@ namespace MatrixFree {
         // dann brauchen wir (outer, outer) für außen
         // und (inner, outer) für innen
         IndexPair outside;
+        IndexPair inner;
         if (outerLocalDegree_ > localDegree_) {
           outside={outerLocalDegree_, outerOrder};
-          IndexPair inner{localDegree_, outerOrder};
+          inner= {localDegree_, outerOrder};
 
           // check if inner is already in cache, compute if necessary
           {
@@ -498,8 +512,21 @@ namespace MatrixFree {
         // 2. Fall,
         // inner degree > outer degree
         // (outer, inner_order) für außen
-        // innen kann bleiben
         else  {
+          inner = {localDegree_, 2*localDegree_ -1}; // This one should be available yet, as it was used for the bulk terms already.
+          {
+            auto it = cache_.find(inner);
+            if (it != cache_.end()) {
+              matrixPair_ = &(it->second);
+            }
+            else {
+              setupMatrixPair(inner);
+              matrixPair_ = &(cache_[inner]);
+            }
+            rule_ = &(rules_[2*localDegree_-1]);
+          }
+
+          // more interestingly, set the outer quad order to the one of the inner:
           outside = {outerLocalDegree_, 2*localDegree_-1};
         }
 
@@ -516,6 +543,58 @@ namespace MatrixFree {
           //outerRule_ = &(rules_[outside]);
         }
 
+      }
+      template<class IS>
+      auto nonConformingMatrices(const IS& is)
+      {
+        // basis nodes:
+        auto gl_i = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*localDegree_-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
+        auto gl_o = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*outerLocalDegree_-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
+        assert(gl_i.size() == localDegree_+1);
+        assert(gl_o.size() == outerLocalDegree_+1);
+
+        const auto& rule = *rule_;
+
+        // sort node points (they're also ordered for the basis)
+        std::sort(gl_i.begin(), gl_i.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+        std::sort(gl_o.begin(), gl_o.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+        // compute inner and outer matrix pair for the noncorming edge.
+        // step 0.: compute new quad notes:
+        auto inner_quad = std::vector<typename GV::Grid::ctype>(rule.size());
+        auto outer_quad = std::vector<typename GV::Grid::ctype>(rule.size());
+        for (size_t i = 0; i < rule.size(); i++) {
+          inner_quad[i] = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
+          outer_quad[i] = is.geometryInOutside().global(rule[i].position())[is.indexInOutside() < 2];
+        }
+        auto ret = std::make_unique<std::array<std::array<LocalMatrix, 2>,2>>();
+
+        auto& innerPair = (*ret)[0];
+        auto& outerPair = (*ret)[1];
+
+        // resize:
+        innerPair[0].setSize(gl_i.size(), inner_quad.size());
+        innerPair[1].setSize(gl_i.size(), inner_quad.size());
+
+        outerPair[0].setSize(gl_o.size(), outer_quad.size());
+        outerPair[1].setSize(gl_o.size(), outer_quad.size());
+
+
+        // fill cache
+        for (std::size_t j = 0; j < rule.size(); j++) {
+          for (std::size_t i = 0; i < gl_i.size(); i++) {
+            innerPair[1][i][j]=lagrangePrime(inner_quad[j],i, gl_i);
+            innerPair[0][i][j]=lagrange(inner_quad[j],i, gl_i);
+          }
+          for (std::size_t i = 0; i < gl_o.size(); i++) {
+            outerPair[1][i][j]=lagrangePrime(outer_quad[j],i, gl_o);
+            outerPair[0][i][j]=lagrange(outer_quad[j],i, gl_o);
+          }
+        }
+
+        return ret;
       }
 
       // TODO: Hier rauszukopieren ist auch dämlich... Da kann man das RowOrColumnWindow nutzen.
@@ -577,8 +656,8 @@ namespace MatrixFree {
         }
       }
 
-      template<class MP, class M, class VV>
-      void computeDPhi(std::vector<typename V::field_type>& buffer, const MP& matrixPair, const M& STn, const VV& u, int edgeNumber) {
+      template<class MP, class MP2, class M, class VV>
+      void computeDPhi(std::vector<typename V::field_type>& buffer, const MP& matrixPair, const MP2& edgeMatrixPair, const M& STn, const VV& u, int edgeNumber) {
         auto degree = matrixPair[0].N()-1;
         auto quad_size = matrixPair[0].M();
         switch(edgeNumber) {
@@ -588,8 +667,8 @@ namespace MatrixFree {
               for (size_t j = 0; j < degree +1; j++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0j = matrixPair[0][j];
-                const auto& m1j = matrixPair[1][j];
+                const auto& m0j = edgeMatrixPair[0][j];
+                const auto& m1j = edgeMatrixPair[1][j];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0j[q]*STn[0][q]*u[q];
                   back+= m1j[q]*STn[1][q]*u[q];
@@ -604,8 +683,8 @@ namespace MatrixFree {
               for (size_t j = 0; j < degree +1; j++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0j = matrixPair[0][j];
-                const auto& m1j = matrixPair[1][j];
+                const auto& m0j = edgeMatrixPair[0][j];
+                const auto& m1j = edgeMatrixPair[1][j];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0j[q]*STn[0][q]*u[q];
                   back+= m1j[q]*STn[1][q]*u[q];
@@ -620,8 +699,8 @@ namespace MatrixFree {
               for (size_t i = 0; i < degree +1; i++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0i = matrixPair[0][i];
-                const auto& m1i = matrixPair[1][i];
+                const auto& m0i = edgeMatrixPair[0][i];
+                const auto& m1i = edgeMatrixPair[1][i];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0i[q]*STn[1][q]*u[q];
                   back+= m1i[q]*STn[0][q]*u[q];
@@ -636,8 +715,8 @@ namespace MatrixFree {
               for (size_t i = 0; i < degree +1; i++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0i = matrixPair[0][i];
-                const auto& m1i = matrixPair[1][i];
+                const auto& m0i = edgeMatrixPair[0][i];
+                const auto& m1i = edgeMatrixPair[1][i];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0i[q]*STn[1][q]*u[q];
                   back+= m1i[q]*STn[0][q]*u[q];
@@ -671,9 +750,8 @@ namespace MatrixFree {
         return RoC(nullptr, 0,0,0, RoC::RowOrColumn::ROW);
       }
 
-      // TODO: Das Ding hier funktioniert nicht!
-      template<class U, class MP>
-      auto computeDerivatives(const U* coefficients, const MP& matrixPair, int edgeNumber, int direction) const {
+      template<class U, class MP, class MP2>
+      auto computeDerivatives(const U* coefficients, const MP& matrixPair, const MP2& edgeMatrixPair, const int edgeNumber, int direction) const {
         assert(direction == 0 or direction == 1);
         auto quad_size = matrixPair[0].M();
         BV dx(quad_size);
@@ -684,11 +762,11 @@ namespace MatrixFree {
               auto col0 = Dune::HPDG::columnWindow(matrixPair[1], 0);
               BV tmp(col0.size(),0); // we know that the coefficient "matrix" is quadratic
               Dune::HPDG::umv(coefficients, col0, tmp);
-              matrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair[0].mtv(tmp, dx);
             }
             else {
               auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              matrixPair[1].mtv(coeffs, dx);
+              edgeMatrixPair[1].mtv(coeffs, dx);
             }
             return dx;
           case 1:
@@ -697,37 +775,37 @@ namespace MatrixFree {
               auto col_last = Dune::HPDG::columnWindow(matrixPair[1], quad_size-1); // last column
               BV tmp(col_last.size(), 0);
               Dune::HPDG::umv(coefficients, col_last, tmp);
-              matrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair[0].mtv(tmp, dx);
             }
             else {
               auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              matrixPair[1].mtv(coeffs, dx);
+              edgeMatrixPair[1].mtv(coeffs, dx);
             }
             return dx;
           case 2:
             // (x, 0)
             if (direction==0) {
               auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              matrixPair[1].mtv(coeffs, dx);
+              edgeMatrixPair[1].mtv(coeffs, dx);
             }
             else {
               auto col0 = Dune::HPDG::columnWindow(matrixPair[1], 0); // first column
               BV tmp(col0.size(),0);
               Dune::HPDG::umtv(coefficients, col0, tmp);
-              matrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair[0].mtv(tmp, dx);
             }
             return dx;
           case 3:
             // (x, 1)
             if (direction==0) {
               auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              matrixPair[1].mtv(coeffs, dx);
+              edgeMatrixPair[1].mtv(coeffs, dx);
             }
             else {
               auto col_last = Dune::HPDG::columnWindow(matrixPair[1], quad_size-1); // last column
               BV tmp(col_last.size(),0);
               Dune::HPDG::umtv(coefficients, col_last, tmp);
-              matrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair[0].mtv(tmp, dx);
             }
             return dx;
           default:
