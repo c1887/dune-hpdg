@@ -278,4 +278,81 @@ void CplusAXtBt (const Dune::Matrix<T>& op_A, const Matrix<T>& op_X, const Matri
 #endif
 }
 
+// compute y+=Ux
+template<class U, class V, class V2>
+void umv(const U* u, const V& x, V2& y) {
+  // TODO Blas fallback
+
+  auto M = x.N();
+  auto N = y.N();
+
+
+  for(std::size_t i = 0; i < M*N; i++) {
+    y[i/M]+=u[i]*x[i%M];
+  }
+}
+// compute y+=U^T x
+template<class U, class V, class V2>
+void umtv(const U* u, const V& x, V2& y) {
+  // TODO Blas fallback
+
+  auto N = x.N();
+  auto M = y.N();
+
+
+  for(std::size_t i = 0; i < M*N; i++) {
+    y[i%M]+=u[i]*x[i/M];
+  }
+}
+
+
+template<class T>
+struct RowOrColumnWindow {
+  T* data_;
+  size_t dimension_;
+  size_t offset_;
+
+  enum RowOrColumn: bool {ROW = true, COL = false};
+
+  RowOrColumnWindow() = delete;
+  // first 3 entries are matrix data, the idx defines the index of the row/column and the
+  // last entry, if the row or col is to be used.
+  RowOrColumnWindow(T* data, size_t n, size_t m, size_t idx, RowOrColumn type) :
+    data_(data+ (type ? idx*m : idx)),
+    dimension_(type ? m : n),
+    offset_(type ? 1 : m) {}
+
+  RowOrColumnWindow(const RowOrColumnWindow& other) = default;
+
+  auto N() const {
+    return dimension_;
+  }
+  auto size() const {
+    return dimension_;
+  }
+
+  T& operator[](size_t i) {
+    DUNE_ASSERT_BOUNDS(i<dimension_);
+    return *(data_ + i*offset_);
+  }
+  const T& operator[](size_t i) const {
+    DUNE_ASSERT_BOUNDS(i<dimension_);
+    return *(data_ + i*offset_);
+  }
+
+};
+
+template<class Matrix>
+auto columnWindow(Matrix& m, size_t column) {
+  auto* ptr = &(m[0][0]);
+  using RoC = RowOrColumnWindow<std::remove_pointer_t<decltype(ptr)>>;
+  return RoC(ptr, m.N(), m.M(), column, RoC::RowOrColumn::COL);
+}
+template<class Matrix>
+auto rowWindow(Matrix& m, size_t row) {
+  auto* ptr = &(m[0][0]);
+  using RoC = RowOrColumnWindow<std::remove_pointer_t<decltype(ptr)>>;
+  return RoC(ptr, m.N(), m.M(), row, RoC::RowOrColumn::ROW);
+}
+
 }}
