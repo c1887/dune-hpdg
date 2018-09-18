@@ -42,26 +42,24 @@ namespace Dune
     // ith Lagrange polynomial of degree k in one dimension
     R p (int i, D x) const
     {
-//      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(1.0);
       for (int j=0; j<=k; j++)
-        if (j!=i) result *= (x-xx[j])/(xx[i]-xx[j]);
+        if (j!=i) result *= (x-gausslobatto_nodes[j])/(gausslobatto_nodes[i]-gausslobatto_nodes[j]);
       return result;
     }
 
     // derivative of ith Lagrange polynomial of degree k in one dimension
     R dp (int i, D x) const
     {
-//      auto xx = GaussLobattoPoints<k+1>::getPoints();
       R result(0.0);
 
       for (int j=0; j<=k; j++)
         if (j!=i)
         {
-          R prod( 1.0/(xx[i]-xx[j]) );
+          R prod( 1.0/(gausslobatto_nodes[i]-gausslobatto_nodes[j]) );
           for (int l=0; l<=k; l++)
             if (l!=i && l!=j)
-              prod *= (x-xx[l])/(xx[i]-xx[l]);
+              prod *= (x-gausslobatto_nodes[l])/(gausslobatto_nodes[i]-gausslobatto_nodes[l]);
           result += prod;
         }
       return result;
@@ -217,12 +215,23 @@ namespace Dune
       return k;
     }
   private:
-    FieldVector<double, k+1> xx;
+    FieldVector<double, k+1> gausslobatto_nodes;
 
   public:
     // Empty constr. to set up the nodes
-    QkGaussLobattoLocalBasis() :
-        xx(GaussLobattoPoints<k+1>::getPoints()) {}
+    QkGaussLobattoLocalBasis() {
+      // get the appropiate Gauss-Lobatto rule:
+      int order = 2*k -1;
+      auto rule = Dune::QuadratureRules<D,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+      assert(rule.size() == k+1);
+
+      // sort the nodes
+      std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+      for (size_t i = 0; i < k+1; i++)
+        gausslobatto_nodes[i]=rule[i].position();
+    }
 
 
   };
