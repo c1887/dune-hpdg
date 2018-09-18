@@ -4,6 +4,8 @@
 #ifndef DUNE_HPDG_LOCALFUNCTIONS_GAUSS_LOBATTO_QKLOCALINTERPOLATION_HH
 #define DUNE_HPDG_LOCALFUNCTIONS_GAUSS_LOBATTO_QKLOCALINTERPOLATION_HH
 
+#include <algorithm>
+
 #include <dune/common/fvector.hh>
 #include <dune/common/power.hh>
 
@@ -12,8 +14,6 @@
 
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
-
-#include <dune/hpdg/localfunctions/lagrange/qkgausslobatto/glnodes.hh>
 
 
 namespace Dune
@@ -37,8 +37,19 @@ namespace Dune
   public:
 
     // Empty constr. to set up the nodes
-    QkGaussLobattoLocalInterpolation() :
-        xx(GaussLobattoPoints<k+1>::getPoints()) {}
+    QkGaussLobattoLocalInterpolation() {
+      // get the appropiate Gauss-Lobatto rule:
+      int order = 2*k -1;
+      auto rule = Dune::QuadratureRules<double,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+      assert(rule.size() == k+1);
+
+      // sort the nodes
+      std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+      for (size_t i = 0; i < k+1; i++)
+        gausslobatto_nodes[i]=rule[i].position();
+    }
 
     //! \brief Local interpolation of a function
     template<typename F, typename C>
@@ -56,13 +67,13 @@ namespace Dune
 
         // Generate coordinate of the i-th Gauss Lobatto point
         for (int j=0; j<d; j++)
-          x[j] = xx[alpha[j]];
+          x[j] = gausslobatto_nodes[alpha[j]];
 
         f.evaluate(x,y); out[i] = y;
       }
     }
   private:
-    FieldVector<double, k+1> xx; // Gauss Lobatto Nodes
+    FieldVector<double, k+1> gausslobatto_nodes; // Gauss Lobatto Nodes
 
   };
 

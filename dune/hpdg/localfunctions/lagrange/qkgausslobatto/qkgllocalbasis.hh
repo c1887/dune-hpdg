@@ -4,6 +4,8 @@
 #ifndef DUNE_HPDG_LOCALFUNCTIONS_GAUSS_LOBATTO_QKLOCALBASIS_HH
 #define DUNE_HPDG_LOCALFUNCTIONS_GAUSS_LOBATTO_QKLOCALBASIS_HH
 
+#include <algorithm>
+
 #include <numeric>
 
 #include <dune/common/fvector.hh>
@@ -15,8 +17,6 @@
 
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
-
-#include <dune/hpdg/localfunctions/lagrange/qkgausslobatto/glnodes.hh>
 
 
 namespace Dune
