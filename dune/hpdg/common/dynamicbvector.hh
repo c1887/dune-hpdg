@@ -44,6 +44,27 @@ namespace Dune {
           data_[i] = other.data_[i];
       }
 
+      /** Returns a vector of the same size and structure as the input but all
+       * values are set to zero.
+       *
+       * This is basically a shorthand for
+       *
+       * auto foo = other;
+       * foo = 0.;
+       *
+       * that also avoids the unnecessary copy of other's values.
+       */
+      static DynamicBlockVector createZeroVector(const DynamicBlockVector& other) {
+        DynamicBlockVector zero_vector;
+        zero_vector.n_ = other.n_;
+        zero_vector.rowMap_ = other.rowMap_;
+        zero_vector.vector_.resize(other.n_);
+        zero_vector.update();
+        for(size_t i = 0; i< zero_vector.size_; i++)
+          zero_vector.data_[i] = 0;
+        return zero_vector;
+      }
+
       /** Set the size of the DynamicBlockVector.
        *
        * \warning: This does _not_ allocate the memory!
