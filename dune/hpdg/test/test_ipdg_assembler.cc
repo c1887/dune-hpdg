@@ -92,8 +92,7 @@ TestSuite testAssembly(const G& grid, int k) {
   matrix.matrix()-= fufemMatrix.matrix();
 
   /* We use a relatively large error treshold here because the error estimation with the Frobenius norm
-   * doesn't seem to be too stable. Even if one compares two matrices both calcuculated with the very same method, one
-   * get's some error in the frobenius norm
+   * is not too suitable here, as summing over a lot of tiny errors accumulates to some noticeable global error.
    */
   suite.check(matrix.matrix().frobenius_norm() < 1e-11, "Check if new and old assemblers compute the same matrix") << "Error was too great: " << matrix.matrix().frobenius_norm();
   return suite;
