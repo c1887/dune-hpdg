@@ -9,6 +9,7 @@
 #include <dune/hpdg/matrix-free/operator.hh>
 #include <dune/hpdg/matrix-free/localoperators/sflaplace.hh>
 #include <dune/hpdg/matrix-free/localoperators/sfipdg.hh>
+#include <dune/hpdg/matrix-free/localoperators/sfmass.hh>
 #include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
@@ -16,7 +17,11 @@
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
+#include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/test/randomvector.hh>
+
+#include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
+#include <dune/fufem/assemblers/localassemblers/massassembler.hh>
 
 #include <dune/functions/functionspacebases/interpolate.hh>
 using namespace Dune;
@@ -141,15 +146,94 @@ TestSuite test_bulk(const GV& gv, int k) {
   return suite;
 }
 
+template<class GV>
+TestSuite test_mass(const GV& gv, int k) {
+  TestSuite suite;
+  using Vector = Dune::HPDG::DynamicBlockVector<FieldVector<double,1>>;
+
+  auto basis = Dune::Functions::DynamicDGQkGLBlockBasis<GV>(gv, k);
+  basis.preBasis().degree(*(gv.template begin<0>())) = k+1;
+
+  std::cout << "\nTesting Bulk Mass with Order " << k << " (" << basis.dimension() <<" unknowns):" << std::endl;
+  Vector x;
+  Dune::HPDG::resizeFromBasis(x, basis);
+  auto func=[](auto&& x) {
+    return exp(x*x);
+  };
+  auto xbe = Dune::Functions::hierarchicVector(x);
+  Dune::Functions::interpolate(basis, xbe, func);
+  auto Ax=x;
+  Ax=0.0;
+
+  std::array<double, 2> time;
+
+  auto sf_mass = Dune::Fufem::MatrixFree::SumFactMassOperator<Vector, GV, decltype(basis)>(basis);
+  auto op = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(sf_mass)>(gv, sf_mass);
+  {
+    Dune::Timer timer;
+    op.apply(x, Ax);
+    time[0] = timer.stop();
+    std::cout << "Sum-factorized Mass with order " << k <<" took: " << time[0] << std::endl;
+  }
+
+  // test against matrix:
+
+  using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
+  DynBCRS dynMatrix{};
+  auto& matrix = dynMatrix.matrix();
+  {
+    using Basis = decltype(basis);
+    using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
+    using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
+    auto patternBuilder = matrixBackend.patternBuilder();
+
+    auto assembler = Assembler{basis, basis};
+
+    assembler.assembleBulkPattern(patternBuilder);
+    patternBuilder.setupMatrix();
+    Dune::HPDG::resizeFromBasis(dynMatrix, basis);
+
+    auto vintageBulkAssembler = MassAssembler<typename Basis::GridView::Grid, FiniteElement, FiniteElement>();
+
+    assembler.assembleBulkEntries(matrixBackend, vintageBulkAssembler);
+  }
+
+  auto Ax_mf = Ax;
+  {
+    Dune::Timer timer;
+    matrix.mv(x, Ax_mf);
+    time[1] = timer.stop();
+    std::cout << "Matrix-based Mass with order " << k <<" took: " << time[1] << std::endl;
+  }
+  std::cout << "Sumfactored Mass was " << time[1]/time[0] << " times faster!" << std::endl;
+
+  double error;
+  {
+    Ax-=Ax_mf;
+    auto ipdg = Dune::Fufem::MatrixFree::IPDGNorm<Vector, GV, decltype(basis)>(basis);
+    auto ipdgop = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(ipdg)>(gv, ipdg);
+
+    auto dummy= Ax;
+    ipdgop.apply(Ax, dummy);
+    error = Ax*dummy;
+  }
+
+  std::cout << error << std::endl;
+  suite.check(error<1e-12, "Check if sumfacttorized and matrix-based Mass yield the same") << "Difference for order " <<k <<" is " << error << std::endl;
+  return suite;
+}
+
 int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
   constexpr int dim =2;
   YaspGrid<dim> grid({1,1},{{16,16}});
   TestSuite suite;
-  for (int k=1; k < 7; k++) {
+  for (int k=1; k < 5; k++) {
     suite.subTest(test_bulk(grid.leafGridView(), k));
     suite.subTest(test_IPDG(grid.leafGridView(), k));
+    suite.subTest(test_mass(grid.leafGridView(), k));
     std::cout << "-------------------------------------------" << std::endl;
   }
   return suite.exit();
