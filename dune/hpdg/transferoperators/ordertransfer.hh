@@ -25,10 +25,6 @@ namespace Dune {
           const MatrixWindow<K>& T2) {
 
         auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<typename K::field_type,1,1>>(T1.M(), B.M());
-        //auto data = std::make_unique<K>(T1.M()*B.M());
-        //MatrixWindow<K> T1transposedB(data.get(), T1.M(), B.M());
-        // TODO: Hier ein MatrixWindow zu nutzen scheint nicht zu funktioneren, man schreibt da irgendwie an falsche stellen.
-        // Da frag ich mich dann doch, warum.
         T1transposedB = 0;
         for (size_t i = 0; i < T1.M(); ++i)
           for (size_t k = 0; k < B.N(); ++k)
