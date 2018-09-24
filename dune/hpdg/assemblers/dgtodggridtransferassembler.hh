@@ -256,7 +256,7 @@ namespace Dune {
               const auto numFine = fineView.size();
 
               const auto& fatherGeo = son.geometryInFather();
-              const auto& referenceElement = Dune::ReferenceElements<K, GridType::dimension>::general(son.type());
+              const auto& referenceElement = Dune::ReferenceElements<typename GridType::ctype, GridType::dimension>::general(son.type());
 
               std::vector<typename CoarseFE::Traits::LocalBasisType::Traits::RangeType> values(numCoarse);
 

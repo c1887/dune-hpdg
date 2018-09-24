@@ -24,7 +24,7 @@ namespace Dune {
           const MatrixWindow<K>& B,
           const MatrixWindow<K>& T2) {
 
-        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<K,1,1>>(T1.M(), B.M());
+        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<typename K::field_type,1,1>>(T1.M(), B.M());
         //auto data = std::make_unique<K>(T1.M()*B.M());
         //MatrixWindow<K> T1transposedB(data.get(), T1.M(), B.M());
         // TODO: Hier ein MatrixWindow zu nutzen scheint nicht zu funktioneren, man schreibt da irgendwie an falsche stellen.
@@ -59,7 +59,7 @@ namespace Dune {
     {
 
 
-      using DynamicMatrixType = DynamicBCRSMatrix<typename VectorType::field_type>;
+      using DynamicMatrixType = DynamicBCRSMatrix<FieldMatrix<typename VectorType::field_type,1,1>>;
       using MatrixType = typename DynamicMatrixType::Matrix;
 
       using BlockType = typename MatrixType::block_type;

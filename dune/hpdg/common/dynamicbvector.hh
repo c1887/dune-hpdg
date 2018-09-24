@@ -22,7 +22,7 @@ namespace Dune {
       public:
 
       enum {blocklevel = BlockType::blocklevel +1 };
-      using field_type = field_t<K>;
+      using field_type = typename K::field_type;
       using real_type = real_t<K>;
       using size_type = size_t;
       using block_type = BlockType;
