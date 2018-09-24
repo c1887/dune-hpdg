@@ -28,10 +28,10 @@ void resizeInitialize(Dune::HPDG::DynamicBlockVector<K>& x, const Dune::HPDG::Dy
 
 namespace Imp {
 
-template<class T>
-struct DefaultBitVector<HPDG::DynamicBlockVector<T>>
+template<class T, int k>
+struct DefaultBitVector<HPDG::DynamicBlockVector<FieldVector<T, k>>>
 {
-  using type = std::vector<std::vector<char>>;
+  using type = std::vector<BitSetVector<k>>;
 };
 
 } // namespace Impl
