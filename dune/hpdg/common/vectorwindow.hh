@@ -84,9 +84,9 @@ namespace Dune {
      * be affected.
      */
     void resize(size_t i) {
-      // if our window already has the right size plus some memory it points to,
+      // if our window already has the right size,
       // nothing should be done
-      if (n_==i and data_!= nullptr)
+      if (n_==i)
         return;
       // otherwise, allocate new memory
       ownData_ = std::make_unique<K[]>(i);
