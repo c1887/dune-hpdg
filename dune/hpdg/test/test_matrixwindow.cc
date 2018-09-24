@@ -16,11 +16,12 @@ TestSuite test_matrixwindow() {
 
   const size_t n = 5;
   const size_t m= 5;
-  auto data = std::make_unique<double[]>(n*m);
-  Dune::HPDG::MatrixWindow<double> mat{data.get(), n,m};
+  using FM = Dune::FieldMatrix<double, 1,1>;
+  auto data = std::make_unique<FM[]>(n*m);
+  Dune::HPDG::MatrixWindow<FM> mat{data.get(), n,m};
   // test empty constructor
   {
-    Dune::HPDG::MatrixWindow<double> zeromat{};
+    Dune::HPDG::MatrixWindow<FM> zeromat{};
   }
 
   // we can set things
@@ -60,7 +61,7 @@ TestSuite test_matrixwindow() {
 
 
   // lets see, if we can create a bcrs matrix
-  using Matrix = Dune::BCRSMatrix<Dune::HPDG::MatrixWindow<double> >;
+  using Matrix = Dune::BCRSMatrix<Dune::HPDG::MatrixWindow<FM> >;
   Matrix bcrs{};
 
   Dune::MatrixIndexSet idx(2,2);

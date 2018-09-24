@@ -17,6 +17,7 @@
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 #include <dune/hpdg/common/resizehelper.hh>
+#include <dune/hpdg/test/testobjects.hh>
 
 #include <dune/functions/functionspacebases/interpolate.hh>
 
@@ -40,7 +41,7 @@ template<class Basis>
 auto computeMatrix(const Basis& basis, double penalty=2.0) {
   using GridType = typename Basis::GridView::Grid;
 
-  using Matrix = Dune::HPDG::DynamicBCRSMatrix<double>;
+  using Matrix = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   Matrix matrix;
 
   Dune::Timer timer;
@@ -92,7 +93,7 @@ auto computeMatrix(const Basis& basis, double penalty=2.0) {
 
 template<class GV>
 TestSuite test_sipg(const GV& gv) {
-  using Vector = Dune::HPDG::DynamicBlockVector<double>;
+  using Vector = Dune::HPDG::DynamicBlockVector<Dune::FieldVector<double, 1>>;
   Vector x;
 
   int iter=10;

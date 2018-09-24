@@ -24,7 +24,7 @@ using namespace Dune;
 template<class GV>
 TestSuite test_IPDG(const GV& gv, int k) {
   TestSuite suite;
-  using Vector = Dune::HPDG::DynamicBlockVector<double>;
+  using Vector = Dune::HPDG::DynamicBlockVector<FieldVector<double,1>>;
 
   auto basis = Dune::Functions::DynamicDGQkGLBlockBasis<GV>(gv, k);
   basis.preBasis().degree(*(gv.template begin<0>())) = k+1;
@@ -83,7 +83,7 @@ TestSuite test_IPDG(const GV& gv, int k) {
 template<class GV>
 TestSuite test_bulk(const GV& gv, int k) {
   TestSuite suite;
-  using Vector = Dune::HPDG::DynamicBlockVector<double>;
+  using Vector = Dune::HPDG::DynamicBlockVector<FieldVector<double,1>>;
 
   auto basis = Dune::Functions::DynamicDGQkGLBlockBasis<GV>(gv, k);
   basis.preBasis().degree(*(gv.template begin<0>())) = k+1;

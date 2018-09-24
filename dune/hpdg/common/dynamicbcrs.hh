@@ -22,7 +22,7 @@ namespace Dune {
       using BlockType = Dune::HPDG::MatrixWindow<K>;
       using BCRS = Dune::BCRSMatrix<BlockType>;
       using Matrix = Dune::BCRSMatrix<BlockType>;
-      using field_type = K;
+      using field_type = typename K::field_type;
 
       DynamicBCRSMatrix(size_t n, size_t m, size_t blockRows=1) :
         n_(n),
@@ -205,10 +205,10 @@ namespace Dune {
       void allocateMemory() {
         size_ = calculateSize();
         if (data_ != nullptr) {
-          data_.reset(new field_type[size_]);
+          data_.reset(new K[size_]);
         }
         else {
-          data_ = std::make_unique<field_type[]>(size_);
+          data_ = std::make_unique<K[]>(size_);
         }
       }
 
@@ -243,7 +243,7 @@ namespace Dune {
       std::vector<size_t> colMap_; // stores the number of rows each block row has
       BCRS matrix_;
       size_t size_;
-      std::unique_ptr<field_type[]> data_;
+      std::unique_ptr<K[]> data_;
     };
   }
 }

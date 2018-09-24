@@ -15,7 +15,8 @@ TestSuite test_dynamicbcrs() {
   TestSuite suite("test_dynamicbcrs");
 
   // lets see, if we can create a bcrs matrix
-  using Matrix = Dune::HPDG::DynamicBCRSMatrix<double>;
+  using FM = Dune::FieldMatrix<double, 1,1>;
+  using Matrix = Dune::HPDG::DynamicBCRSMatrix<FM>;
   Matrix dynbcrs{};
   auto& bcrs = dynbcrs.matrix(); // get the actual matrix
 

@@ -81,7 +81,7 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
   auto blockSize = (size_t) std::pow((size_t) k+1, (size_t)dim);
 
   /* assemble laplace bulk terms and ipdg terms */
-  using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<double>;
+  using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   DynBCRS dynMatrix{};
   auto& matrix = dynMatrix.matrix();
   {
@@ -164,7 +164,7 @@ template<class GridType>
 auto dynamicRightHandSide(const GridType& grid, int k=1, double force=-10.0) {
   constexpr auto dim = GridType::dimensionworld;
   //using Vector = Dune::BlockVector<Dune::FieldVector<double, Dune::StaticPower<k+1, dim>::power> >;
-  using Vector = Dune::HPDG::DynamicBlockVector<double>;
+  using Vector = Dune::HPDG::DynamicBlockVector<Dune::FieldVector<double, 1>>;
   int blockSize = (int) std::pow(k+1, (int) dim);
   Vector rhs(grid.leafGridView().size(0), blockSize);
   rhs.update();
