@@ -39,7 +39,7 @@ TestSuite test_dynamicBasis(Basis& basis, const Grid& grid) {
   suite.check(basis.dimension() == (size_t) (grid.leafGridView().size(0)-1)*4 +9, "Check if dimension was calculated correctly");
 
   // now, assemble a matrix
-  using Matrix = HPDG::DynamicBCRSMatrix<double>;
+  using Matrix = HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   auto matrix = Matrix{};
   using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
   auto assembler = Assembler{basis, basis};

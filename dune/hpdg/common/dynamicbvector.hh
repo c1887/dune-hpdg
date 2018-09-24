@@ -6,6 +6,9 @@
 #include <vector>
 #include <memory>
 
+#include <dune/common/fvector.hh>
+#include <dune/common/typetraits.hh>
+
 #include <dune/hpdg/common/vectorwindow.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 
@@ -19,8 +22,8 @@ namespace Dune {
       public:
 
       enum {blocklevel = BlockType::blocklevel +1 };
-      using field_type = K;
-      using real_type = K;
+      using field_type = field_t<K>;
+      using real_type = real_t<K>;
       using size_type = size_t;
       using block_type = BlockType;
 
@@ -139,7 +142,8 @@ namespace Dune {
         return n_;
       }
 
-      DynamicBlockVector& operator=(const field_type& scalar) {
+      template <typename T, typename = std::enable_if_t<Dune::IsNumber<T>::value>>
+      DynamicBlockVector& operator=(const T& scalar) {
         for (size_t i = 0; i < size_; ++i)
           data_[i]=scalar;
         return *this;
@@ -175,13 +179,15 @@ namespace Dune {
         return *this;
       }
 
-      DynamicBlockVector& operator*=(const field_type& k) {
+      template <typename T, typename = std::enable_if_t<Dune::IsNumber<T>::value>>
+      DynamicBlockVector& operator*=(const T& k) {
         for (size_t i = 0; i < size_; i++)
           data_[i] *= k;
         return *this;
       }
 
-      DynamicBlockVector& operator/=(const field_type& k) {
+      template <typename T, typename = std::enable_if_t<Dune::IsNumber<T>::value>>
+      DynamicBlockVector& operator/=(const T& k) {
         for (size_t i = 0; i < size_; i++)
           data_[i] /= k;
         return *this;
@@ -201,7 +207,8 @@ namespace Dune {
         return v;
       }
 
-      DynamicBlockVector& axpy(const field_type& a, const DynamicBlockVector& other) {
+      template <typename T, typename = std::enable_if_t<Dune::IsNumber<T>::value>>
+      DynamicBlockVector& axpy(const T& a, const DynamicBlockVector& other) {
         for (size_t i = 0; i < size_; i++)
           data_[i]+=(a*other.data_[i]);
         return *this;
@@ -320,9 +327,10 @@ namespace Dune {
     /** Return a readily allocated dynamic BlockVector with the same blocking as a given DynamicBCRSMatrix M,
      * i.e. one such that M*v is valid.
      */
-    template<class field_type>
-    DynamicBlockVector<field_type> makeDynamicBlockVector(const DynamicBCRSMatrix<field_type>& matrix) {
-      DynamicBlockVector<field_type> v;
+    template<class K>
+    auto makeDynamicBlockVector(const DynamicBCRSMatrix<K>& matrix) {
+      using field = Dune::FieldVector<typename K::field_type, K::cols>;
+      DynamicBlockVector<field> v;
       v.setSize(matrix.M());
       for (size_t i = 0; i < matrix.N(); i++)
         v.blockRows(i)=matrix.blockColumns(i);

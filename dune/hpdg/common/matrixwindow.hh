@@ -60,6 +60,7 @@ namespace Dune
       typedef typename Base::size_type size_type;
       typedef typename Base::value_type value_type;
       typedef typename Base::row_type row_type;
+      using field_type = typename K::field_type;
 
       //===== constructors
       //! \brief Default constructor

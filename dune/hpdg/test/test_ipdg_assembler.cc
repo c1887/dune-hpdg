@@ -34,7 +34,7 @@ TestSuite testAssembly(const G& grid, int k) {
   timer.reset();
 
   // now, we assemble a matrix on our own with the new assembler to compare:
-  using Matrix = HPDG::DynamicBCRSMatrix<double>;
+  using Matrix = HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
   Matrix matrix;
   {
     timer.start();
