@@ -3,11 +3,16 @@
 #ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_OPERATOR_HH
 #define DUNE_FUFEM_MATRIX_FREE_LOCAL_OPERATOR_HH
 
+#include <dune/hpdg/matrix-free/operator.hh>
+
 namespace Dune {
 namespace Fufem {
 namespace MatrixFree {
   template<typename Vector, typename GridView>
   class LocalOperator {
+
+    template<class VV, class GG, class LS>
+    friend class Dune::Fufem::MatrixFree::Operator;
 
     public:
 
@@ -31,15 +36,15 @@ namespace MatrixFree {
       output_=&o;
     }
 
+    /** Get the factor that is currently associated with
+     * this local operator */
+    auto factor() const {
+      return factor_;
+    }
+
     /** Set the factor for this local operator */
     void setFactor(double factor) {
       factor_ = factor;
-    }
-
-    /** Get the factor that is currently associated with
-     * this local operator */
-    double factor() const {
-      return factor_;
     }
 
     /* An implementation should implement the following:
@@ -57,6 +62,7 @@ namespace MatrixFree {
      */
 
     protected:
+
     const Vector* input_;
     Vector* output_;
     double factor_;

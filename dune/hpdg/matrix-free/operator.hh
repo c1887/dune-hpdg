@@ -8,13 +8,11 @@
 
 #include <dune/grid/common/rangegenerators.hh>
 
-#include "localoperators/localoperator.hh"
-
 namespace Dune {
 namespace Fufem {
 namespace MatrixFree {
   template<typename Vector, typename GridView, typename LocalOperatorSet>
-  struct Operator {
+  class Operator {
 
     // if LocalOperatorSet was not a tuple but a single type,
     // wrap it inside a tuple
@@ -23,26 +21,13 @@ namespace MatrixFree {
       LocalOperatorSet,
       std::tuple<LocalOperatorSet>>;
 
+    public:
     Operator(const GridView& gv) :
       gv_(gv) {}
 
     Operator(const GridView& gv, LocalOperatorSet lo) :
       gv_(gv),
-      operators_(std::move(lo)),
-      factors_(std::vector<double>(Hybrid::size(operators_), 1.0)) {}
-
-    Operator(const GridView& gv, LocalOperatorSet lo, std::vector<double> factors) :
-      gv_(gv),
-      operators_(std::move(lo)),
-      factors_(std::move(factors)) {}
-
-    auto& factors() {
-      return factors_;
-    }
-
-    const auto& factors() const {
-      return factors_;
-    }
+      operators_(std::move(lo)) {}
 
     LocalOperators& localOperators() {
       return operators_;
@@ -56,21 +41,16 @@ namespace MatrixFree {
     void apply(const Vector& x, Vector& Ax) {
       Ax=0; // maybe this is not feasible for all types
       namespace H = Hybrid;
-      H::forEach(H::integralRange(H::size(operators_)), [&](auto i) {
-        auto& op = H::elementAt(operators_, i);
+      H::forEach(operators_, [&] (auto& op) {
         op.setInput(x);
         op.setOutput(Ax);
-        op.setFactor(factors_[i]);
-        });
+      });
 
       for (const auto& e: elements(gv_)) {
-        H::forEach(H::integralRange(H::size(operators_)), [&](auto i) {
-          if (factors_[i] != 0) { // no need to compute anything if it is multiplied by zero
-            auto& op = H::elementAt(operators_, i);
-            op.bind(e);
-            op.compute();
-            op.write(op.factor());
-          }
+        H::forEach(operators_, [&] (auto& op) {
+          op.bind(e);
+          op.compute();
+          op.write(op.factor());
         });
       }
     }
@@ -78,7 +58,6 @@ namespace MatrixFree {
     private:
       const GridView& gv_;
       LocalOperators operators_;
-      std::vector<double> factors_;
   };
 }
 }

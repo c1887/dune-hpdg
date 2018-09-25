@@ -118,8 +118,16 @@ TestSuite test_sipg(const GV& gv) {
   };
 
   auto ipdg_local_op = Dune::Fufem::MatrixFree::IPDGOperator<Vector, GV, decltype(basis)>(basis, 2.0, true);
+  // while we're at it, test with a factor:
+  auto factor = 0.5;
+  ipdg_local_op.setFactor(factor);
+
   auto op = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(ipdg_local_op)>(gv, ipdg_local_op);
+
+
   runOperator(op, x, Ax, iter, "SIPG Laplace");
+
+  Ax*=1/factor; // remove the factor again for error estimation
 
   auto error = energyError(Ax);
   if (error<0)

@@ -86,7 +86,7 @@ namespace MatrixFree {
         insideCoeffs = &(inputBackend(localView_.index(0))); // assuming 0 maps to the lowest index
 
         for (const auto& is: intersections(gv, localView_.element())) {
-          if (!is.neighbor()) // this is also for processor boundaries valid 
+          if (!is.neighbor()) // this is also for processor boundaries valid
           {
             if(dirichlet_ && is.boundary()) {
               computeDirichletBoundaryEdge(is, insideCoeffs);
@@ -170,7 +170,11 @@ namespace MatrixFree {
                 outerLocalVector_[i] -= jump * outsideValues[i];
             }
           }
-          // TODO: not thread-safe here, no factor
+          // TODO: not thread-safe here
+          if (this->factor_!=1.0)
+            for (auto& entry: outerLocalVector_)
+              entry*=this->factor_;
+
           auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
           auto* rowEntry = &(outputBackend(outerLocalView_.index(0)));
           for (size_t localRow=0; localRow<outerLocalView_.size(); ++localRow)

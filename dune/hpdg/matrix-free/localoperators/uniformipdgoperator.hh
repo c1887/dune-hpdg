@@ -226,7 +226,11 @@ namespace MatrixFree {
                 outerLocalVector_[i] -= jump * outsideValues[i];
             }
           }
-          // TODO: not thread-safe here, no factor
+          // TODO: not thread-safe here
+          if (this->factor_!=1.0)
+            for (auto& entry: outerLocalVector_)
+              entry*=this->factor_;
+
           auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
           for (size_t localRow=0; localRow<outerLocalIndexSet_.size(); ++localRow)
           {
