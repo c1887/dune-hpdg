@@ -56,9 +56,11 @@ namespace MatrixFree {
     void apply(const Vector& x, Vector& Ax) {
       Ax=0; // maybe this is not feasible for all types
       namespace H = Hybrid;
-      H::forEach(operators_, [&](auto& op) {
+      H::forEach(H::integralRange(H::size(operators_)), [&](auto i) {
+        auto& op = H::elementAt(operators_, i);
         op.setInput(x);
         op.setOutput(Ax);
+        op.setFactor(factors_[i]);
         });
 
       for (const auto& e: elements(gv_)) {
@@ -67,7 +69,7 @@ namespace MatrixFree {
             auto& op = H::elementAt(operators_, i);
             op.bind(e);
             op.compute();
-            op.write(factors_[i]);
+            op.write(op.factor());
           }
         });
       }
