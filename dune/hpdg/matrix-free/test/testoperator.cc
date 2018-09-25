@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
   constexpr int dim =2;
-  YaspGrid<dim> grid({1,1},{{50,50}});
+  YaspGrid<dim> grid({1,1},{{16,16}});
   TestSuite suite;
   suite.subTest(test_operator(grid.leafGridView()));
   return suite.exit();
