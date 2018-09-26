@@ -325,6 +325,11 @@ namespace MatrixFree {
               addOnEdge(outerLocalVector_, tmp, outerIdx);
             }
 
+            // Scale outer local vector if by factor of this local operator
+            if (this->factor_!=1.0)
+              for (auto& entry: outerLocalVector_)
+                entry*=this->factor_;
+
             auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
             for (size_t localRow=0; localRow<outerView_.size(); ++localRow)
             {

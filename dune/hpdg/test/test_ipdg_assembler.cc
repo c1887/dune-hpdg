@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
   using Grid = YaspGrid<2>;
-  auto grid = StructuredGridFactory<Grid>::createCubeGrid({0,0}, {1.0,1.0}, {{16,16}});
+  auto grid = StructuredGridFactory<Grid>::createCubeGrid({0,0}, {1.0,1.0}, {{8,8}});
 
 
   TestSuite suite;

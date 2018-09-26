@@ -83,8 +83,12 @@ TestSuite test_operator(const GV& gv) {
     // consider moving them!
     auto id = Fufem::MatrixFree::IdentiyOperator<Vector, GV>();
     auto localOps = std::make_tuple(id, id);
-    auto factors = std::vector<double>{1.0, 2.0};
-    auto op = Fufem::MatrixFree::Operator<Vector, GV, decltype(localOps)>(gv, std::move(localOps), factors);
+    auto op = Fufem::MatrixFree::Operator<Vector, GV, decltype(localOps)>(gv, std::move(localOps));
+    {
+      auto& lo = op.localOperators();
+      std::get<0>(lo).setFactor(1.0);
+      std::get<1>(lo).setFactor(2.0);
+    }
 
     op.apply(x, Ax);
 
@@ -179,7 +183,7 @@ int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
   constexpr int dim =2;
-  YaspGrid<dim> grid({1,1},{{50,50}});
+  YaspGrid<dim> grid({1,1},{{16,16}});
   TestSuite suite;
   suite.subTest(test_operator(grid.leafGridView()));
   return suite.exit();
