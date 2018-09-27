@@ -1,7 +1,7 @@
 // -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 // vi: set et ts=4 sw=2 sts=2
-#ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_BLOCK_JACOBI_HH
-#define DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_BLOCK_JACOBI_HH
+#ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_HEAT_BLOCK_JACOBI_HH
+#define DUNE_FUFEM_MATRIX_FREE_LOCAL_HEAT_BLOCK_JACOBI_HH
 #include <dune/common/fmatrix.hh>
 
 #include <dune/istl/matrix.hh>
@@ -21,7 +21,7 @@ namespace Dune {
 namespace HPDG {
 
   template<class Basis>
-  class IPDGDiagonalBlock {
+  class HeatDiagonalBlock {
     using GV = typename Basis::GridView;
     static constexpr int dim = GV::dimension;
     using LV = typename Basis::LocalView;
@@ -35,11 +35,13 @@ namespace HPDG {
 
     public:
 
-      IPDGDiagonalBlock(const Basis& b, double penalty=2.0, bool dirichlet=false) :
+      HeatDiagonalBlock(const Basis& b, double penalty=2.0, double massFactor=1., double laplaceFactor=1.) :
         basis_(b),
         penalty_(penalty),
-        dirichlet_(dirichlet),
-        localView_(basis_.localView()) {}
+        localView_(basis_.localView()) {
+          factors_.mass = massFactor;
+          factors_.laplace = laplaceFactor;
+        }
 
       template<class Entity>
       void bind(const Entity& e)
@@ -203,7 +205,7 @@ namespace HPDG {
                 auto zij = -avg_factor*z*insideValues[i]*(insideGradients[j]*outerNormal)
                   - avg_factor*z*insideValues[j]*(insideGradients[i]*outerNormal) // TODO: Just SIPG by now
                   + penalty*z/edgeLength*insideValues[i]*insideValues[j];
-                  localMatrix_[i][j]+=zij;
+                  localMatrix_[i][j]+=factors_.laplace*zij;
               }
             }
           }
@@ -237,28 +239,33 @@ namespace HPDG {
             // get gradients of shape functions
             auto referenceGradients = computeGradients(q0, q1);
 
+            // auto values:
+            auto vals = computeElementValues(q0, q1);
+
             // transform gradients
             for (size_t i=0; i<gradients.size(); ++i)
               invJacobian.mv(referenceGradients[i], gradients[i]);
 
             // compute matrix entries
             auto z = (*rule_)[q0].weight() * (*rule_)[q1].weight() * integrationElement;
+            auto z_laplace = factors_.laplace * z;
+            auto z_mass = factors_.mass *z;
             for (size_t i=0; i<localMatrix_.N(); ++i)
             {
               for (size_t j=i+1; j<localMatrix_.M(); ++j)
               {
-                double zij = (gradients[i] * gradients[j]) * z;
-                localMatrix_[i][j]+=zij;
-                localMatrix_[j][i]+=zij;
+                double zij_l = (gradients[i] * gradients[j]) * z_laplace;
+                double zij_m = (vals[i] * vals[j]) * z_mass;
+                localMatrix_[i][j]+=zij_l + zij_m;
+                localMatrix_[j][i]+=zij_l + zij_m;
               }
-              localMatrix_[i][i]+= (gradients[i] * gradients[i]) * z;
+              localMatrix_[i][i]+= (gradients[i] * gradients[i]) * z_laplace + vals[i]*vals[i]*z_mass;
             }
           }
         }
       }
 
       auto computeGradients(size_t q0, size_t q1) const {
-
         using Gradient = FieldVector<double, dim>;
         std::vector<Gradient> referenceGradients(localView_.size());
 
@@ -271,9 +278,21 @@ namespace HPDG {
         return referenceGradients;
       }
 
+      auto computeElementValues(size_t q0, size_t q1) const {
+        using Value = FieldVector<double, 1>;
+        std::vector<Value> vals(localView_.size());
+
+        for(size_t i = 0; i < localDegree_+1; i++) {
+          for(size_t j = 0; j < localDegree_+1; j++) {
+            vals[flatIndex(i,j, localDegree_)] = (*matrixPair_)[0][i][q0]*(*matrixPair_)[0][j][q1];
+          }
+        }
+
+        return vals;
+      }
+
       template<class MP>
       auto valuesOnEdge(size_t quad_nr, const MP& edgeMatrices, int  edgeNumber) const {
-
         using Value = FieldVector<double, 1>;
         std::vector<Value> vals(localView_.size());
 
@@ -403,8 +422,12 @@ namespace HPDG {
 
       const Basis& basis_;
       double penalty_;
-      bool dirichlet_;
+      bool dirichlet_ = false;
       LV localView_;
+      struct {
+        double mass;
+        double laplace;
+      } factors_;
       std::map<size_t, std::array<LocalMatrix, 2>> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
       std::map<size_t, Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
       const typename decltype(cache_)::mapped_type* matrixPair_; // Current matrix pair

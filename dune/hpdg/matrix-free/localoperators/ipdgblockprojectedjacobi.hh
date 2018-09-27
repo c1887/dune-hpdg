@@ -11,19 +11,17 @@
 #include <dune/istl/matrix.hh>
 
 #include "localoperator.hh"
-#include "ipdgdiagonalblock.hh"
 
 namespace Dune {
 namespace Fufem {
 namespace MatrixFree {
 
-  template<class V, class GV, class Basis, class LocalSolver>
+  template<class V, class GV, class Basis, class LocalSolver, class MatrixCreator>
   class IPDGBlockProjectedJacobi : public LocalOperator<V, GV> {
     using Base = LocalOperator<V, GV>;
     using LV = typename Basis::LocalView;
     using FE = std::decay_t<decltype(std::declval<LV>().tree().finiteElement())>;
     using Field = typename V::field_type;
-    //using LocalMatrix = Dune::Matrix<FieldBlock>;
     using LocalMatrix = Dune::Matrix<Dune::FieldMatrix<Field, 1,1>>; // TODO: This is not necessarily 1x1
 
     static constexpr int dim = GV::dimension;
@@ -33,13 +31,12 @@ namespace MatrixFree {
     public:
 
       template<class LS>
-      IPDGBlockProjectedJacobi(const Basis& b, LS&& localSolver, double penalty=2.0, bool dirichlet=false) :
+      IPDGBlockProjectedJacobi(const Basis& b, LS&& localSolver, MatrixCreator mc, double penalty=2.0) :
         basis_(b),
         penalty_(penalty),
-        dirichlet_(dirichlet),
         localView_(basis_.localView()),
         localSolver_(std::forward<LS>(localSolver)),
-        matrixCreator_(basis_, penalty, dirichlet) {}
+        matrixCreator_(std::move(mc)) {}
 
       void bind(const typename Base::Entity& e)
       {
@@ -48,8 +45,6 @@ namespace MatrixFree {
         localVector_.resize(localView_.size());
         for(auto& e: localVector_)
           e=0;
-        localMatrix_.setSize(localVector_.size(), localVector_.size());
-        localMatrix_ = 0.0;
 
         matrixCreator_.bind(e);
       }
@@ -61,6 +56,8 @@ namespace MatrixFree {
         const auto& fe = localView_.tree().finiteElement();
 
         localMatrix_ = matrixCreator_.matrix();
+
+        assert(localMatrix_.N() == localVector_.size() && localMatrix_.M() == localVector_.size());
 
         // now that the localMatrix is set up, we can apply the localsolver:
         auto insideCoeffs = std::vector<Field>(fe.localBasis().size());
@@ -104,11 +101,10 @@ namespace MatrixFree {
 
       const Basis& basis_;
       double penalty_;
-      bool dirichlet_;
       LV localView_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       LocalSolver localSolver_;
-      HPDG::IPDGDiagonalBlock<V, GV, Basis> matrixCreator_; // Creates the diagonal blocks but ONLY for Gauss-Lobatto Qk bases, so be careful!
+      MatrixCreator matrixCreator_; // Creates the diagonal blocks
       LocalMatrix localMatrix_;
       V lower_;
       V upper_;
