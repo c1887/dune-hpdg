@@ -70,7 +70,7 @@ auto stiffnessMatrix(const GridType& grid, double penaltyFactor=1.5) {
 
 /** Assemble a dynamic stiffness matrix */
 template<class GridType>
-auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.5) {
+auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.5, bool dirichlet=true) {
   constexpr auto dim = GridType::dimensionworld;
 
   const auto penalty = penaltyFactor*std::pow((double) k, dim); // penalty factor
@@ -101,7 +101,7 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
     dynMatrix.setSquare();
     dynMatrix.update();
 
-    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>(penalty);
+    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>(penalty, dirichlet);
     auto localBlockAssembler = [&](const auto& edge, auto& matrixContainer,
         auto&& insideTrialLocalView, auto&& insideAnsatzLocalView, auto&& outsideTrialLocalView, auto&& outsideAnsatzLocalView)
     {
