@@ -111,6 +111,10 @@ namespace MatrixFree {
 
       }
 
+      void setDirichlet(bool dichrichletBoundary) {
+        dirichlet_ = dichrichletBoundary;
+      }
+
     private:
 
       void computeBulk() {
