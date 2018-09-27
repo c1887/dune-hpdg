@@ -14,6 +14,8 @@
 #include <dune/common/densematrix.hh>
 #include <dune/common/typetraits.hh>
 
+#include <dune/istl/matrix.hh>
+
 #include <dune/hpdg/common/vectorwindow.hh>
 namespace Dune
 {
@@ -197,6 +199,17 @@ namespace Dune
         {
           y[i] -= mat_access(i) * x;
         }
+      }
+
+      operator Dune::Matrix<K>() const {
+        auto ret = Dune::Matrix<K>(n_, m_);
+        for(std::size_t i = 0; i < n_; i++) {
+          for(std::size_t j = 0; j < m_; j++) {
+            ret[i][j]= data_[i*m_ + j];
+          }
+        }
+
+        return ret;
       }
 
       private:
