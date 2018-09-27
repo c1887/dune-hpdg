@@ -63,7 +63,6 @@ namespace Dune {
 
       template<class MB, class VB>
       auto gs(const MB& m, const VB& b, double tol = defaultGsTol) {
-        using K = typename VB::field_type;
         auto x =b;
         x=0;
         for (size_t i = 0; i < m.N(); ++i) {
