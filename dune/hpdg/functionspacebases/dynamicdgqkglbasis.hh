@@ -8,8 +8,6 @@
 
 #include <dune/functions/functionspacebases/nodes.hh>
 #include <dune/functions/functionspacebases/defaultglobalbasis.hh>
-#include <dune/functions/functionspacebases/flatmultiindex.hh>
-#include <dune/hpdg/functionspacebases/qkglnodalbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicqknode.hh>
 
 #include <dune/grid/common/mcmgmapper.hh>
