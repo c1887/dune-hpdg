@@ -3,6 +3,7 @@ blockwiseoperations.hh
 dynamicbcrs.hh
 dynamicbvector.hh
 dynamicbvector_specializations.hh
+mappedcache.hh
 matrixwindow.hh
 mmmatrix.hh
 resizehelper.hh
