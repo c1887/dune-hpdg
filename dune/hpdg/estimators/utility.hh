@@ -29,7 +29,7 @@ namespace HPDG {
     auto vec_sorted = vec;
     std::sort(std::begin(vec_sorted), std::end(vec_sorted));
 
-    auto fullSum = std::accumulate(std::begin(vec_sorted), std::end(vec_sorted), 0);
+    auto fullSum = std::accumulate(std::begin(vec_sorted), std::end(vec_sorted), K(0));
 
     auto thresh = frac*fullSum;
 
