@@ -11,7 +11,7 @@ namespace HPDG {
  * as the underlying data structure. Every lookup will hence have the same complexity
  * as for a map.
  *
- * The user supplies a function with range T and domain IndexType (could be for example 
+ * The user supplies a function with range T and domain IndexType (could be for example
  * a std::function, a lambda, or a classic function pointer.
  *
  * If the result for a requested index is not yet available,
@@ -30,7 +30,7 @@ class MappedCache {
 
     /** Return (and generate, if necessary) the cached
      * value for the index idx */
-    T& value(const IndexType& idx) 
+    T& value(const IndexType& idx)
     {
       auto it = cache_.find(idx);
       if (it == std::end(cache_)) {
