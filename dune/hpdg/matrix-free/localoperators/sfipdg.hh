@@ -14,7 +14,9 @@
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/common/mmmatrix.hh>
+#include <dune/hpdg/common/mutablequadraturenodes.hh>
 #include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 #include "localoperator.hh"
 
 namespace Dune {
@@ -124,8 +126,8 @@ namespace MatrixFree {
 
 
         // precompute the derivatives of the local function at each (tensor-product) quad point
-        auto dx_u = Dune::HPDG::BtUL((*matrixPair_)[0], coeffs, (*matrixPair_)[1]); // matrix contains \partial_x u(xi_{i0, i1})
-        auto dy_u = Dune::HPDG::BtUL((*matrixPair_)[1], coeffs, (*matrixPair_)[0]); // matrix contains \partial_y u(xi_{i0, i1})
+        auto dx_u = Dune::HPDG::BtUL(matrixPair_->values, coeffs, matrixPair_->derivatives); // matrix contains \partial_x u(xi_{i0, i1})
+        auto dy_u = Dune::HPDG::BtUL(matrixPair_->derivatives, coeffs, matrixPair_->values); // matrix contains \partial_y u(xi_{i0, i1})
 
         // i0 and i1 are indices wrt to the RULE, not the basis
         auto computeX= [&](auto i0, auto i1, const auto& jacT) {
@@ -160,18 +162,8 @@ namespace MatrixFree {
         }
 
         // compute all the integrals for the given dimension at once
-        for(size_t r=0; r <dim; r++) {
-          const auto& matrix0 = (*matrixPair_)[r==0 ? 1 : 0];
-          const auto& matrix1 = (*matrixPair_)[r==1 ? 1 : 0];
-
-          Dune::HPDG::CplusAXtBt(matrix1, innerValues[r], matrix0, localVector_.data());
-
-          // This here is a nice use of the common DG hack. However, be aware that this would
-          // probably not be thread-safe!
-          //auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
-          //auto* out = &(outputBackend(localView_.index(0)));
-          //Dune::HPDG::CplusAXtBt(matrix1, innerValues[r], matrix0, out);
-        }
+        Dune::HPDG::CplusAXtBt(matrixPair_->values, innerValues[0], matrixPair_->derivatives, localVector_.data()); // dimension 0
+        Dune::HPDG::CplusAXtBt(matrixPair_->derivatives, innerValues[1], matrixPair_->values, localVector_.data()); // dimension 1
       }
 
       void computeFace() {
@@ -241,10 +233,10 @@ namespace MatrixFree {
             auto outer_X = LocalMatrix(2, rule_->size());
 
             auto inner_coeffs = coefficientsOnEdge(coeffs, localDegree_, innerIdx);
-            (*inner_edgePair)[0].mtv(inner_coeffs, u_diff); // CONF
+            inner_edgePair->values.mtv(inner_coeffs, u_diff); // CONF
 
             auto outer_coeffs = coefficientsOnEdge(outsideCoeffs, outerLocalDegree_, outerIdx);
-            (*outer_edgePair)[0].mmtv(outer_coeffs, u_diff); // CONF
+            outer_edgePair->values.mmtv(outer_coeffs, u_diff); // CONF
 
             // prepare derivatives
             auto dx_i = computeDerivatives(coeffs, *matrixPair_, *inner_edgePair, innerIdx, 0); // CONF
@@ -288,7 +280,7 @@ namespace MatrixFree {
             {
               BV tmp(localDegree_+1,0);
               // - {du/dn}[phi]
-              (*inner_edgePair)[0].mmv(du_sum, tmp);
+              (*inner_edgePair).values.mmv(du_sum, tmp);
               //tmp*=-1;
               addOnEdge(localVector_, tmp, innerIdx); // phi lives on inner here
             }
@@ -299,7 +291,7 @@ namespace MatrixFree {
               // - {du/dn}[phi]
               //
               // Since phi is negative for the outer side, the minus cancel out. TODO wirklich?
-              (*outer_edgePair)[0].umv(du_sum, tmp);
+              (*outer_edgePair).values.umv(du_sum, tmp);
               addOnEdge(outerLocalVector_, tmp, outerIdx);
             }
 
@@ -310,12 +302,12 @@ namespace MatrixFree {
               u_diff *= penalty;
               {
                 BV tmp(localDegree_+1);
-                (*inner_edgePair)[0].mv(u_diff, tmp);
+                inner_edgePair->values.mv(u_diff, tmp);
                 addOnEdge(localVector_, tmp, innerIdx);
               }
 
               BV tmp(outerLocalDegree_+1,0);
-              (*outer_edgePair)[0].mmv(u_diff, tmp);
+              outer_edgePair->values.mmv(u_diff, tmp);
               addOnEdge(outerLocalVector_, tmp, outerIdx);
             }
 
@@ -353,7 +345,7 @@ namespace MatrixFree {
         auto inner_X = LocalMatrix(2, rule_->size());
 
         auto inner_coeffs = coefficientsOnEdge(coeffs, localDegree_, innerIdx);
-        (*matrixPair_)[0].mtv(inner_coeffs, u_diff);
+        matrixPair_->values.mtv(inner_coeffs, u_diff);
 
         // prepare derivatives
         auto dx_i = computeDerivatives(coeffs, *matrixPair_, *matrixPair_, innerIdx, 0);
@@ -388,7 +380,7 @@ namespace MatrixFree {
         {
           BV tmp(localDegree_+1,0);
           // - {du/dn}[phi]
-          (*matrixPair_)[0].mmv(du_sum, tmp);
+          matrixPair_->values.mmv(du_sum, tmp);
           addOnEdge(localVector_, tmp, innerIdx); // phi lives on inner here
         }
 
@@ -396,7 +388,7 @@ namespace MatrixFree {
         {
           u_diff *= penalty;
           BV tmp(localDegree_+1);
-          (*matrixPair_)[0].mv(u_diff, tmp);
+          matrixPair_->values.mv(u_diff, tmp);
           addOnEdge(localVector_, tmp, innerIdx);
         }
       }
@@ -415,59 +407,9 @@ namespace MatrixFree {
         const auto& basis_degree = idx[0];
         const auto& quad_order = idx[1];
         // get quadrature rule:
-        int order = 2*basis_degree -1;
-        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
-          (Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
         const auto& rule = rules_[quad_order];
 
-        // sort node points (they're also ordered for the basis)
-        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-
-        assert(gauss_lobatto.size() == basis_degree+1);
-
-        // save all derivatives of 1-d basis functions at the quad points, i.e.
-        // matrixPair_ij = l_i' (xi_j)
-        LocalMatrix lp(basis_degree+1, rule.size());
-        // same for the function values
-        LocalMatrix l(basis_degree+1, lp.M());
-        for (std::size_t i = 0; i < lp.N(); i++) {
-          for (std::size_t j = 0; j < lp.M(); j++) {
-            lp[i][j]=lagrangePrime(rule[j].position(),i, gauss_lobatto);
-            l[i][j]=lagrange(rule[j].position(),i, gauss_lobatto);
-          }
-        }
-        return std::array<LocalMatrix, 2>{{std::move(l), std::move(lp)}};
-      }
-
-      template<class X, class Q>
-      inline double lagrangePrime(const X& x, size_t i, const Q& quad) const {
-        double result = 0.;
-
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i)
-          {
-            double prod= 1.0/(quad[i].position()-quad[j].position());
-            for (size_t l=0; l<quad.size(); l++)
-              if (l!=i && l!=j)
-                prod *= (x-quad[l].position())/(quad[i].position()-quad[l].position());
-            result += prod;
-          }
-        return result;
-      }
-
-      template<class X, class Q>
-      inline double lagrange(const X& x, size_t i, const Q& quad) const {
-        double result = 1.;
-
-        auto xi= quad[i].position();
-
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i)
-          {
-            result*= (x-quad[j].position())/(xi-quad[j].position());
-          }
-        return result;
+        return HPDG::GaussLobatto::ValuesAndDerivatives(basis_degree, rule);
       }
 
       void outerBind(const typename Base::Entity& e)
@@ -516,59 +458,28 @@ namespace MatrixFree {
         }
 
         // set (and if needed, calculate) outer matrix pair and rule
-        setupMatrixPair(outside);
         outerMatrixPair_ = &(cache_[outside]);
 
       }
+
       template<class IS>
       auto nonConformingMatrices(const IS& is)
       {
-        // basis nodes:
-        auto gl_i = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*localDegree_-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-        auto gl_o = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*outerLocalDegree_-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-        assert(gl_i.size() == localDegree_+1);
-        assert(gl_o.size() == outerLocalDegree_+1);
-
-        const auto& rule = *rule_;
-
-        // sort node points (they're also ordered for the basis)
-        std::sort(gl_i.begin(), gl_i.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-        std::sort(gl_o.begin(), gl_o.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
+        const auto& rule =*rule_;
 
         // compute inner and outer matrix pair for the noncorming edge.
         // step 0.: compute new quad notes:
-        auto inner_quad = std::vector<typename GV::Grid::ctype>(rule.size());
-        auto outer_quad = std::vector<typename GV::Grid::ctype>(rule.size());
+        auto inner_quad = HPDG::mutableQuadratureNodes(rule);
+        auto outer_quad = HPDG::mutableQuadratureNodes(rule);
+
         for (size_t i = 0; i < rule.size(); i++) {
-          inner_quad[i] = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
-          outer_quad[i] = is.geometryInOutside().global(rule[i].position())[is.indexInOutside() < 2];
+          inner_quad[i].position() = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
+          outer_quad[i].position() = is.geometryInOutside().global(rule[i].position())[is.indexInOutside() < 2];
         }
-        auto ret = std::make_unique<std::array<std::array<LocalMatrix, 2>,2>>();
+        auto ret = std::make_unique<std::array<HPDG::GaussLobatto::ValuesAndDerivatives,2>>(); // contains the ValuesAndDerivatives for the inner (0) and outer (1) position
 
-        auto& innerPair = (*ret)[0];
-        auto& outerPair = (*ret)[1];
-
-        // resize:
-        innerPair[0].setSize(gl_i.size(), inner_quad.size());
-        innerPair[1].setSize(gl_i.size(), inner_quad.size());
-
-        outerPair[0].setSize(gl_o.size(), outer_quad.size());
-        outerPair[1].setSize(gl_o.size(), outer_quad.size());
-
-
-        // fill cache
-        for (std::size_t j = 0; j < rule.size(); j++) {
-          for (std::size_t i = 0; i < gl_i.size(); i++) {
-            innerPair[1][i][j]=lagrangePrime(inner_quad[j],i, gl_i);
-            innerPair[0][i][j]=lagrange(inner_quad[j],i, gl_i);
-          }
-          for (std::size_t i = 0; i < gl_o.size(); i++) {
-            outerPair[1][i][j]=lagrangePrime(outer_quad[j],i, gl_o);
-            outerPair[0][i][j]=lagrange(outer_quad[j],i, gl_o);
-          }
-        }
+        (*ret)[0] = HPDG::GaussLobatto::ValuesAndDerivatives(localDegree_, inner_quad);
+        (*ret)[1] = HPDG::GaussLobatto::ValuesAndDerivatives(outerLocalDegree_, outer_quad);
 
         return ret;
       }
@@ -634,8 +545,8 @@ namespace MatrixFree {
 
       template<class MP, class MP2, class M, class VV>
       void computeDPhi(std::vector<typename V::field_type>& buffer, const MP& matrixPair, const MP2& edgeMatrixPair, const M& STn, const VV& u, int edgeNumber) {
-        auto degree = matrixPair[0].N()-1;
-        auto quad_size = matrixPair[0].M();
+        auto degree = matrixPair.values.N()-1;
+        auto quad_size = matrixPair.values.M();
         switch(edgeNumber) {
           case 0:// (0,q)
             for (size_t i = 0; i < degree +1; i++) {
@@ -643,13 +554,13 @@ namespace MatrixFree {
               for (size_t j = 0; j < degree +1; j++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0j = edgeMatrixPair[0][j];
-                const auto& m1j = edgeMatrixPair[1][j];
+                const auto& m0j = edgeMatrixPair.values[j];
+                const auto& m1j = edgeMatrixPair.derivatives[j];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0j[q]*STn[0][q]*u[q];
                   back+= m1j[q]*STn[1][q]*u[q];
                 }
-                ith_col[j] += matrixPair[1][i][0] * front + matrixPair[0][i][0] * back;
+                ith_col[j] += matrixPair.derivatives[i][0] * front + matrixPair.values[i][0] * back;
               }
             }
             return;
@@ -659,13 +570,13 @@ namespace MatrixFree {
               for (size_t j = 0; j < degree +1; j++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0j = edgeMatrixPair[0][j];
-                const auto& m1j = edgeMatrixPair[1][j];
+                const auto& m0j = edgeMatrixPair.values[j];
+                const auto& m1j = edgeMatrixPair.derivatives[j];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0j[q]*STn[0][q]*u[q];
                   back+= m1j[q]*STn[1][q]*u[q];
                 }
-                ith_col[j] += matrixPair[1][i][quad_size-1] * front + matrixPair[0][i][quad_size -1] * back;
+                ith_col[j] += matrixPair.derivatives[i][quad_size-1] * front + matrixPair.values[i][quad_size -1] * back;
               }
             }
             return;
@@ -675,13 +586,13 @@ namespace MatrixFree {
               for (size_t i = 0; i < degree +1; i++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0i = edgeMatrixPair[0][i];
-                const auto& m1i = edgeMatrixPair[1][i];
+                const auto& m0i = edgeMatrixPair.values[i];
+                const auto& m1i = edgeMatrixPair.derivatives[i];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0i[q]*STn[1][q]*u[q];
                   back+= m1i[q]*STn[0][q]*u[q];
                 }
-                jth_row[i] += matrixPair[0][j][0] * back + matrixPair[1][j][0] * front;
+                jth_row[i] += matrixPair.values[j][0] * back + matrixPair.derivatives[j][0] * front;
               }
             }
             return;
@@ -691,13 +602,13 @@ namespace MatrixFree {
               for (size_t i = 0; i < degree +1; i++) {
                 double front = 0;
                 double back = 0;
-                const auto& m0i = edgeMatrixPair[0][i];
-                const auto& m1i = edgeMatrixPair[1][i];
+                const auto& m0i = edgeMatrixPair.values[i];
+                const auto& m1i = edgeMatrixPair.derivatives[i];
                 for (size_t q =0; q< u.size(); q++) {
                   front+= m0i[q]*STn[1][q]*u[q];
                   back+= m1i[q]*STn[0][q]*u[q];
                 }
-                jth_row[i] += matrixPair[0][j][quad_size-1] * back + matrixPair[1][j][quad_size-1] * front;
+                jth_row[i] += matrixPair.values[j][quad_size-1] * back + matrixPair.derivatives[j][quad_size-1] * front;
               }
             }
             return;
@@ -729,59 +640,59 @@ namespace MatrixFree {
       template<class U, class MP, class MP2>
       auto computeDerivatives(const U* coefficients, const MP& matrixPair, const MP2& edgeMatrixPair, const int edgeNumber, int direction) const {
         assert(direction == 0 or direction == 1);
-        auto quad_size = matrixPair[0].M();
+        auto quad_size = matrixPair.values.M();
         BV dx(quad_size);
         switch(edgeNumber) {
           case 0:
             // (0, x)
             if (direction==0) {
-              auto col0 = Dune::HPDG::columnWindow(matrixPair[1], 0);
+              auto col0 = Dune::HPDG::columnWindow(matrixPair.derivatives, 0);
               BV tmp(col0.size(),0); // we know that the coefficient "matrix" is quadratic
               Dune::HPDG::umv(coefficients, col0, tmp);
-              edgeMatrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair.values.mtv(tmp, dx);
             }
             else {
-              auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              edgeMatrixPair[1].mtv(coeffs, dx);
+              auto coeffs = coefficientsOnEdge(coefficients, matrixPair.values.N()-1, edgeNumber);
+              edgeMatrixPair.derivatives.mtv(coeffs, dx);
             }
             return dx;
           case 1:
             // (1, x)
             if (direction==0) {
-              auto col_last = Dune::HPDG::columnWindow(matrixPair[1], quad_size-1); // last column
+              auto col_last = Dune::HPDG::columnWindow(matrixPair.derivatives, quad_size-1); // last column
               BV tmp(col_last.size(), 0);
               Dune::HPDG::umv(coefficients, col_last, tmp);
-              edgeMatrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair.values.mtv(tmp, dx);
             }
             else {
-              auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              edgeMatrixPair[1].mtv(coeffs, dx);
+              auto coeffs = coefficientsOnEdge(coefficients, matrixPair.values.N()-1, edgeNumber);
+              edgeMatrixPair.derivatives.mtv(coeffs, dx);
             }
             return dx;
           case 2:
             // (x, 0)
             if (direction==0) {
-              auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              edgeMatrixPair[1].mtv(coeffs, dx);
+              auto coeffs = coefficientsOnEdge(coefficients, matrixPair.values.N()-1, edgeNumber);
+              edgeMatrixPair.derivatives.mtv(coeffs, dx);
             }
             else {
-              auto col0 = Dune::HPDG::columnWindow(matrixPair[1], 0); // first column
+              auto col0 = Dune::HPDG::columnWindow(matrixPair.derivatives, 0); // first column
               BV tmp(col0.size(),0);
               Dune::HPDG::umtv(coefficients, col0, tmp);
-              edgeMatrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair.values.mtv(tmp, dx);
             }
             return dx;
           case 3:
             // (x, 1)
             if (direction==0) {
-              auto coeffs = coefficientsOnEdge(coefficients, matrixPair[0].N()-1, edgeNumber);
-              edgeMatrixPair[1].mtv(coeffs, dx);
+              auto coeffs = coefficientsOnEdge(coefficients, matrixPair.values.N()-1, edgeNumber);
+              edgeMatrixPair.derivatives.mtv(coeffs, dx);
             }
             else {
-              auto col_last = Dune::HPDG::columnWindow(matrixPair[1], quad_size-1); // last column
+              auto col_last = Dune::HPDG::columnWindow(matrixPair.derivatives, quad_size-1); // last column
               BV tmp(col_last.size(),0);
               Dune::HPDG::umtv(coefficients, col_last, tmp);
-              edgeMatrixPair[0].mtv(tmp, dx);
+              edgeMatrixPair.values.mtv(tmp, dx);
             }
             return dx;
           default:
@@ -795,7 +706,7 @@ namespace MatrixFree {
       bool dirichlet_;
       LV localView_;
       LV outerView_;
-      HPDG::MappedCache<std::array<LocalMatrix, 2>, IndexPair> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      HPDG::MappedCache<HPDG::GaussLobatto::ValuesAndDerivatives, IndexPair> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
       HPDG::MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       std::vector<typename V::field_type> outerLocalVector_; // contiguous memory buffer

@@ -10,6 +10,8 @@
 #include <dune/geometry/quadraturerules.hh>
 
 #include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/common/mutablequadraturenodes.hh>
+#include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 
 namespace Dune {
 namespace HPDG {
@@ -88,26 +90,6 @@ namespace HPDG {
 
     private:
 
-      template<class R>
-      void compute1DValues(LocalMatrix& values, LocalMatrix& derivatives, int degree, const R& rule) {
-        values.setSize(degree+1, rule.size());
-        derivatives.setSize(degree+1, rule.size());
-
-        int order = 2*degree - 1;
-        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-
-        // sort quad points (they're also ordered for the basis)
-        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-
-        for (int i = 0; i < degree+1; i++) {
-          for (std::size_t j = 0; j < rule.size(); j++) {
-            derivatives[i][j]=lagrangePrime(rule[j].position(),i, gauss_lobatto);
-            values[i][j]=lagrange(rule[j].position(),i, gauss_lobatto);
-          }
-        }
-      }
-
       /** Return the proper 1D Gauss-Lobatto quadrature rule for a given
        * degree. If the rule is not yet present in the cache, it will be added.
        */
@@ -122,10 +104,8 @@ namespace HPDG {
       }
 
       auto matrixGenerator(int degree) {
-        std::array<LocalMatrix, 2> m;
         const auto& rule = rules_.value(degree);
-        compute1DValues(m[0], m[1], degree, rule);
-        return m;
+        return GaussLobatto::ValuesAndDerivatives(degree, rule);
       }
 
       template<class E, class LC>
@@ -157,18 +137,18 @@ namespace HPDG {
           extra_matrices = std::make_unique<typename decltype(extra_matrices)::element_type>(); // allocate
           auto& matrices = (*extra_matrices)[0]; // we only need the first slot
 
-          compute1DValues(matrices[0], matrices[1], localDegree_, rule);
+          matrices = GaussLobatto::ValuesAndDerivatives(localDegree_, rule);
           innerEdgeMatrices = &matrices;
 
           // set the outer matrices also:
           outerEdgeMatrices = &(cache_.value(outerDegree));
         }
-        // 2nd case: outer < inner 
+        // 2nd case: outer < inner
         else if( localDegree_ > outerDegree) {
           extra_matrices = std::make_unique<typename decltype(extra_matrices)::element_type>(); // allocate
           auto& matrices = (*extra_matrices)[0]; // we only need the first slot
 
-          compute1DValues(matrices[0], matrices[1], outerDegree, rule);
+          matrices = GaussLobatto::ValuesAndDerivatives(outerDegree, rule);
           outerEdgeMatrices = &matrices;
 
           // the inner matrix pair is already fine
@@ -383,7 +363,7 @@ namespace HPDG {
 
         for(size_t i = 0; i < localDegree_+1; i++) {
           for(size_t j = 0; j < localDegree_+1; j++) {
-            referenceGradients[flatIndex(i,j, localDegree_)] = {{(*matrixPair_)[1][i][q0]*(*matrixPair_)[0][j][q1], (*matrixPair_)[0][i][q0]*(*matrixPair_)[1][j][q1]}};
+            referenceGradients[flatIndex(i,j, localDegree_)] = {{matrixPair_->derivatives[i][q0]*matrixPair_->values[j][q1], matrixPair_->values[i][q0]*matrixPair_->derivatives[j][q1]}};
           }
         }
 
@@ -392,7 +372,7 @@ namespace HPDG {
 
       template<class MP>
       auto valuesOnEdge(size_t quad_nr, const MP& edgeMatrices, int  edgeNumber) const {
-        auto deg = edgeMatrices[0].N() -1;
+        auto deg = edgeMatrices.values.N() -1;
 
         using Value = FieldVector<double, 1>;
         std::vector<Value> vals(std::pow(deg+1, dim), 0.);
@@ -400,16 +380,16 @@ namespace HPDG {
         for(size_t i = 0; i < deg+1; i++) {
           switch(edgeNumber) {
             case 0:
-              vals[flatIndex(0,i, deg)] = {{edgeMatrices[0][i][quad_nr]}};
+              vals[flatIndex(0,i, deg)] = {{edgeMatrices.values[i][quad_nr]}};
               break;
             case 1:
-              vals[flatIndex(deg,i, deg)] = {{edgeMatrices[0][i][quad_nr]}};
+              vals[flatIndex(deg,i, deg)] = {{edgeMatrices.values[i][quad_nr]}};
               break;
             case 2:
-              vals[flatIndex(i,0, deg)] = {{edgeMatrices[0][i][quad_nr]}};
+              vals[flatIndex(i,0, deg)] = {{edgeMatrices.values[i][quad_nr]}};
               break;
             case 3:
-              vals[flatIndex(i,deg, deg)] = {{edgeMatrices[0][i][quad_nr]}};
+              vals[flatIndex(i,deg, deg)] = {{edgeMatrices.values[i][quad_nr]}};
               break;
             default:
               DUNE_THROW(Dune::Exception, "Illegal edge number provided");
@@ -420,7 +400,7 @@ namespace HPDG {
 
       template<class MP>
       auto gradientsOnEdge(size_t quad_nr, const MP& fullMatrixPair, const MP& edgeMatrices, int edgeNumber) const {
-        auto deg = edgeMatrices[0].N() -1;
+        auto deg = edgeMatrices.values.N() -1;
 
         using Gradient = FieldVector<double, dim>;
         std::vector<Gradient> referenceGradients(std::pow(deg+1, dim));
@@ -430,21 +410,21 @@ namespace HPDG {
          * This doenst matter, though, because we only use the first and last quadrature node,
          * which are always 0 and 1, respectively, since we use the Gauss-Lobatto quadrature rule.
          */
-        auto lastIdx = fullMatrixPair[0].M()-1;
+        auto lastIdx = fullMatrixPair.values.M()-1;
         for (size_t i = 0; i< deg +1; i++) {
           for(size_t j = 0; j < deg+1; j++) {
             switch(edgeNumber) {
               case 0:
-                referenceGradients[flatIndex(i,j, deg)] = {{fullMatrixPair[1][i][0]*edgeMatrices[0][j][quad_nr],  fullMatrixPair[0][i][0]*edgeMatrices[1][j][quad_nr]}};
+                referenceGradients[flatIndex(i,j, deg)] = {{fullMatrixPair.derivatives[i][0]*edgeMatrices.values[j][quad_nr],  fullMatrixPair.values[i][0]*edgeMatrices.derivatives[j][quad_nr]}};
                 break;
               case 1:
-                referenceGradients[flatIndex(i,j, deg)] = {{fullMatrixPair[1][i][lastIdx]*edgeMatrices[0][j][quad_nr], fullMatrixPair[0][i][lastIdx]*edgeMatrices[1][j][quad_nr]}};
+                referenceGradients[flatIndex(i,j, deg)] = {{fullMatrixPair.derivatives[i][lastIdx]*edgeMatrices.values[j][quad_nr], fullMatrixPair.values[i][lastIdx]*edgeMatrices.derivatives[j][quad_nr]}};
                 break;
               case 2:
-                referenceGradients[flatIndex(i,j, deg)] = {{edgeMatrices[1][i][quad_nr]*fullMatrixPair[0][j][0], edgeMatrices[0][i][quad_nr]*fullMatrixPair[1][j][0]}};
+                referenceGradients[flatIndex(i,j, deg)] = {{edgeMatrices.derivatives[i][quad_nr]*fullMatrixPair.values[j][0], edgeMatrices.values[i][quad_nr]*fullMatrixPair.derivatives[j][0]}};
                 break;
               case 3:
-                referenceGradients[flatIndex(i,j, deg)] = {{edgeMatrices[1][i][quad_nr]*fullMatrixPair[0][j][lastIdx], edgeMatrices[0][i][quad_nr]*fullMatrixPair[1][j][lastIdx]}};
+                referenceGradients[flatIndex(i,j, deg)] = {{edgeMatrices.derivatives[i][quad_nr]*fullMatrixPair.values[j][lastIdx], edgeMatrices.values[i][quad_nr]*fullMatrixPair.derivatives[j][lastIdx]}};
                 break;
               default:
                 DUNE_THROW(Dune::Exception, "Illegal edge number provided");
@@ -457,50 +437,19 @@ namespace HPDG {
       template<class IS, class R>
       auto nonConformingMatrices(const IS& is, const R& rule, int outerDegree)
       {
-        // basis nodes:
-        auto gl_i = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*localDegree_-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-        auto gl_o = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*outerDegree-1, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-        assert(gl_i.size() == localDegree_+1);
-        assert(gl_o.size() == outerDegree+1);
-
-        // sort node points (they're also ordered for the basis)
-        std::sort(gl_i.begin(), gl_i.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-        std::sort(gl_o.begin(), gl_o.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-
         // compute inner and outer matrix pair for the noncorming edge.
         // step 0.: compute new quad notes:
-        auto inner_quad = std::vector<typename GV::Grid::ctype>(rule.size());
-        auto outer_quad = std::vector<typename GV::Grid::ctype>(rule.size());
+        auto inner_quad = mutableQuadratureNodes(rule);
+        auto outer_quad = mutableQuadratureNodes(rule);
+
         for (size_t i = 0; i < rule.size(); i++) {
-          inner_quad[i] = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
-          outer_quad[i] = is.geometryInOutside().global(rule[i].position())[is.indexInOutside() < 2];
+          inner_quad[i].position() = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
+          outer_quad[i].position() = is.geometryInOutside().global(rule[i].position())[is.indexInOutside() < 2];
         }
-        auto ret = std::make_unique<std::array<std::array<LocalMatrix, 2>,2>>();
+        auto ret = std::make_unique<std::array<GaussLobatto::ValuesAndDerivatives,2>>(); // contains the ValuesAndDerivatives for the inner (0) and outer (1) position
 
-        auto& innerPair = (*ret)[0];
-        auto& outerPair = (*ret)[1];
-
-        // resize:
-        innerPair[0].setSize(gl_i.size(), inner_quad.size());
-        innerPair[1].setSize(gl_i.size(), inner_quad.size());
-
-        outerPair[0].setSize(gl_o.size(), outer_quad.size());
-        outerPair[1].setSize(gl_o.size(), outer_quad.size());
-
-
-        // fill cache
-        for (std::size_t j = 0; j < rule.size(); j++) {
-          for (std::size_t i = 0; i < gl_i.size(); i++) {
-            innerPair[1][i][j]=lagrangePrime(inner_quad[j],i, gl_i);
-            innerPair[0][i][j]=lagrange(inner_quad[j],i, gl_i);
-          }
-          for (std::size_t i = 0; i < gl_o.size(); i++) {
-            outerPair[1][i][j]=lagrangePrime(outer_quad[j],i, gl_o);
-            outerPair[0][i][j]=lagrange(outer_quad[j],i, gl_o);
-          }
-        }
+        (*ret)[0] = GaussLobatto::ValuesAndDerivatives(localDegree_, inner_quad);
+        (*ret)[1] = GaussLobatto::ValuesAndDerivatives(outerDegree, outer_quad);
 
         return ret;
       }
@@ -508,40 +457,10 @@ namespace HPDG {
         return i0 + i1*(k+1);
       }
 
-      template<class X, class Q>
-      inline double lagrangePrime(const X& x, size_t i, const Q& quad) const {
-        double result = 0.;
-
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i)
-          {
-            double prod= 1.0/(quad[i].position()-quad[j].position());
-            for (size_t l=0; l<quad.size(); l++)
-              if (l!=i && l!=j)
-                prod *= (x-quad[l].position())/(quad[i].position()-quad[l].position());
-            result += prod;
-          }
-        return result;
-      }
-
-      template<class X, class Q>
-      inline double lagrange(const X& x, size_t i, const Q& quad) const {
-        double result = 1.;
-
-        auto xi= quad[i].position();
-
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i)
-          {
-            result*= (x-quad[j].position())/(xi-quad[j].position());
-          }
-        return result;
-      }
-
       const Basis& basis_;
       double penalty_;
       bool dirichlet_;
-      MappedCache<std::array<LocalMatrix, 2>, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      MappedCache<GaussLobatto::ValuesAndDerivatives, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
       MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
       const typename decltype(cache_)::mapped_type* matrixPair_; // Current matrix pair
       Dune::QuadratureRule<typename GV::Grid::ctype,1>* rule_;

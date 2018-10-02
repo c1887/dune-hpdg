@@ -2,6 +2,7 @@ install_files(
   dgrestrict.hh
   identityoperator.hh
   ipdgoperator.hh
+  gausslobattomatrices.hh
   localassembleroperator.hh
   laplaceoperator.hh
   sfidpg.hh

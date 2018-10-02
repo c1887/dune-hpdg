@@ -15,6 +15,7 @@
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/common/mmmatrix.hh>
 #include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 #include "localoperator.hh"
 
 namespace Dune {
@@ -114,26 +115,10 @@ namespace MatrixFree {
       }
 
       auto matrixGenerator(int basis_degree) {
-
-        // get quadrature rule:
-        int order = 2*basis_degree -1;
-        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-
+        auto order = 2*basis_degree -1;
         const auto& rule = rules_[order];
-        // sort node points (they're also ordered for the basis)
-        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
 
-        assert(gauss_lobatto.size() == basis_degree+1);
-
-        // save all derivatives of 1-d basis functions at the quad points, i.e.
-        LocalMatrix l(basis_degree+1, rule.size());
-        for (std::size_t i = 0; i < l.N(); i++) {
-          for (std::size_t j = 0; j < l.M(); j++) {
-            l[i][j]=lagrange(rule[j].position(),i, gauss_lobatto);
-          }
-        }
-        return l;
+        return HPDG::GaussLobatto::Values(basis_degree, rule);
       }
 
       auto ruleGenerator(int order) {
@@ -145,24 +130,10 @@ namespace MatrixFree {
         return rule;
       }
 
-      template<class X, class Q>
-      inline double lagrange(const X& x, size_t i, const Q& quad) const {
-        double result = 1.;
-
-        auto xi= quad[i].position();
-
-        for (size_t j=0; j<quad.size(); j++)
-          if (j!=i)
-          {
-            result*= (x-quad[j].position())/(xi-quad[j].position());
-          }
-        return result;
-      }
-
       // members:
       const Basis& basis_;
       LV localView_;
-      HPDG::MappedCache<LocalMatrix, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      HPDG::MappedCache<HPDG::GaussLobatto::Values, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
       HPDG::MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       int localDegree_;
