@@ -61,6 +61,18 @@ TestSuite test_mappedCache() {
   suite.check(cache_from_class.value(1) == 2);
   suite.check(class_called == 1, "Check call counter in f");
 
+  // Check with user supplied lambda and default constructed cache:
+  HPDG::MappedCache<int,int> def_constr;
+  suite.check(def_constr.value(1, [](int i){return 3*i;}) == 3);
+
+  // check moved
+  auto moved = std::move(def_constr);
+  suite.check(moved.value(1) == 3); // should be still in cache, hence we don't need a generator. Other indices woudl throw here
+
+  // check copied
+  auto copied = moved;
+  suite.check(copied.value(1) == 3); // should be still in cache, hence we don't need a generator. Other indices woudl throw here
+
   return suite;
 }
 

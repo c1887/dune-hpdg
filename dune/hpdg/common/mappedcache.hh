@@ -4,6 +4,9 @@
 #include <map>
 #include <functional>
 
+#include <dune/common/std/optional.hh>
+#include <dune/common/exceptions.hh>
+
 namespace Dune {
 namespace HPDG {
 
@@ -26,18 +29,39 @@ class MappedCache {
     using mapped_type = T;
     using key_type = IndexType;
 
-    template<typename F>
-    MappedCache(F&& generator_function) :
-      generator_(std::forward<F>(generator_function))
+    MappedCache(const std::function<T(IndexType)>& generator_function) :
+      generator_(generator_function)
     {}
 
+    MappedCache():
+      generator_(Std::nullopt)
+    {}
+
+    MappedCache(const MappedCache& other) :
+      generator_(other.generator_),
+      cache_(other.cache_)
+    {}
+
+    MappedCache(MappedCache&& other) :
+      generator_(std::move(other.generator_)),
+      cache_(std::move(other.cache_))
+    {}
+
+    MappedCache& operator=(const MappedCache& other) {
+      generator_=other.generator_;
+      cache_=other.cache_;
+    }
+
     /** Return (and generate, if necessary) the cached
-     * value for the index idx */
-    T& value(const IndexType& idx)
+     * value for the index idx using a user-supplied
+     * generator function.
+     */
+    template<class F>
+    T& value(const IndexType& idx, F&& generator)
     {
       auto it = cache_.find(idx);
       if (it == std::end(cache_)) {
-        cache_[idx] = generator_(idx);
+        cache_[idx] = generator(idx);
         return cache_[idx];
       }
 
@@ -45,28 +69,89 @@ class MappedCache {
     }
 
     /** Return (and generate, if necessary) the cached
-     * value for the index idx */
-    const T& value(const IndexType& idx) const
+     * value for the index idx using a user-supplied
+     * generator function.
+     */
+    template<class F>
+    const T& value(const IndexType& idx, F&& generator) const
     {
       auto it = cache_.find(idx);
       if (it == std::end(cache_)) {
-        cache_[idx] = generator_(idx);
+        cache_[idx] = generator(idx);
         return cache_[idx];
       }
 
       return it->second;
     }
 
+    /** Return cached value at idx.
+     *
+     *
+     * Note that calling this with an idx
+     * that has not yet been called is only valid
+     * if the generator function has been set before.
+     *
+     */
+    const T& value(const IndexType& idx) const {
+      if (generator_)
+        return value(idx, *generator_);
+
+      auto it = cache_.find(idx);
+      if (it == std::end(cache_))
+        DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
+
+      return it->second;
+    }
+
+    /** Return cached value at idx.
+     *
+     *
+     * Note that calling this with an idx
+     * that has not yet been called is only valid
+     * if the generator function has been set before.
+     *
+     */
+    T& value(const IndexType& idx) {
+      if (generator_)
+        return value(idx, *generator_);
+
+      auto it = cache_.find(idx);
+      if (it == std::end(cache_))
+        DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
+
+      return it->second;
+    }
+    /** Return cached value at idx.
+     *
+     *
+     * Note that calling this with an idx
+     * that has not yet been called is only valid
+     * if the generator function has been set before.
+     *
+     */
     T& operator[](const IndexType& idx) {
       return value(idx);
     }
 
+    /** Return cached value at idx.
+     *
+     *
+     * Note that calling this with an idx
+     * that has not yet been called is only valid
+     * if the generator function has been set before.
+     *
+     */
     const T& operator[](const IndexType& idx) const {
       return value(idx);
     }
 
+    template<typename F>
+    void setGenerator(F&& generator) {
+      generator_ = std::forward<F>(generator);
+    }
+
   private:
-    std::function<T(IndexType)> generator_;
+    Std::optional<std::function<T(IndexType)>> generator_;
     mutable std::map<IndexType, T> cache_;
 };
 }
