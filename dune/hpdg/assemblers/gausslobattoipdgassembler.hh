@@ -10,6 +10,7 @@
 #include <dune/geometry/quadraturerules.hh>
 
 #include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/common/mutablequadraturenodes.hh>
 #include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 
 namespace Dune {
@@ -436,29 +437,10 @@ namespace HPDG {
       template<class IS, class R>
       auto nonConformingMatrices(const IS& is, const R& rule, int outerDegree)
       {
-        // Stupid quadrature rule does not allow me to edit the quad points :(
-        struct QP {
-          typename R::value_type::Vector pos;
-          auto& position() {
-            return pos;
-          }
-          const auto& position() const{
-            return pos;
-          }
-        };
-
-        auto mutableCopy = [] (const R& r) {
-          std::vector<QP> v(r.size());
-          for(std::size_t i = 0; i < r.size(); i++) {
-            v[i].pos = r[i].position();
-          }
-          return v;
-        };
-
         // compute inner and outer matrix pair for the noncorming edge.
         // step 0.: compute new quad notes:
-        auto inner_quad = mutableCopy(rule);
-        auto outer_quad = mutableCopy(rule);
+        auto inner_quad = mutableQuadratureNodes(rule);
+        auto outer_quad = mutableQuadratureNodes(rule);
 
         for (size_t i = 0; i < rule.size(); i++) {
           inner_quad[i].position() = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
