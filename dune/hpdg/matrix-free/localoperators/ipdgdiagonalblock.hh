@@ -43,9 +43,7 @@ namespace HPDG {
         basis_(b),
         penalty_(penalty),
         dirichlet_(dirichlet),
-        localView_(basis_.localView()),
-        cache_(std::bind(&IPDGDiagonalBlock::matrixGenerator, this, std::placeholders::_1)),
-        rules_(std::bind(&IPDGDiagonalBlock::ruleGenerator, this, std::placeholders::_1))
+        localView_(basis_.localView())
       {}
 
       template<class Entity>
@@ -59,8 +57,8 @@ namespace HPDG {
         // get order:
         localDegree_ = basis_.preBasis().degree(e);
 
-        rule_ = &(rules_[localDegree_]);
-        matrixPair_ = &(cache_[localDegree_]);
+        rule_ = &getRule(localDegree_);
+        matrixPair_ = &getMatrix(localDegree_);
       }
 
       /** Get the matrix for the bound element */
@@ -108,7 +106,7 @@ namespace HPDG {
             order = std::max(localDegree_, outerDegree);
 
             if (outerDegree > localDegree_) {
-              rule_ = &(rules_[outerDegree]);
+              rule_ = &getRule(outerDegree);
             }
 
             if (!edge.conforming() or outerDegree > localDegree_) {
@@ -176,7 +174,7 @@ namespace HPDG {
               }
             }
           }
-          rule_ = &(rules_[localDegree_]);
+          rule_ = &getRule(localDegree_);
         }
       }
 
@@ -320,20 +318,28 @@ namespace HPDG {
         return i0 + i1*(k+1);
       }
 
-      auto matrixGenerator(int degree) {
-        const auto& rule = rules_[degree];
-        return GaussLobatto::ValuesAndDerivatives(degree, rule);
+      auto& getMatrix(int degree) {
+        auto generator= [&](int d) {
+          const auto& rule = getRule(d);
+          return GaussLobatto::ValuesAndDerivatives(d, rule);
+        };
+
+        return cache_.value(degree, generator);
       }
 
-      auto ruleGenerator(int degree) {
-        int order = 2*degree -1;
-        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
-          (Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
+      auto& getRule(int degree) {
+        auto generator= [](int degree) {
+          int order = 2*degree -1;
+          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+            (Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
 
-        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
+          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+              return a.position() < b.position(); });
 
-        return rule;
+          return rule;
+        };
+
+        return rules_.value(degree, generator);
       }
 
       // members:

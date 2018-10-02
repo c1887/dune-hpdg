@@ -55,8 +55,6 @@ namespace MatrixFree {
         dirichlet_(dirichlet),
         localView_(basis_.localView()),
         outerView_(basis_.localView()),
-        cache_(std::bind(&SumFactIPDGOperator::setupMatrixPair, this, std::placeholders::_1)),
-        rules_(std::bind(&SumFactIPDGOperator::ruleGenerator, this, std::placeholders::_1)),
         mapper_(basis_.gridView(), mcmgElementLayout()) {}
 
       void bind(const typename Base::Entity& e)
@@ -73,9 +71,9 @@ namespace MatrixFree {
         int order = 2*localDegree_ - 1;
         auto idxPair = IndexPair{{localDegree_, order}}; // first basis degree, 2nd order of evaluated quadrature
 
-        matrixPair_ = &(cache_[idxPair]);
+        matrixPair_ = &getMatrix(idxPair);
 
-        rule_ = &(rules_[order]);
+        rule_ = &getRule(order);
 
       }
 
@@ -393,23 +391,30 @@ namespace MatrixFree {
         }
       }
 
-      auto ruleGenerator(int order) {
-        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
-          (Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
-        // sort quadrature points
-        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
+      auto& getRule(int order) {
+        auto generator = [](int o) {
+          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+            (Dune::GeometryType::cube, o+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
+          // sort quadrature points
+          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+              return a.position() < b.position(); });
 
-        return rule;
+          return rule;
+        };
+
+        return rules_.value(order, generator);
       }
 
-      auto setupMatrixPair(IndexPair idx) {
-        const auto& basis_degree = idx[0];
-        const auto& quad_order = idx[1];
-        // get quadrature rule:
-        const auto& rule = rules_[quad_order];
+      auto& getMatrix(IndexPair idx) {
+        auto generator = [&](IndexPair i) {
+          const auto& basis_degree = i[0];
+          const auto& quad_order = i[1];
+          // get quadrature rule:
+          const auto& rule = getRule(quad_order);
+          return HPDG::GaussLobatto::ValuesAndDerivatives(basis_degree, rule);
+        };
 
-        return HPDG::GaussLobatto::ValuesAndDerivatives(basis_degree, rule);
+        return cache_.value(idx, generator);
       }
 
       void outerBind(const typename Base::Entity& e)
@@ -441,8 +446,8 @@ namespace MatrixFree {
           outside={outerLocalDegree_, outerOrder};
           inner= {localDegree_, outerOrder};
 
-          matrixPair_ = &(cache_[inner]);
-          rule_ = &(rules_[outerOrder]);
+          matrixPair_ = &getMatrix(inner);
+          rule_ = &getRule(outerOrder);
         }
 
         // 2. Fall,
@@ -450,15 +455,15 @@ namespace MatrixFree {
         // (outer, inner_order) für außen
         else  {
           inner = {localDegree_, 2*localDegree_ -1}; // This one should be available yet, as it was used for the bulk terms already.
-          matrixPair_ = &(cache_[inner]);
-          rule_ = &(rules_[2*localDegree_-1]);
+          matrixPair_ = &getMatrix(inner);
+          rule_ = &getRule(2*localDegree_-1);
 
           // more interestingly, set the outer quad order to the one of the inner:
           outside = {outerLocalDegree_, 2*localDegree_-1};
         }
 
         // set (and if needed, calculate) outer matrix pair and rule
-        outerMatrixPair_ = &(cache_[outside]);
+        outerMatrixPair_ = &getMatrix(outside);
 
       }
 
