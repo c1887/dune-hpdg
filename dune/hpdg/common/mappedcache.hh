@@ -23,6 +23,9 @@ class MappedCache {
 
   public:
 
+    using mapped_type = T;
+    using key_type = IndexType;
+
     template<typename F>
     MappedCache(F&& generator_function) :
       generator_(std::forward<F>(generator_function))
