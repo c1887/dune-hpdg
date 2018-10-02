@@ -12,6 +12,7 @@
 #include <dune/istl/matrix.hh>
 
 #include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/common/mutablequadraturenodes.hh>
 #include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 
 /** This is a factory for the diagonal block of an IPDG Laplace discretization.
@@ -327,27 +328,8 @@ namespace HPDG {
       {
         const auto& rule = *rule_;
 
-        using R = std::decay_t<decltype(rule)>;
-        // Stupid quadrature rule does not allow me to edit the quad points :(
-        struct QP {
-          typename R::value_type::Vector pos;
-          auto& position() {
-            return pos;
-          }
-          const auto& position() const{
-            return pos;
-          }
-        };
-
-        auto mutableCopy = [] (const R& r) {
-          std::vector<QP> v(r.size());
-          for(std::size_t i = 0; i < r.size(); i++) {
-            v[i].pos = r[i].position();
-          }
-          return v;
-        };
         // compute inner and outer matrix pair for the noncorming edge.
-        auto inner_quad = mutableCopy(rule);
+        auto inner_quad = HPDG::mutableQuadratureNodes(rule);
         for (size_t i = 0; i < rule.size(); i++) {
           inner_quad[i].position() = is.geometryInInside().global(rule[i].position())[is.indexInInside() < 2]; // we only take the coordinate we need, which will be the first for edge number 2 and 3, and the second for 0 and 1
         }
