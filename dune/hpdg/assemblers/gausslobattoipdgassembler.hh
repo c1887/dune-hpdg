@@ -42,9 +42,7 @@ namespace HPDG {
       GaussLobattoIPDGAssembler(const Basis& b, double penalty=2.0, bool dirichlet=false) :
         basis_(b),
         penalty_(penalty),
-        dirichlet_(dirichlet),
-        cache_(std::bind(&GaussLobattoIPDGAssembler::matrixGenerator, this, std::placeholders::_1)),
-        rules_(std::bind(&GaussLobattoIPDGAssembler::ruleGenerator, this, std::placeholders::_1))
+        dirichlet_(dirichlet)
       {}
 
       void bind(int degree)
@@ -53,8 +51,8 @@ namespace HPDG {
 
         localSize_ = (degree+1)*(degree+1);
 
-        rule_ = &rules_.value(localDegree_);
-        matrixPair_ = &cache_.value(localDegree_);
+        rule_ = &getRule(localDegree_);
+        matrixPair_ = &getMatrix(localDegree_);
 
       }
 
@@ -93,19 +91,27 @@ namespace HPDG {
       /** Return the proper 1D Gauss-Lobatto quadrature rule for a given
        * degree. If the rule is not yet present in the cache, it will be added.
        */
-      auto ruleGenerator(int degree) {
-        int order = 2*degree;
-        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
-          (Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+      auto& getRule(int degree) {
+        auto generator = [](int degree) {
+          int order = 2*degree;
+          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+            (Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
 
-        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-            return a.position() < b.position(); });
-        return rule;
+          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+              return a.position() < b.position(); });
+          return rule;
+        };
+
+        return rules_.value(degree, generator);
       }
 
-      auto matrixGenerator(int degree) {
-        const auto& rule = rules_.value(degree);
-        return GaussLobatto::ValuesAndDerivatives(degree, rule);
+      auto& getMatrix(int degree) {
+        auto generator = [&](int d) {
+          const auto& rule = getRule(d);
+          return GaussLobatto::ValuesAndDerivatives(d, rule);
+        };
+
+        return cache_.value(degree, generator);
       }
 
       template<class E, class LC>
@@ -117,7 +123,7 @@ namespace HPDG {
         order = std::max(localDegree_, outerDegree);
 
         // set rule to the higher rule:
-        const auto& rule=rules_.value(order);
+        const auto& rule=getRule(order);
 
         // if the edge is nonconforming, we can not use the precalculated values and need to re-evaluate
         decltype(nonConformingMatrices(edge, rule, 0)) extra_matrices;
@@ -141,7 +147,7 @@ namespace HPDG {
           innerEdgeMatrices = &matrices;
 
           // set the outer matrices also:
-          outerEdgeMatrices = &(cache_.value(outerDegree));
+          outerEdgeMatrices = &getMatrix(outerDegree);
         }
         // 2nd case: outer < inner
         else if( localDegree_ > outerDegree) {
@@ -191,7 +197,7 @@ namespace HPDG {
 
           // get gradients of shape functions on both the inside and outside element
           auto insideReferenceGradients = gradientsOnEdge(pt, *matrixPair_, *innerEdgeMatrices, edge.indexInInside());
-          auto outsideReferenceGradients = gradientsOnEdge(pt, cache_.value(outerDegree), *outerEdgeMatrices, edge.indexInOutside());
+          auto outsideReferenceGradients = gradientsOnEdge(pt, getMatrix(outerDegree), *outerEdgeMatrices, edge.indexInOutside());
 
           // transform gradients
           for (size_t i=0; i<insideGradients.size(); ++i) {

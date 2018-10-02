@@ -39,9 +39,7 @@ namespace MatrixFree {
 
       SumFactMassOperator(const Basis& b) :
         basis_(b),
-        localView_(basis_.localView()),
-        cache_(std::bind(&SumFactMassOperator::matrixGenerator, this, std::placeholders::_1)),
-        rules_(std::bind(&SumFactMassOperator::ruleGenerator, this, std::placeholders::_1))
+        localView_(basis_.localView())
       {}
 
       void bind(const typename Base::Entity& e)
@@ -57,8 +55,8 @@ namespace MatrixFree {
 
         int order = 2*localDegree_ - 1;
 
-        matrix_ = &(cache_[localDegree_]);
-        rule_ = &(rules_[order]);
+        matrix_ = &getMatrix(localDegree_);
+        rule_ = &getRule(order);
 
       }
 
@@ -114,20 +112,27 @@ namespace MatrixFree {
 
       }
 
-      auto matrixGenerator(int basis_degree) {
-        auto order = 2*basis_degree -1;
-        const auto& rule = rules_[order];
+      auto& getMatrix(int basis_degree) {
+        auto generator = [&](int degree) {
+          auto order = 2*degree -1;
+          const auto& rule = getRule(order);
 
-        return HPDG::GaussLobatto::Values(basis_degree, rule);
+          return HPDG::GaussLobatto::Values(degree, rule);
+        };
+        return cache_.value(basis_degree, generator);
       }
 
-      auto ruleGenerator(int order) {
-        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
-        // sort quadrature points
-        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
+      auto& getRule(int order) {
+        auto generator = [&](int order) {
+          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
+          // sort quadrature points
+          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+              return a.position() < b.position(); });
 
-        return rule;
+          return rule;
+        };
+
+        return rules_.value(order, generator);
       }
 
       // members:
