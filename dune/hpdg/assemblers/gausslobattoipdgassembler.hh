@@ -41,19 +41,9 @@ namespace HPDG {
         basis_(b),
         penalty_(penalty),
         dirichlet_(dirichlet),
-        cache_([&] (int d) {
-          std::array<LocalMatrix, 2> m;
-          const auto& rule = rules_.value(d);
-          compute1DValues(m[0], m[1], d, rule);
-          return m;
-        }),
-        rules_([](int degree) {
-          int order = 2*degree;
-          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
-
-          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-              return a.position() < b.position(); });
-          return rule;}) {}
+        cache_(std::bind(&GaussLobattoIPDGAssembler::matrixGenerator, this, std::placeholders::_1)),
+        rules_(std::bind(&GaussLobattoIPDGAssembler::ruleGenerator, this, std::placeholders::_1))
+      {}
 
       void bind(int degree)
       {
@@ -121,38 +111,22 @@ namespace HPDG {
       /** Return the proper 1D Gauss-Lobatto quadrature rule for a given
        * degree. If the rule is not yet present in the cache, it will be added.
        */
-      //auto& getRule(int degree) {
+      auto ruleGenerator(int degree) {
+        int order = 2*degree;
+        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+          (Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
 
-        //// if the rule is not yet in the cache, add it
-        //auto f = [](int degree) {
-          //int order = 2*degree;
-          //auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
+        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+            return a.position() < b.position(); });
+        return rule;
+      }
 
-          //std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-              //return a.position() < b.position(); });
-          //return rule;};
-
-        //return getFromCache(rules_, degree, f);
-      //}
-
-      //template<class Cache, class Key, class F>
-      //auto& getFromCache(Cache& cache, const Key& key, F&& createObjectFunction) {
-        //if (cache.find(key) == cache.end()) {
-          //cache[key]= createObjectFunction(key);
-        //}
-        //return cache[key];
-      //}
-
-      //auto& getMatrices(int degree) {
-        //auto f = [&] (int d) {
-          //std::array<LocalMatrix, 2> m;
-          //const auto& rule = rules_.value(degree);
-          //compute1DValues(m[0], m[1], d, rule);
-          //return m;
-        //};
-
-        //return getFromCache(cache_, degree, f);
-      //}
+      auto matrixGenerator(int degree) {
+        std::array<LocalMatrix, 2> m;
+        const auto& rule = rules_.value(degree);
+        compute1DValues(m[0], m[1], degree, rule);
+        return m;
+      }
 
       template<class E, class LC>
       void computeFace(const E& edge, LC& matrixContainer, int outerDegree) {
