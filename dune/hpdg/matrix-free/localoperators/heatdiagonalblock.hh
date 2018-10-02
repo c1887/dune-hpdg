@@ -11,6 +11,8 @@
 
 #include <dune/istl/matrix.hh>
 
+#include <dune/hpdg/common/mappedcache.hh>
+
 /** This is a factory for the diagonal block of an IPDG Laplace discretization.
  * After binding to an element via bind(), you can get the corresponding
  * diagonal matrix block of the stiffness matrix via matrix().
@@ -38,7 +40,10 @@ namespace HPDG {
       HeatDiagonalBlock(const Basis& b, double penalty=2.0, double massFactor=1., double laplaceFactor=1.) :
         basis_(b),
         penalty_(penalty),
-        localView_(basis_.localView()) {
+        localView_(basis_.localView()),
+        cache_(std::bind(&HeatDiagonalBlock::matrixGenerator, this, std::placeholders::_1)),
+        rules_(std::bind(&HeatDiagonalBlock::ruleGenerator, this, std::placeholders::_1))
+        {
           factors_.mass = massFactor;
           factors_.laplace = laplaceFactor;
         }
@@ -54,50 +59,18 @@ namespace HPDG {
         // get order:
         localDegree_ = basis_.preBasis().degree(e);
 
-        // check if order is already in cache:
-        {
-          auto it = cache_.find(localDegree_);
-          if (it != cache_.end()) {
-            matrixPair_ = &(it->second);
-            rule_ = &(rules_[localDegree_]);
-            return;
-          }
-        }
-
-        int order = 2*localDegree_ - 1;
-        // get quadrature rule:
-        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
-        rules_[localDegree_] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
-
-        rule_ = &(rules_[localDegree_]);
-
-        // sort quad points (they're also ordered for the basis)
-        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-
-        std::sort(rule_->begin(), rule_->end(), [](auto&& a, auto&& b) {
-          return a.position() < b.position(); });
-
-        // save all derivatives of 1-d basis functions at the quad points, i.e.
-        // matrixPair_ij = l_i' (xi_j)
-        LocalMatrix lp(localDegree_+1, rule_->size());
-        // same for the function values
-        LocalMatrix l(localDegree_+1, rule_->size());
-        for (std::size_t i = 0; i < lp.N(); i++) {
-          for (std::size_t j = 0; j < lp.M(); j++) {
-            lp[i][j]=lagrangePrime((*rule_)[j].position(),i, gauss_lobatto);
-            l[i][j]=lagrange((*rule_)[j].position(),i, gauss_lobatto);
-          }
-        }
-        cache_[localDegree_]=std::array<LocalMatrix, 2>{{std::move(l), std::move(lp)}};
-        matrixPair_ = &(cache_[localDegree_]);
-
+        matrixPair_ = &cache_.value(localDegree_);
+        rule_ = &rules_.value(localDegree_);
       }
 
       /** Get the matrix for the bound element */
       const auto& matrix() {
         compute();
         return localMatrix_;
+      }
+
+      void setDirichlet(bool dirichletBoundary) {
+        dirichlet_ = dirichletBoundary;
       }
 
     private:
@@ -139,8 +112,6 @@ namespace HPDG {
             order = std::max(localDegree_, outerDegree);
 
             if (outerDegree > localDegree_) {
-              if(rules_.find(outerDegree) == rules_.end())
-                rules_[outerDegree] = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, 2*outerDegree, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
               rule_ = &(rules_[outerDegree]);
             }
 
@@ -420,6 +391,44 @@ namespace HPDG {
         return result;
       }
 
+      auto matrixGenerator(int degree) {
+        int order = 2*degree - 1;
+        // get quadrature rule:
+        auto gauss_lobatto = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto); // these are the GL lagrange nodes
+
+        const auto& rule = rules_[degree];
+
+        // sort quad points (they're also ordered for the basis)
+        std::sort(gauss_lobatto.begin(), gauss_lobatto.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+        // save all derivatives of 1-d basis functions at the quad points, i.e.
+        // matrixPair_ij = l_i' (xi_j)
+        LocalMatrix lp(localDegree_+1, rule.size());
+        // same for the function values
+        LocalMatrix l(localDegree_+1, rule.size());
+        for (std::size_t i = 0; i < lp.N(); i++) {
+          for (std::size_t j = 0; j < lp.M(); j++) {
+            lp[i][j]=lagrangePrime(rule[j].position(),i, gauss_lobatto);
+            l[i][j]=lagrange(rule[j].position(),i, gauss_lobatto);
+          }
+        }
+        return std::array<LocalMatrix, 2>{{std::move(l), std::move(lp)}};
+      }
+
+      auto ruleGenerator(int degree) {
+        int order = 2*degree -1;
+        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+          (Dune::GeometryType::cube, order+1, Dune::QuadratureType::GaussLobatto); // TODO Welche Ordnung braucht man wirklich?
+
+        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+          return a.position() < b.position(); });
+
+        return rule;
+      }
+
+
+      // members:
       const Basis& basis_;
       double penalty_;
       bool dirichlet_ = false;
@@ -428,8 +437,8 @@ namespace HPDG {
         double mass;
         double laplace;
       } factors_;
-      std::map<size_t, std::array<LocalMatrix, 2>> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
-      std::map<size_t, Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
+      MappedCache<std::array<LocalMatrix, 2>, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
       const typename decltype(cache_)::mapped_type* matrixPair_; // Current matrix pair
       Dune::QuadratureRule<typename GV::Grid::ctype,1>* rule_;
       int localDegree_;

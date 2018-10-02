@@ -9,6 +9,8 @@
 
 #include <dune/geometry/quadraturerules.hh>
 
+#include <dune/hpdg/common/mappedcache.hh>
+
 namespace Dune {
 namespace HPDG {
 
@@ -38,7 +40,10 @@ namespace HPDG {
       GaussLobattoIPDGAssembler(const Basis& b, double penalty=2.0, bool dirichlet=false) :
         basis_(b),
         penalty_(penalty),
-        dirichlet_(dirichlet) {}
+        dirichlet_(dirichlet),
+        cache_(std::bind(&GaussLobattoIPDGAssembler::matrixGenerator, this, std::placeholders::_1)),
+        rules_(std::bind(&GaussLobattoIPDGAssembler::ruleGenerator, this, std::placeholders::_1))
+      {}
 
       void bind(int degree)
       {
@@ -46,8 +51,8 @@ namespace HPDG {
 
         localSize_ = (degree+1)*(degree+1);
 
-        rule_ = &getRule(localDegree_);
-        matrixPair_ = &getMatrices(localDegree_);
+        rule_ = &rules_.value(localDegree_);
+        matrixPair_ = &cache_.value(localDegree_);
 
       }
 
@@ -106,37 +111,21 @@ namespace HPDG {
       /** Return the proper 1D Gauss-Lobatto quadrature rule for a given
        * degree. If the rule is not yet present in the cache, it will be added.
        */
-      auto& getRule(int degree) {
+      auto ruleGenerator(int degree) {
+        int order = 2*degree;
+        auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule
+          (Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
 
-        // if the rule is not yet in the cache, add it
-        auto f = [](int degree) {
-          int order = 2*degree;
-          auto rule = Dune::QuadratureRules<typename GV::Grid::ctype,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
-
-          std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
-              return a.position() < b.position(); });
-          return rule;};
-
-        return getFromCache(rules_, degree, f);
+        std::sort(rule.begin(), rule.end(), [](auto&& a, auto&& b) {
+            return a.position() < b.position(); });
+        return rule;
       }
 
-      template<class Cache, class Key, class F>
-      auto& getFromCache(Cache& cache, const Key& key, F&& createObjectFunction) {
-        if (cache.find(key) == cache.end()) {
-          cache[key]= createObjectFunction(key);
-        }
-        return cache[key];
-      }
-
-      auto& getMatrices(int degree) {
-        auto f = [&] (int d) {
-          std::array<LocalMatrix, 2> m;
-          const auto& rule = getRule(degree);
-          compute1DValues(m[0], m[1], d, rule);
-          return m;
-        };
-
-        return getFromCache(cache_, degree, f);
+      auto matrixGenerator(int degree) {
+        std::array<LocalMatrix, 2> m;
+        const auto& rule = rules_.value(degree);
+        compute1DValues(m[0], m[1], degree, rule);
+        return m;
       }
 
       template<class E, class LC>
@@ -148,7 +137,7 @@ namespace HPDG {
         order = std::max(localDegree_, outerDegree);
 
         // set rule to the higher rule:
-        const auto& rule=getRule(order);
+        const auto& rule=rules_.value(order);
 
         // if the edge is nonconforming, we can not use the precalculated values and need to re-evaluate
         decltype(nonConformingMatrices(edge, rule, 0)) extra_matrices;
@@ -172,7 +161,7 @@ namespace HPDG {
           innerEdgeMatrices = &matrices;
 
           // set the outer matrices also:
-          outerEdgeMatrices = &(getMatrices(outerDegree));
+          outerEdgeMatrices = &(cache_.value(outerDegree));
         }
         // 2nd case: outer < inner 
         else if( localDegree_ > outerDegree) {
@@ -222,7 +211,7 @@ namespace HPDG {
 
           // get gradients of shape functions on both the inside and outside element
           auto insideReferenceGradients = gradientsOnEdge(pt, *matrixPair_, *innerEdgeMatrices, edge.indexInInside());
-          auto outsideReferenceGradients = gradientsOnEdge(pt, getMatrices(outerDegree), *outerEdgeMatrices, edge.indexInOutside());
+          auto outsideReferenceGradients = gradientsOnEdge(pt, cache_.value(outerDegree), *outerEdgeMatrices, edge.indexInOutside());
 
           // transform gradients
           for (size_t i=0; i<insideGradients.size(); ++i) {
@@ -552,8 +541,8 @@ namespace HPDG {
       const Basis& basis_;
       double penalty_;
       bool dirichlet_;
-      std::map<size_t, std::array<LocalMatrix, 2>> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
-      std::map<size_t, Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
+      MappedCache<std::array<LocalMatrix, 2>, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
       const typename decltype(cache_)::mapped_type* matrixPair_; // Current matrix pair
       Dune::QuadratureRule<typename GV::Grid::ctype,1>* rule_;
       int localDegree_;
