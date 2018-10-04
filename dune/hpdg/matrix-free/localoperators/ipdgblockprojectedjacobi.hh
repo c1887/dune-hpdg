@@ -64,8 +64,8 @@ namespace MatrixFree {
         auto lowerC = std::vector<Field>(fe.localBasis().size());
         auto upperC = std::vector<Field>(fe.localBasis().size());
         auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        auto lowerBE = Fufem::istlVectorBackend<const Field>(lower_);
-        auto upperBE = Fufem::istlVectorBackend<const Field>(upper_);
+        auto lowerBE = Fufem::istlVectorBackend<const Field>(*lower_);
+        auto upperBE = Fufem::istlVectorBackend<const Field>(*upper_);
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
           insideCoeffs[i] = inputBackend(localView_.index(i));
           lowerC[i] = lowerBE(localView_.index(i));
@@ -91,7 +91,7 @@ namespace MatrixFree {
         }
       }
 
-      void setObstacles(const V& lower, const V& upper) {
+      void setObstacles(const V* lower, const V* upper) {
         lower_=lower;
         upper_=upper;
       }
@@ -106,8 +106,8 @@ namespace MatrixFree {
       LocalSolver localSolver_;
       MatrixCreator matrixCreator_; // Creates the diagonal blocks
       LocalMatrix localMatrix_;
-      V lower_;
-      V upper_;
+      const V* lower_;
+      const V* upper_;
   };
 }
 }
