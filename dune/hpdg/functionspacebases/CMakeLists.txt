@@ -1,9 +1,7 @@
 install(FILES
   gridadaptor.hh
-  lagrangedgbasis.hh
   dgqkglbasis.hh
   qkglnodalbasis.hh
-  lagrangedgblockbasis.hh
   dynamicdgqkglbasis.hh
   dynamicdgqkgausskronrodbasis.hh
   dynamicdgqkgausslegendrebasis.hh
