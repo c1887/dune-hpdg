@@ -1,12 +1,22 @@
 install_files(
   dgrestrict.hh
-  identityoperator.hh
-  ipdgoperator.hh
   gausslobattomatrices.hh
-  localassembleroperator.hh
+  heatdiagonalblock.hh
+  identityoperator.hh
+  ipdgblockjacobi.hh
+  ipdgblockprojectedjacobi.hh
+  ipdgdiagonalblock.hh
+  ipdgnorm.hh
+  ipdgoperator.hh
+  ipdgprec.hh
   laplaceoperator.hh
+  laplaceoperator_dg.hh
+  laplacepointjacobi.hh
+  localassembleroperator.hh
+  localoperator.hh
   sfidpg.hh
   sflaplace.hh
   sfmass.hh
+  uniformipdgoperator.hh
   uniformlaplaceoperator.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/matrix-free/localoperators)

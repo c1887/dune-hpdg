@@ -1,8 +1,8 @@
 install(FILES
+  blocktransfer.hh
   dgmultigridtransfer.hh
   dgmultigridtransfermatrixfree.hh
-  blocktransfer.hh
-  ordertransfer.hh
-  dynamicordertransfer.hh
   dynamicblocktransfer.hh
+  dynamicordertransfer.hh
+  ordertransfer.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/transferoperators)
