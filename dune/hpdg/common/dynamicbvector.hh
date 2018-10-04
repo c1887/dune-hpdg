@@ -68,6 +68,18 @@ namespace Dune {
         return zero_vector;
       }
 
+      /** Returns a vector of the same size and structure as the input and allocated
+       *  memory but with no value initialization of any kind.
+       */
+      static DynamicBlockVector uninitializedCopy(const DynamicBlockVector& other) {
+        DynamicBlockVector zero_vector;
+        zero_vector.n_ = other.n_;
+        zero_vector.rowMap_ = other.rowMap_;
+        zero_vector.vector_.resize(other.n_);
+        zero_vector.update();
+        return zero_vector;
+      }
+
       /** Set the size of the DynamicBlockVector.
        *
        * \warning: This does _not_ allocate the memory!
