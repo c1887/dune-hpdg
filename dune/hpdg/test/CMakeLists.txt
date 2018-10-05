@@ -12,6 +12,8 @@ dune_add_test(
 dune_add_test(
   SOURCES test_dynamicbasis.cc)
 dune_add_test(
+  SOURCES test_indexedcache.cc)
+dune_add_test(
   SOURCES test_mappedcache.cc)
 dune_add_test(
   SOURCES test_matrixwindow.cc)
