@@ -5,6 +5,9 @@
 #include<dune/common/fmatrix.hh>
 #include<dune/istl/matrix.hh>
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
+#include <dune/fufem/assemblers/istlbackend.hh>
+
+#include "localoperator.hh"
 
 namespace Dune {
 namespace Fufem {
@@ -16,7 +19,7 @@ namespace MatrixFree {
    * Prototypical example would be restricting to (not-DG) Q1.
    */
   template<typename Vector, typename GridView, typename CoarseBasis, typename FineBasis>
-  class DGRestrictionOperator {
+  class DGRestrictionOperator : public LocalOperator<Vector, GridView> {
 
     public:
 
@@ -90,12 +93,13 @@ namespace MatrixFree {
       buffer_.resize(clv.size());
       buffer_=0.0;
 
-      inputArray_ = &((*input_)[flv.index(0)]);
     }
 
     void compute() {
       // compute matrix^T vector product by hand (we cant be sure on the vector types)
 
+      auto inputBackend = Fufem::istlVectorBackend<const double>(*(this->input_));
+      auto const* inputArray_ = &(inputBackend[flv.index(0)]);
       for(std::size_t i = 0; i < currentMat_->N(); i++) {
         const auto& row = (*currentMat_)[i];
         std::size_t j =0;
@@ -105,8 +109,9 @@ namespace MatrixFree {
       }
     }
     void write(double factor) {
+      auto outputBE = Fufem::istlVectorBackend<double>(*(this->output_));
       for(std::size_t i = 0; i < clv.size(); i++) {
-        (*output_)[clv.index(i)] += factor*buffer_[i];
+        outputBE[clv.index(i)] += factor*buffer_[i];
       }
     }
 
@@ -124,8 +129,6 @@ namespace MatrixFree {
     Vector* output_;
     Dune::BlockVector<Dune::FieldVector<double,1>> buffer_;
 
-    using FV = Dune::FieldVector<double,1>;
-    const FV* inputArray_;
   };
 }
 }
