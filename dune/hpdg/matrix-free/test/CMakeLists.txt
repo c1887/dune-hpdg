@@ -9,4 +9,6 @@ dune_add_test(
 dune_add_test(
   SOURCES testdgblockjacobi.cc)
 dune_add_test(
+  SOURCES testdgrestrict.cc)
+dune_add_test(
   SOURCES testsumfactor.cc)
