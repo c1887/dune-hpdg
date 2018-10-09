@@ -84,7 +84,7 @@ class IndexedCache {
       if (generator_)
         return value(idx, generator_);
 
-      if (not cache_[idx] or idx >= cache_.size())
+      if (idx >= cache_.size() or not cache_[idx])
         DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
 
       return *cache_[idx];
@@ -102,7 +102,7 @@ class IndexedCache {
       if (generator_)
         return value(idx, generator_);
 
-      if (not cache_[idx] or idx >= cache_.size())
+      if (idx >= cache_.size() or not cache_[idx])
         DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
 
       return *cache_[idx];
