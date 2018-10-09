@@ -4,6 +4,7 @@
 #include <dune/common/parallel/mpihelper.hh>
 #include <dune/common/fvector.hh>
 
+#include <dune/hpdg/common/mappedcache.hh>
 #include <dune/hpdg/common/indexedcache.hh>
 using namespace Dune;
 
@@ -27,10 +28,11 @@ struct F {
 
 };
 
-TestSuite test_indexedCache() {
+template<class Cache>
+TestSuite test_cache() {
   TestSuite suite;
 
-  auto cache_from_function = HPDG::IndexedCache<Range>(foo);
+  auto cache_from_function = Cache(foo);
   suite.check(cache_from_function.value(2) == 4);
   suite.check(function_called==1);
   // get value another time, function_called should not change because the value is already there
@@ -45,8 +47,8 @@ TestSuite test_indexedCache() {
   suite.check(function_called == 2); // for the new value, "foo" was called again.
 
   // create cache from a lambda:
-  double factor = 0.5;
-  auto cache_from_lambda = HPDG::IndexedCache<double>([&](auto i) {
+  Domain factor = 2;
+  auto cache_from_lambda = Cache([&](int i) {
       return factor*i;
       });
 
@@ -56,19 +58,19 @@ TestSuite test_indexedCache() {
   // Note that this will be copied/moved from, so if your f is a big object,
   // consider using a lambda instead.
   F f;
-  auto cache_from_class = HPDG::IndexedCache<Range>(std::move(f));
+  auto cache_from_class = Cache(std::move(f));
   suite.check(cache_from_class.value(1) == 2);
   suite.check(cache_from_class.value(1) == 2);
   suite.check(class_called == 1, "Check call counter in f");
 
   // test operator=
-  auto assigned = HPDG::IndexedCache<Range>();
+  auto assigned = Cache();
   assigned = cache_from_class;
   suite.check(assigned.value(1) == 2);
   suite.check(class_called == 1, "Check call counter in f");
 
   // Check with user supplied lambda and default constructed cache:
-  HPDG::IndexedCache<int> def_constr;
+  Cache def_constr;
   suite.check(def_constr.value(1, [](int i){return 3*i;}) == 3);
 
   // check moved
@@ -86,6 +88,14 @@ int main(int argc, char** argv) {
   MPIHelper::instance(argc, argv);
 
   TestSuite suite;
-  suite.subTest(test_indexedCache());
+  std::cout << "Testing MappedCache" << std::endl;
+  suite.subTest(test_cache<HPDG::MappedCache<Domain, Range>>());
+
+  // reset counters:
+  function_called = 0;
+  class_called = 0;
+
+  std::cout << "Testing IndexedCache" << std::endl;
+  suite.subTest(test_cache<HPDG::IndexedCache<Domain>>());
   return suite.exit();
 }
