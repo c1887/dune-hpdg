@@ -14,7 +14,7 @@
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/common/mmmatrix.hh>
-#include <dune/hpdg/common/mappedcache.hh>
+#include <dune/hpdg/common/indexedcache.hh>
 #include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 #include "localoperator.hh"
 
@@ -138,8 +138,8 @@ namespace MatrixFree {
       // members:
       const Basis& basis_;
       LV localView_;
-      HPDG::MappedCache<HPDG::GaussLobatto::Values, int> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
-      HPDG::MappedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>, int> rules_;
+      HPDG::IndexedCache<HPDG::GaussLobatto::Values> cache_; // contains all lagrange Polynomials at all quadrature points and all derivatives of said polynomials at all quad points
+      HPDG::IndexedCache<Dune::QuadratureRule<typename GV::Grid::ctype, 1>> rules_;
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       int localDegree_;
       const typename decltype(cache_)::mapped_type* matrix_; // Current matrix pair
