@@ -61,6 +61,12 @@ TestSuite test_mappedCache() {
   suite.check(cache_from_class.value(1) == 2);
   suite.check(class_called == 1, "Check call counter in f");
 
+  // test operator=
+  auto assigned = HPDG::MappedCache<Range, Domain>();
+  assigned = cache_from_class;
+  suite.check(assigned.value(1) == 2);
+  suite.check(class_called == 1, "Check call counter in f");
+
   // Check with user supplied lambda and default constructed cache:
   HPDG::MappedCache<int,int> def_constr;
   suite.check(def_constr.value(1, [](int i){return 3*i;}) == 3);

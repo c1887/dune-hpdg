@@ -36,29 +36,11 @@ class IndexedCache {
       cache_(expectedCacheSize)
     {}
 
-    IndexedCache():
-      generator_(Std::nullopt)
-    {}
+    IndexedCache() = default;
 
     IndexedCache(std::size_t expectedCacheSize):
-      generator_(Std::nullopt),
       cache_(expectedCacheSize)
     {}
-
-    IndexedCache(const IndexedCache& other) :
-      generator_(other.generator_),
-      cache_(other.cache_)
-    {}
-
-    IndexedCache(IndexedCache&& other) :
-      generator_(std::move(other.generator_)),
-      cache_(std::move(other.cache_))
-    {}
-
-    IndexedCache& operator=(const IndexedCache& other) {
-      generator_=other.generator_;
-      cache_=other.cache_;
-    }
 
     /** Return (and generate, if necessary) the cached
      * value for the index idx using a user-supplied
@@ -100,7 +82,7 @@ class IndexedCache {
      */
     const T& value(const IndexType& idx) const {
       if (generator_)
-        return value(idx, *generator_);
+        return value(idx, generator_);
 
       if (not cache_[idx] or idx >= cache_.size())
         DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
@@ -118,7 +100,7 @@ class IndexedCache {
      */
     T& value(const IndexType& idx) {
       if (generator_)
-        return value(idx, *generator_);
+        return value(idx, generator_);
 
       if (not cache_[idx] or idx >= cache_.size())
         DUNE_THROW(Dune::Exception, "Index not yet cached and no generator function known");
@@ -155,7 +137,7 @@ class IndexedCache {
     }
 
   private:
-    Std::optional<std::function<T(IndexType)>> generator_;
+    std::function<T(IndexType)> generator_;
     mutable std::vector<Std::optional<T>> cache_;
 };
 }

@@ -4,7 +4,6 @@
 #include <map>
 #include <functional>
 
-#include <dune/common/std/optional.hh>
 #include <dune/common/exceptions.hh>
 
 namespace Dune {
@@ -33,24 +32,7 @@ class MappedCache {
       generator_(generator_function)
     {}
 
-    MappedCache():
-      generator_(Std::nullopt)
-    {}
-
-    MappedCache(const MappedCache& other) :
-      generator_(other.generator_),
-      cache_(other.cache_)
-    {}
-
-    MappedCache(MappedCache&& other) :
-      generator_(std::move(other.generator_)),
-      cache_(std::move(other.cache_))
-    {}
-
-    MappedCache& operator=(const MappedCache& other) {
-      generator_=other.generator_;
-      cache_=other.cache_;
-    }
+    MappedCache() = default;
 
     /** Return (and generate, if necessary) the cached
      * value for the index idx using a user-supplied
@@ -94,7 +76,7 @@ class MappedCache {
      */
     const T& value(const IndexType& idx) const {
       if (generator_)
-        return value(idx, *generator_);
+        return value(idx, generator_);
 
       auto it = cache_.find(idx);
       if (it == std::end(cache_))
@@ -113,7 +95,7 @@ class MappedCache {
      */
     T& value(const IndexType& idx) {
       if (generator_)
-        return value(idx, *generator_);
+        return value(idx, generator_);
 
       auto it = cache_.find(idx);
       if (it == std::end(cache_))
@@ -151,7 +133,7 @@ class MappedCache {
     }
 
   private:
-    Std::optional<std::function<T(IndexType)>> generator_;
+    std::function<T(IndexType)> generator_;
     mutable std::map<IndexType, T> cache_;
 };
 }
