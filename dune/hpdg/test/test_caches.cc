@@ -46,6 +46,13 @@ TestSuite test_cache() {
   suite.check(const_cache[1] == 2);
   suite.check(function_called == 2); // for the new value, "foo" was called again.
 
+  // check contains:
+  suite.check(cache_from_function.contains(1));
+  // clear cache:
+  cache_from_function.clear();
+  // value should no longer be there:
+  suite.check(not cache_from_function.contains(1));
+
   // create cache from a lambda:
   Domain factor = 2;
   auto cache_from_lambda = Cache([&](int i) {

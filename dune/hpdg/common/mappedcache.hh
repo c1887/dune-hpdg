@@ -132,6 +132,16 @@ class MappedCache {
       generator_ = std::forward<F>(generator);
     }
 
+    /** Checks if a given index has been cached before */
+    bool contains(const IndexType& idx) const {
+      return cache_.find(idx) != cache_.end();
+    }
+
+    /** Removes all elements from the cache */
+    void clear() {
+      cache_.clear();
+    }
+
   private:
     std::function<T(IndexType)> generator_;
     mutable std::map<IndexType, T> cache_;

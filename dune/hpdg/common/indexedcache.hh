@@ -136,6 +136,16 @@ class IndexedCache {
       generator_ = std::forward<F>(generator);
     }
 
+    /** Checks if a given index has been cached before */
+    bool contains(const IndexType& idx) const {
+      return idx<cache_.size() && cache_[idx];
+    }
+
+    /** Removes all elements from the cache */
+    void clear() {
+      cache_.clear();
+    }
+
   private:
     std::function<T(IndexType)> generator_;
     mutable std::vector<Std::optional<T>> cache_;
