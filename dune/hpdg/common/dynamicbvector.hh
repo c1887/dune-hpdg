@@ -15,6 +15,32 @@
 namespace Dune {
   namespace HPDG {
 
+    namespace Impl {
+
+      /** A wrapper that adds an index() method to a given
+       * random access iterator */
+      template<class Base, class BaseIter>
+        class IndexedIterator : public BaseIter {
+          public:
+            template<class Iter>
+              IndexedIterator (Base* b, Iter&& it) :
+                BaseIter(std::forward<Iter>(it)),
+                base_(b) {}
+
+            auto index() const {
+              return *this - base_->begin();
+            }
+
+          private:
+            Base* base_;
+        };
+
+      template<class Base, class Iter>
+        auto indexedIterator(Base& base, Iter&& iterator) {
+          return IndexedIterator<Base, decltype(base.begin())>(&base, std::forward<Iter>(iterator));
+        }
+    }
+
     template<class K>
     class DynamicBlockVector {
       using BlockType = Dune::HPDG::VectorWindow<K>;
@@ -236,19 +262,19 @@ namespace Dune {
       }
 
       auto begin() {
-        return vector_.begin();
+        return Impl::indexedIterator(vector_, vector_.begin());
       }
 
       auto end() {
-        return vector_.end();
+        return Impl::indexedIterator(vector_, vector_.end());
       }
 
       auto begin() const {
-        return vector_.cbegin();
+        return Impl::indexedIterator(vector_, vector_.cbegin());
       }
 
       auto end() const {
-        return vector_.cend();
+        return Impl::indexedIterator(vector_, vector_.cend());
       }
 
       auto dimension() const {
