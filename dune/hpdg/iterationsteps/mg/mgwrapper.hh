@@ -27,7 +27,8 @@ namespace HPDG {
     }
 
     virtual void preprocess() {
-      preprocessFunction_(this->mat_);
+      if(preprocessFunction_)
+        preprocessFunction_(this->mat_);
     }
   };
 }
