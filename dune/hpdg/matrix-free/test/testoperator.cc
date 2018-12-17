@@ -14,7 +14,7 @@
 #include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/uniformlaplaceoperator.hh>
 
-#include <dune/functions/functionspacebases/pqknodalbasis.hh>
+#include <dune/functions/functionspacebases/lagrangebasis.hh>
 #include <dune/functions/functionspacebases/lagrangedgbasis.hh>
 #include <dune/functions/functionspacebases/interpolate.hh>
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
@@ -103,7 +103,7 @@ TestSuite test_operator(const GV& gv) {
 
   // check different local operators that all resemble the product with the Laplace stiffness matrix
   auto bases = std::make_tuple(
-      std::make_pair(Dune::Functions::PQkNodalBasis<GV, 1>(gv),
+      std::make_pair(Dune::Functions::LagrangeBasis<GV, 1>(gv),
         std::string("Q1")),
       std::make_pair(Dune::Functions::LagrangeDGBasis<GV, 2>(gv),
         std::string("Q2 (DG)"))
