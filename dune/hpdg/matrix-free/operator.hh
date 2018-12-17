@@ -56,7 +56,7 @@ namespace MatrixFree {
     }
 
     private:
-      const GridView& gv_;
+      GridView gv_;
       LocalOperators operators_;
   };
 }
