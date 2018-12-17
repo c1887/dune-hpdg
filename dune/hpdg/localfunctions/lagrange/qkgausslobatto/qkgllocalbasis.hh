@@ -220,6 +220,8 @@ namespace Dune
   public:
     // Empty constr. to set up the nodes
     QkGaussLobattoLocalBasis() {
+      if (k==0)
+        return;
       // get the appropiate Gauss-Lobatto rule:
       int order = 2*k -1;
       auto rule = Dune::QuadratureRules<D,1>::rule(Dune::GeometryType::cube, order, Dune::QuadratureType::GaussLobatto);
