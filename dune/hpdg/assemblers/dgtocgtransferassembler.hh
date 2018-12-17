@@ -85,6 +85,6 @@ namespace Dune {
         }
       }
     }
-  } // end namespace HPDG 
+  } // end namespace HPDG
 } // end namespace Dune
 #endif
