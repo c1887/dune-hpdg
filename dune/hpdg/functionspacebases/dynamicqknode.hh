@@ -21,25 +21,22 @@ namespace Dune {
 namespace Functions {
 
 
-template<typename GV, typename TP, typename Mapper, typename DGM, typename Cache>
+template<typename GV, typename Mapper, typename DGM, typename Cache>
 class DynamicQkNode :
-  public LeafBasisNode<std::size_t, TP>
+  public LeafBasisNode
 {
   static const int dim = GV::dimension;
 
-  using Base = LeafBasisNode<std::size_t,TP>;
   using FiniteElementCache = Cache;
   using DegreeMap = DGM;
 
 public:
 
   using size_type = std::size_t;
-  using TreePath = TP;
   using Element = typename GV::template Codim<0>::Entity;
   using FiniteElement = typename FiniteElementCache::FiniteElementType;
 
-  DynamicQkNode(const TreePath& treePath, const Mapper* m, const DegreeMap* dgm) :
-    Base(treePath),
+  DynamicQkNode(const Mapper* m, const DegreeMap* dgm) :
     finiteElement_(nullptr),
     element_(nullptr),
     mcmgMapper_(m),
@@ -83,14 +80,14 @@ protected:
 };
 
 // for backward-compatibility
-template<typename GV, typename TP, typename Mapper, typename DGM>
-using DynamicQkGLNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkGLLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
+template<typename GV, typename Mapper, typename DGM>
+using DynamicQkGLNode = DynamicQkNode<GV, Mapper, DGM, Dune::DynamicOrderQkGLLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
 
-template<typename GV, typename TP, typename Mapper, typename DGM>
-using DynamicQkGaussLegendreNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkGaussLegendreLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
+template<typename GV, typename Mapper, typename DGM>
+using DynamicQkGaussLegendreNode = DynamicQkNode<GV, Mapper, DGM, Dune::DynamicOrderQkGaussLegendreLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
 
-template<typename GV, typename TP, typename Mapper, typename DGM>
-using DynamicQkGaussKronrodNode = DynamicQkNode<GV, TP, Mapper, DGM, Dune::DynamicOrderQkGaussKronrodLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
+template<typename GV, typename Mapper, typename DGM>
+using DynamicQkGaussKronrodNode = DynamicQkNode<GV, Mapper, DGM, Dune::DynamicOrderQkGaussKronrodLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
 
 } // end namespace Functions
 } // end namespace Dune

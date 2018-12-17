@@ -32,10 +32,10 @@ namespace Functions {
 // set and can be used without a global basis.
 // *****************************************************************************
 
-template<typename GV, int k, typename TP>
+template<typename GV, int k>
 class QkGLNode;
 
-template<typename GV, int k, class MI, class TP>
+template<typename GV, int k, class MI>
 class QkGLNodeIndexSet;
 
 template<typename GV, int k, class MI>
@@ -73,11 +73,9 @@ public:
   const static int dofsPerPyramid =
       k == 0 ? (dim == 3 ? 1 : 0) : (k-2)*(k-1)*(2*k-3)/6;
 
-  template<class TP>
-  using Node = QkGLNode<GV, k, TP>;
+  using Node = QkGLNode<GV, k>;
 
-  template<class TP>
-  using IndexSet = QkGLNodeIndexSet<GV, k, MI, TP>;
+  using IndexSet = QkGLNodeIndexSet<GV, k, MI>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -122,16 +120,14 @@ public:
     return gridView_;
   }
 
-  template<class TP>
-  Node<TP> node(const TP& tp) const
+  Node makeNode() const
   {
-    return Node<TP>{tp};
+    return Node{};
   }
 
-  template<class TP>
-  IndexSet<TP> indexSet() const
+  IndexSet makeIndexSet() const
   {
-    return IndexSet<TP>{*this};
+    return IndexSet{*this};
   }
 
   // TODO: This is too general for our Qk case
@@ -209,25 +205,22 @@ public:
 
 
 
-template<typename GV, int k, typename TP>
+template<typename GV, int k>
 class QkGLNode :
-  public LeafBasisNode<std::size_t, TP>
+  public LeafBasisNode
 {
   static const int dim = GV::dimension;
   static const int maxSize = StaticPower<(k+1),GV::dimension>::power;
 
-  using Base = LeafBasisNode<std::size_t,TP>;
   using FiniteElementCache = typename Dune::QkGLLocalFiniteElementCache<typename GV::ctype, double, dim, k>;
 
 public:
 
   using size_type = std::size_t;
-  using TreePath = TP;
   using Element = typename GV::template Codim<0>::Entity;
   using FiniteElement = typename FiniteElementCache::FiniteElementType;
 
-  QkGLNode(const TreePath& treePath) :
-    Base(treePath),
+  QkGLNode() :
     finiteElement_(nullptr),
     element_(nullptr)
   {}
@@ -264,7 +257,7 @@ protected:
 
 
 
-template<typename GV, int k, class MI, class TP>
+template<typename GV, int k, class MI>
 class QkGLNodeIndexSet
 {
   enum {dim = GV::dimension};
@@ -278,7 +271,7 @@ public:
 
   using NodeFactory = QkGLNodeFactory<GV, k, MI>;
 
-  using Node = typename NodeFactory::template Node<TP>;
+  using Node = typename NodeFactory::Node;
 
   QkGLNodeIndexSet(const NodeFactory& nodeFactory) :
     nodeFactory_(&nodeFactory)

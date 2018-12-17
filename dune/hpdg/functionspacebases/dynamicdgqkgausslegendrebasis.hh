@@ -32,10 +32,8 @@ namespace Functions {
 // set and can be used without a global basis.
 // *****************************************************************************
 
-//template<typename GV, typename TP>
-//using DynamicDGQkGaussLegendreNode = QkGaussLegendreNode<GV, k, TP>;
 
-template<typename GV, class MI, class TP>
+template<typename GV, class MI>
 class DynamicDGQkGaussLegendreNodeIndexSet;
 
 
@@ -51,11 +49,9 @@ public:
   using size_type = std::size_t;
 
   using DegreeMap = std::vector<int>;
-  template<class TP>
-  using Node = DynamicQkGaussLegendreNode<GV, TP, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
+  using Node = DynamicQkGaussLegendreNode<GV, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
 
-  template<class TP>
-  using IndexSet = DynamicDGQkGaussLegendreNodeIndexSet<GV, MI, TP>;
+  using IndexSet = DynamicDGQkGaussLegendreNodeIndexSet<GV, MI>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -114,17 +110,15 @@ public:
     degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
   }
 
-  template<class TP>
-  Node<TP> node(const TP& tp) const
+  Node makeNode() const
   {
-    return Node<TP>{tp, &mcmgMapper_, &degreeMap_};
+    return Node{&mcmgMapper_, &degreeMap_};
   }
 
 
-  template<class TP>
-  IndexSet<TP> indexSet() const
+  IndexSet makeIndexSet() const
   {
-    return IndexSet<TP>{*this};
+    return IndexSet{*this};
   }
 
   size_type size() const
@@ -197,7 +191,7 @@ public:
 
 
 
-template<typename GV, class MI, class TP>
+template<typename GV, class MI>
 class DynamicDGQkGaussLegendreNodeIndexSet
 {
   // Cannot be an enum -- otherwise the switch statement below produces compiler warnings
@@ -213,7 +207,7 @@ public:
   using NodeFactory = DynamicDGQkGaussLegendreNodeFactory<GV, MI>;
   using PreBasis = NodeFactory;
 
-  using Node = typename NodeFactory::template Node<TP>;
+  using Node = typename NodeFactory::Node;
 
   DynamicDGQkGaussLegendreNodeIndexSet(const NodeFactory& nodeFactory) :
     nodeFactory_(&nodeFactory)
