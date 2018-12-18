@@ -31,10 +31,10 @@ namespace Functions {
 // set and can be used without a global basis.
 // *****************************************************************************
 
-template<typename GV, int k, typename TP>
-using DGQkGLNode = QkGLNode<GV, k, TP>;
+template<typename GV, int k>
+using DGQkGLNode = QkGLNode<GV, k>;
 
-template<typename GV, int k, class MI, class TP, bool useTwoLevelIndex=false>
+template<typename GV, int k, class MI, bool useTwoLevelIndex=false>
 class DGQkGLNodeIndexSet;
 
 
@@ -60,11 +60,9 @@ public:
   const static int dofsPerPyramid     = (k+1)*(k+2)*(2*k+3)/6;
 
 
-  template<class TP>
-  using Node = DGQkGLNode<GV, k, TP>;
+  using Node = DGQkGLNode<GV, k>;
 
-  template<class TP>
-  using IndexSet = DGQkGLNodeIndexSet<GV, k, MI, TP, useTwoLevelIndex>;
+  using IndexSet = DGQkGLNodeIndexSet<GV, k, MI, useTwoLevelIndex>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -144,16 +142,14 @@ public:
     return gridView_;
   }
 
-  template<class TP>
-  Node<TP> node(const TP& tp) const
+  Node makeNode() const
   {
-    return Node<TP>{tp};
+    return Node{};
   }
 
-  template<class TP>
-  IndexSet<TP> indexSet() const
+  IndexSet makeIndexSet() const
   {
-    return IndexSet<TP>{*this};
+    return IndexSet{*this};
   }
 
   size_type size() const
@@ -245,7 +241,7 @@ public:
 
 
 
-template<typename GV, int k, class MI, class TP, bool useTwoLevelIndex>
+template<typename GV, int k, class MI, bool useTwoLevelIndex>
 class DGQkGLNodeIndexSet
 {
   // Cannot be an enum -- otherwise the switch statement below produces compiler warnings
@@ -261,7 +257,7 @@ public:
   using NodeFactory = DGQkGLNodeFactory<GV, k, MI, useTwoLevelIndex>;
   using PreBasis = NodeFactory;
 
-  using Node = typename NodeFactory::template Node<TP>;
+  using Node = typename NodeFactory::Node;
 
   DGQkGLNodeIndexSet(const NodeFactory& nodeFactory) :
     nodeFactory_(&nodeFactory)

@@ -31,10 +31,8 @@ namespace Functions {
 // set and can be used without a global basis.
 // *****************************************************************************
 
-//template<typename GV, typename TP>
-//using DynamicDGQkGLNode = QkGLNode<GV, k, TP>;
 
-template<typename GV, class MI, class TP>
+template<typename GV, class MI>
 class DynamicDGQkGLNodeIndexSet;
 
 
@@ -50,12 +48,9 @@ public:
   using size_type = std::size_t;
 
   using DegreeMap = std::vector<int>;
-  template<class TP>
-  using Node = DynamicQkGLNode<GV, TP, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
-  //using Node = QkGLNode<GV, k, TP>;
+  using Node = DynamicQkGLNode<GV, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
 
-  template<class TP>
-  using IndexSet = DynamicDGQkGLNodeIndexSet<GV, MI, TP>;
+  using IndexSet = DynamicDGQkGLNodeIndexSet<GV, MI>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -120,17 +115,15 @@ public:
     degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
   }
 
-  template<class TP>
-  Node<TP> node(const TP& tp) const
+  Node makeNode() const
   {
-    return Node<TP>{tp, &mcmgMapper_, &degreeMap_};
+    return Node{&mcmgMapper_, &degreeMap_};
   }
 
 
-  template<class TP>
-  IndexSet<TP> indexSet() const
+  IndexSet makeIndexSet() const
   {
-    return IndexSet<TP>{*this};
+    return IndexSet{*this};
   }
 
   size_type size() const
@@ -204,7 +197,7 @@ public:
 
 
 
-template<typename GV, class MI, class TP>
+template<typename GV, class MI>
 class DynamicDGQkGLNodeIndexSet
 {
   // Cannot be an enum -- otherwise the switch statement below produces compiler warnings
@@ -220,7 +213,7 @@ public:
   using NodeFactory = DynamicDGQkGLNodeFactory<GV, MI>;
   using PreBasis = NodeFactory;
 
-  using Node = typename NodeFactory::template Node<TP>;
+  using Node = typename NodeFactory::Node;
 
   DynamicDGQkGLNodeIndexSet(const NodeFactory& nodeFactory) :
     nodeFactory_(&nodeFactory)
