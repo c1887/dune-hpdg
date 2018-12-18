@@ -240,8 +240,8 @@ namespace HPDG {
         using Gradient = FieldVector<double, dim>;
         std::vector<Gradient> referenceGradients(localView_.size());
 
-        for(size_t i = 0; i < localDegree_+1; i++) {
-          for(size_t j = 0; j < localDegree_+1; j++) {
+        for(int i = 0; i < localDegree_+1; i++) {
+          for(int j = 0; j < localDegree_+1; j++) {
             referenceGradients[flatIndex(i,j, localDegree_)] = {{matrixPair_->derivatives[i][q0]*matrixPair_->values[j][q1], matrixPair_->values[i][q0]*matrixPair_->derivatives[j][q1]}};
           }
         }
@@ -253,8 +253,8 @@ namespace HPDG {
         using Value = FieldVector<double, 1>;
         std::vector<Value> vals(localView_.size());
 
-        for(size_t i = 0; i < localDegree_+1; i++) {
-          for(size_t j = 0; j < localDegree_+1; j++) {
+        for(int i = 0; i < localDegree_+1; i++) {
+          for(int j = 0; j < localDegree_+1; j++) {
             vals[flatIndex(i,j, localDegree_)] = matrixPair_->values[i][q0]*matrixPair_->values[j][q1];
           }
         }
@@ -268,8 +268,8 @@ namespace HPDG {
         std::vector<Value> vals(localView_.size());
 
         auto lastIdx = matrixPair_->values.M()-1;
-        for(size_t i = 0; i < localDegree_+1; i++) {
-          for(size_t j = 0; j < localDegree_+1; j++) {
+        for(int i = 0; i < localDegree_+1; i++) {
+          for(int j = 0; j < localDegree_+1; j++) {
             switch(edgeNumber) {
               case 0:
                 vals[flatIndex(i,j, localDegree_)] = {{matrixPair_->values[i][0]*edgeMatrices.values[j][quad_nr]}};
@@ -298,8 +298,8 @@ namespace HPDG {
         std::vector<Gradient> referenceGradients(localView_.size());
 
         auto lastIdx = matrixPair_->values.M()-1;
-        for (size_t i = 0; i< localDegree_ +1; i++) {
-          for(size_t j = 0; j < localDegree_+1; j++) {
+        for (int i = 0; i< localDegree_ +1; i++) {
+          for(int j = 0; j < localDegree_+1; j++) {
             switch(edgeNumber) {
               case 0:
                 referenceGradients[flatIndex(i,j, localDegree_)] = {{matrixPair_->derivatives[i][0]*edgeMatrices.values[j][quad_nr],  matrixPair_->values[i][0]*edgeMatrices.derivatives[j][quad_nr]}};

@@ -367,8 +367,8 @@ namespace HPDG {
         using Gradient = FieldVector<double, dim>;
         std::vector<Gradient> referenceGradients(localSize_);
 
-        for(size_t i = 0; i < localDegree_+1; i++) {
-          for(size_t j = 0; j < localDegree_+1; j++) {
+        for(int i = 0; i < localDegree_+1; i++) {
+          for(int j = 0; j < localDegree_+1; j++) {
             referenceGradients[flatIndex(i,j, localDegree_)] = {{matrixPair_->derivatives[i][q0]*matrixPair_->values[j][q1], matrixPair_->values[i][q0]*matrixPair_->derivatives[j][q1]}};
           }
         }

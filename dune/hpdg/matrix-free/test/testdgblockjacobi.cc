@@ -51,7 +51,7 @@ TestSuite test_sipg(const GV& gv, int iter) {
   b.resize(basis.dimension());
   b=1.0/std::sqrt(gv.size(0));
   // add some noise to the rhs no make it non-constant:
-  for(int i =0 ; i < b.size(); i++)
+  for(std::size_t i =0 ; i < b.size(); i++)
     b[i] += (i%5)*b[i]/10;
    //residual
   r=b;
