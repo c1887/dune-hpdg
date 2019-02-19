@@ -2,6 +2,7 @@
 #include <dune/fufem/assemblers/dunefunctionsfunctionalassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
+#include <dune/fufem/assemblers/localassemblers/massassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/l2functionalassembler.hh>
 #include <dune/fufem/functions/constantfunction.hh>
 
@@ -133,6 +134,46 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
   return dynMatrix;
 }
 
+
+/** Assemble a dynamic stiffness matrix */
+template<class GridType>
+auto dynamicMassMatrix(const GridType& grid, int k) {
+  constexpr auto dim = GridType::dimensionworld;
+
+  /* Setup Basis */
+  using Basis = Dune::Functions::DynamicDGQkGLBlockBasis<typename GridType::LeafGridView>;
+  Basis basis{grid.leafGridView(), k};
+  auto blockSize = (size_t) std::pow((size_t) k+1, (size_t)dim);
+
+  /* assemble laplace bulk terms and ipdg terms */
+  using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
+  DynBCRS dynMatrix{};
+  auto& matrix = dynMatrix.matrix();
+  {
+    using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
+    using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
+    auto patternBuilder = matrixBackend.patternBuilder();
+
+    auto assembler = Assembler{basis, basis};
+
+    assembler.assembleBulkPattern(patternBuilder);
+
+    patternBuilder.setupMatrix();
+    dynMatrix.finishIdx();
+    for (size_t i = 0; i <matrix.N(); i++)
+      dynMatrix.blockRows(i) = blockSize;
+    dynMatrix.setSquare();
+    dynMatrix.update();
+
+    auto vintageBulkAssembler = MassAssembler<GridType,FiniteElement, FiniteElement>();
+
+    dynMatrix.matrix()=0;
+    assembler.assembleBulkEntries(matrixBackend, vintageBulkAssembler);
+  }
+
+  return dynMatrix;
+}
 
 template<int k, class GridType>
 auto rightHandSide(const GridType& grid, double force=-10.0) {
