@@ -38,10 +38,10 @@ TestSuite testAssembly(const G& grid, int k) {
   Matrix matrix;
   {
     timer.start();
-    auto& istlBCRS = matrix.matrix();
+    auto& istlBCRS = matrix;
 
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(istlBCRS);
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(dynamic_cast<Matrix::Base&>(istlBCRS));
     auto patternBuilder = matrixBackend.patternBuilder();
 
     auto assembler = Assembler{basis, basis};
@@ -70,8 +70,8 @@ TestSuite testAssembly(const G& grid, int k) {
     };
 
     auto bulkMatrix = matrix;
-    bulkMatrix.matrix()=0;
-    auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix.matrix());
+    bulkMatrix=0;
+    auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix);
     // bulk pattern was inherited from the skeleton part
 
     // we assemble the bulk terms first. This way, many terms will be already cached once the face assembler is called
@@ -83,18 +83,18 @@ TestSuite testAssembly(const G& grid, int k) {
 
     assembler.assembleSkeletonEntries(matrixBackend, localBlockAssembler, localBoundaryAssembler); // IPDG terms
 
-    istlBCRS+=bulkMatrix.matrix();
+    istlBCRS+=bulkMatrix;
     timer.stop();
     std::cout << "New HPDG assembler took " << timer.elapsed() << " seconds." << std::endl;
   }
 
   // Check if we computed (roughly) the same matrix:
-  matrix.matrix()-= fufemMatrix.matrix();
+  matrix-= fufemMatrix;
 
   /* We use a relatively large error treshold here because the error estimation with the Frobenius norm
    * is not too suitable here, as summing over a lot of tiny errors accumulates to some noticeable global error.
    */
-  suite.check(matrix.matrix().frobenius_norm() < 1e-11, "Check if new and old assemblers compute the same matrix") << "Error was too great: " << matrix.matrix().frobenius_norm();
+  suite.check(matrix.frobenius_norm() < 1e-11, "Check if new and old assemblers compute the same matrix") << "Error was too great: " << matrix.frobenius_norm();
   return suite;
 }
 

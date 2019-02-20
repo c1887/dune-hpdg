@@ -18,16 +18,15 @@ TestSuite test_dynamicbcrs() {
   using FM = Dune::FieldMatrix<double, 1,1>;
   using Matrix = Dune::HPDG::DynamicBCRSMatrix<FM>;
   Matrix dynbcrs{};
-  auto& bcrs = dynbcrs.matrix(); // get the actual matrix
 
   Dune::MatrixIndexSet idx(2,2);
   idx.add(0,0);
   idx.add(1,0);
   idx.add(1,1);
-  idx.exportIdx(bcrs);
+  idx.exportIdx(dynbcrs);
 
   // additional setup
-  dynbcrs.finishIdx();
+  //dynbcrs.finishIdx();
   dynbcrs.blockRows(0) = 5; // first block row has 5 rows
   dynbcrs.blockRows(1) = 4; // second block row has only 4 rows
   dynbcrs.setSquare();
@@ -38,16 +37,22 @@ TestSuite test_dynamicbcrs() {
   // dynbcrs will take all data with it and you're ending up with dangling pointers!
   //
   // set some values into the bcrs matrix just for fun:
-  bcrs[0][0]=1.0;
-  bcrs[1][0]=-1.5;
-  bcrs[1][1]=2.0;
+  dynbcrs[0][0]=1.0;
+  dynbcrs[1][0]=-1.5;
+  dynbcrs[1][1]=2.0;
+
+  // move a little around
+  {
+    auto tmp = std::move(dynbcrs);
+    dynbcrs = std::move(tmp);
+  }
 
   // test with dynamic block vector
   auto bv = Dune::HPDG::makeDynamicBlockVector(dynbcrs); // this creates a dynamic block vector of the same dimensions as our matrix has
   {
     auto dummy = bv;
     dummy = 2.;
-    bcrs.mv(dummy, bv);
+    dynbcrs.mv(dummy, bv);
   }
 
   // output vector: (yes, we do have iterators :) )
@@ -73,8 +78,8 @@ TestSuite test_dynamicbcrs() {
   {
     auto matrix2 = dynbcrs;
     // compare last blocks
-    const auto& b1 = bcrs[1][1];
-    const auto& b2 = matrix2.matrix()[1][1];
+    const auto& b1 = dynbcrs[1][1];
+    const auto& b2 = matrix2[1][1];
     suite.check(b1.N() == b2.N());
     suite.check(b1.M() == b2.M());
 
@@ -86,11 +91,11 @@ TestSuite test_dynamicbcrs() {
   }
   // Copying the Dune::BCRSMatrix object directly _must not_ work, as the block types are windows and do not manage storage themselves.
   // The way to go is to copy the DynamicBCRS object. Hence, the following must throw:
-  suite.check(
+  //suite.check(
 
-    doesThrow([&]() { auto illegalCopy = bcrs; }
+    //doesThrow([&]() { auto illegalCopy = bcrs; }
 
-  ));
+  //));
 
   return suite;
 }

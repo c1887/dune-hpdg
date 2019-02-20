@@ -156,7 +156,7 @@ class DynamicOrderTransfer {
    * maxOrder. Lower orders will not be affected
    */
   void galerkinRestrict(const MatrixType &fineMat, MatrixType &coarseMat, int maxOrder) const {
-    coarseMat.matrix() = 0;
+    coarseMat = 0.;
 
     // the idea is the following: the global transfer matrix is block diagonal.
     // We truncate all orders that are greater than maxorder, hence, the corresponding blocks hold the transfer information for an element.
@@ -165,8 +165,8 @@ class DynamicOrderTransfer {
     //
     auto maxBlockSize = Impl::orderToBlockSize(maxOrder, dim);
 
-    for (std::size_t i = 0; i < coarseMat.matrix().N(); i++) {
-      auto &Ci = coarseMat.matrix()[i]; // current row
+    for (std::size_t i = 0; i < coarseMat.N(); i++) {
+      auto &Ci = coarseMat[i]; // current row
 
       const TransferType* rowMatrix;
       const TransferType* colMatrix;
@@ -182,7 +182,7 @@ class DynamicOrderTransfer {
       // S^T A S
       Dune::MatrixVector::sparseRangeFor(Ci, [&](auto &&Cij, auto &&j) {
         if (fineMat.blockRows(j)<=maxBlockSize and rowIsIdentity) {
-          Cij=fineMat.matrix()[i][j]; // == I^T*fineMat[i][j]*I , but I do not want to compute explitcitly here
+          Cij=fineMat[i][j]; // == I^T*fineMat[i][j]*I , but I do not want to compute explitcitly here
         }
         else {
           if (fineMat.blockRows(j)>maxBlockSize) {
@@ -191,7 +191,7 @@ class DynamicOrderTransfer {
           else
             colMatrix = &identity_(fineMat.blockRows(j));
 
-          Dune::MatrixVector::addTransformedMatrix(Cij, *rowMatrix, fineMat.matrix()[i][j], *colMatrix);
+          Dune::MatrixVector::addTransformedMatrix(Cij, *rowMatrix, fineMat[i][j], *colMatrix);
         }
       });
     }
@@ -208,18 +208,18 @@ class DynamicOrderTransfer {
   void galerkinRestrictSetOccupation(const MatrixType &fineMat, MatrixType &coarseMat, int order) const {
     // This one is easy, as the transfer operator has block diag. structure.
     // Hence, the coarse matrix will have the same block structure as the fine matrix.
-    Dune::MatrixIndexSet idx(fineMat.matrix().N(), fineMat.matrix().M());
+    Dune::MatrixIndexSet idx(fineMat.N(), fineMat.M());
 
     // Copy indices from the fine matrix into the coarse matrix
-    idx.import(fineMat.matrix());
-    idx.exportIdx(coarseMat.matrix());
+    idx.import(fineMat);
+    idx.exportIdx(coarseMat);
 
     //finish the setup of the coarseMat
     coarseMat.finishIdx();
 
     // set blockrow's rows: if greater than maxSize, truncate to maxSize, else copy from fineMat
     auto maxSize= Impl::orderToBlockSize(order, dim);
-    for (size_t i = 0; i < coarseMat.matrix().N(); i++)
+    for (size_t i = 0; i < coarseMat.N(); i++)
       coarseMat.blockRows(i) = (fineMat.blockRows(i) > maxSize) ? maxSize : fineMat.blockRows(i);
 
     // finish setup

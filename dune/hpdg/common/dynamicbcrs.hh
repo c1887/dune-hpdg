@@ -15,18 +15,17 @@ namespace Dune {
   namespace HPDG {
 
     template<class K>
-    class DynamicBCRSMatrix {
+    class DynamicBCRSMatrix
+    : public BCRSMatrix<MatrixWindow<K>>
+    {
+      using BlockType = Dune::HPDG::MatrixWindow<K>;
 
       public:
 
-      using BlockType = Dune::HPDG::MatrixWindow<K>;
-      using BCRS = Dune::BCRSMatrix<BlockType>;
-      using Matrix = Dune::BCRSMatrix<BlockType>;
-      using field_type = typename K::field_type;
+      using Base = Dune::BCRSMatrix<BlockType>;
 
       DynamicBCRSMatrix(size_t n, size_t m, size_t blockRows=1) :
-        n_(n),
-        m_(m),
+        Base(n,m),
         rowMap_(n),
         colMap_(m)
       {
@@ -35,78 +34,98 @@ namespace Dune {
       }
 
       DynamicBCRSMatrix() :
-        n_(0),
-        m_(0),
+        Base(),
         rowMap_(0),
         colMap_(0) {}
 
       DynamicBCRSMatrix(const DynamicBCRSMatrix& other) {
-        n_=other.n_;
-        m_=other.m_;
+        dynamic_cast<Base&>(*this) = dynamic_cast<const Base&>(other);
         rowMap_= other.rowMap_;
         colMap_= other.colMap_;
         {
-          auto idx = Dune::MatrixIndexSet(n_, m_);
-          idx.import(other.matrix_);
-          idx.exportIdx(matrix_);
         }
         update();
 
         // copy data from one C-array to the other
-        K* data = data_.get();
-        K* otherdata = other.data_.get();
+        K* data = entries_.get();
+        K* otherdata = other.entries_.get();
         for (size_t i = 0; i < size_; i++)
           *data++ = *otherdata++;
       }
 
-      /** Get the managed BCRS matrix in Dune::BCRSMatrix format*/
-      BCRS& matrix() {
-        return matrix_;
+      DynamicBCRSMatrix(DynamicBCRSMatrix&& tmp) {
+        swapDynamicParts(tmp);
+        dynamic_cast<Base&>(*this) = dynamic_cast<Base&&>(tmp);
+        resetBlocks();
       }
 
-      /** Get the managed BCRS matrix in Dune::BCRSMatrix format*/
-      const BCRS& matrix() const {
-        return matrix_;
+      DynamicBCRSMatrix& operator=(DynamicBCRSMatrix&& tmp) {
+        swapDynamicParts(tmp);
+        dynamic_cast<Base&>(*this) = dynamic_cast<Base&&>(tmp);
+        resetBlocks();
+        return *this;
       }
 
-      /** Set the size of the DynamicBCRS matrix.
-       * Note that this will _not_ modify the index set
-       * of the Dune::BCRSMatrix member!
-       */
+
+      /** Set the size of the DynamicBCRS matrix.*/
       void setSize(size_t n, size_t m) {
-        n_=n;
-        m_=m;
-        rowMap_.resize(n_);
-        colMap_.resize(m_);
+        Base::setSize(n,m);
+        rowMap_.resize(n);
+        colMap_.resize(m);
       }
 
-      /** Get the number of rows in the i-th block row */
-      size_t& blockRows(size_t i) {
-        DUNE_ASSERT_BOUNDS(i<n_);
-        return rowMap_[i];
-      }
-
-      /** Get the number of rows in the i-th block row */
-      const size_t& blockRows(size_t i) const {
-        DUNE_ASSERT_BOUNDS(i<n_);
-        return rowMap_[i];
-      }
-
-      /** Get the number of columns in the i-th block columns */
-      size_t& blockColumns(size_t i) {
-        DUNE_ASSERT_BOUNDS(i<n_);
-        return colMap_[i];
-      }
-
-      /** Get the number of columns in the i-th block columns */
-      const size_t& blockColumns(size_t i) const {
-        DUNE_ASSERT_BOUNDS(i<n_);
-        return colMap_[i];
-      }
-      /** Updates the matrix size after the index set was set externally
-       */
+      // TODO: Integrate this in a more transparent manner.
+      /** If your index set was assembled through a casted BCRSMatrix
+       * version of this, the vectors containing the sizes of the blocks and columns
+       * will not be resized. This is done via this method.*/
       void finishIdx() {
-        setSize(matrix_.N(), matrix_.M());
+        rowMap_.resize(this->n);
+        colMap_.resize(this->m);
+      }
+
+      DynamicBCRSMatrix& operator=(const K& scalar) {
+        for(std::size_t i = 0; i < size_; i++) {
+          entries_[i]=scalar;
+        }
+        return *this;
+      }
+
+      /** return this dynamically casted to BCRSMatrix<..>
+       * This is useful if a method explicitly expects a BCRSMatrix object
+       */
+      Base& asBCRSMatrix() {
+        return dynamic_cast<Base&>(*this);
+      }
+
+      /** return this dynamically casted to BCRSMatrix<..>
+       * This is useful if a method explicitly expects a BCRSMatrix object
+       */
+      const Base& asBCRSMatrix() const {
+        return dynamic_cast<const Base&>(*this);
+      }
+
+      /** Get the number of rows in the i-th block row */
+      auto& blockRows(size_t i) {
+        DUNE_ASSERT_BOUNDS(i<this->n);
+        return rowMap_[i];
+      }
+
+      /** Get the number of rows in the i-th block row */
+      const auto& blockRows(size_t i) const {
+        DUNE_ASSERT_BOUNDS(i<this->n);
+        return rowMap_[i];
+      }
+
+      /** Get the number of columns in the i-th block columns */
+      auto& blockColumns(size_t i) {
+        DUNE_ASSERT_BOUNDS(i<this->m);
+        return colMap_[i];
+      }
+
+      /** Get the number of columns in the i-th block columns */
+      const auto& blockColumns(size_t i) const {
+        DUNE_ASSERT_BOUNDS(i<this->m);
+        return colMap_[i];
       }
 
       /** For convenience; sets the column sizes to the same values as the row sizes */
@@ -123,77 +142,20 @@ namespace Dune {
         resetBlocks();
       }
 
-      // get the look&feel of an actual BCRS matrix object
-
-      auto N() const {
-        return n_;
-      }
-
-      auto M() const {
-        return m_;
-      }
-
-      template<class X, class Y>
-      void mv(const X& x, Y& y) const {
-        matrix_.mv(x,y);
-      }
-
-      template<class X, class Y>
-      void mmv(const X& x, Y& y) const {
-        matrix_.mmv(x,y);
-      }
-
-      template<class X, class Y>
-      void mtv(const X& x, Y& y) const {
-        matrix_.mtv(x,y);
-      }
-
-      template<class X, class Y>
-      void umv(const X& x, Y& y) const {
-        matrix_.umv(x,y);
-      }
-
-      template<class X, class Y>
-      void umtv(const X& x, Y& y) const {
-        matrix_.umtv(x,y);
-      }
-
-      auto& operator[](size_t i) {
-        return matrix_[i];
-      }
-
-      const auto& operator[](size_t i) const {
-        return matrix_[i];
-      }
-
       DynamicBCRSMatrix& operator=(const DynamicBCRSMatrix& other) {
-        n_=other.n_;
-        m_=other.m_;
+        dynamic_cast<Base&>(*this) = dynamic_cast<const Base&>(other);
         rowMap_= other.rowMap_;
         colMap_= other.colMap_;
-        {
-          matrix_ = BCRS();
-          auto idx = Dune::MatrixIndexSet(n_, m_);
-          idx.import(other.matrix_);
-          idx.exportIdx(matrix_);
-        }
         update();
 
         // copy data from one C-array to the other
-        K* data = data_.get();
-        K* otherdata = other.data_.get();
+        K* data = entries_.get();
+        K* otherdata = other.entries_.get();
         for (size_t i = 0; i < size_; i++)
           *data++ = *otherdata++;
 
         return *this;
       }
-
-      DynamicBCRSMatrix& operator=(K scalar) {
-        for (size_t i = 0; i < size_; i++)
-          data_[i]=scalar;
-        return *this;
-      }
-
 
       private:
 
@@ -204,19 +166,19 @@ namespace Dune {
        */
       void allocateMemory() {
         size_ = calculateSize();
-        if (data_ != nullptr) {
-          data_.reset(new K[size_]);
+        if (entries_ != nullptr) {
+          entries_.reset(new K[size_]);
         }
         else {
-          data_ = std::make_unique<K[]>(size_);
+          entries_ = std::make_unique<K[]>(size_);
         }
       }
 
       /** Calculate the amount of memory needed*/
       size_t calculateSize() const {
         size_t count = 0;
-        for (size_t i = 0; i < n_; i++) {
-          auto& Qi = matrix_[i];
+        for (size_t i = 0; i < this->n; i++) {
+          auto& Qi = (*this)[i];
           MatrixVector::sparseRangeFor(Qi, [&](auto&&, auto&&j) {
               count+=rowMap_[i]*colMap_[j];
               });
@@ -226,9 +188,9 @@ namespace Dune {
 
       /** Sets the pointers in the matrix windows, aka. initializes the blocks */
       void resetBlocks() {
-        auto* currentPtr = data_.get();
-        for (size_t i = 0; i < n_; i++) {
-          auto& Qi = matrix_[i];
+        auto* currentPtr = entries_.get();
+        for (size_t i = 0; i < this->n; i++) {
+          auto& Qi = (*this)[i];
           MatrixVector::sparseRangeFor(Qi, [&](auto&& Qij, auto&&j) {
               Qij.set(currentPtr, rowMap_[i], colMap_[j]);
               currentPtr += rowMap_[i]*colMap_[j]; // ptr arithmetic, move to point after current block
@@ -236,14 +198,17 @@ namespace Dune {
         }
       }
 
+      void swapDynamicParts(DynamicBCRSMatrix& tmp) {
+        std::swap(rowMap_, tmp.rowMap_);
+        std::swap(colMap_, tmp.colMap_);
+        std::swap(entries_, tmp.entries_);
+      }
 
-      size_t n_;
-      size_t m_;
       std::vector<size_t> rowMap_; // stores the number of rows each block row has
       std::vector<size_t> colMap_; // stores the number of rows each block row has
-      BCRS matrix_;
-      size_t size_;
-      std::unique_ptr<K[]> data_;
+      std::size_t size_;
+      // Contains the actual data for the matrix windows (which are stored in the BCRSMatrix member "data")
+      std::unique_ptr<K[]> entries_; // TODO: Maybe use a std::vector instead.
     };
   }
 }

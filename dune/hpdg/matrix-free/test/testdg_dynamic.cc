@@ -49,7 +49,7 @@ auto computeMatrix(const Basis& basis, double penalty=2.0) {
   {
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
     using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix.matrix());
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix.asBCRSMatrix());
 
     auto assembler = Assembler{basis, basis};
 
@@ -84,7 +84,7 @@ auto computeMatrix(const Basis& basis, double penalty=2.0) {
     bulkMatrix=0;
     auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix);
     assembler.assembleBulkEntries(bmatrixBackend, vintageBulkAssembler);
-    matrix.matrix()+=bulkMatrix.matrix();
+    matrix+=bulkMatrix;
     std::cout << "Assembly of matrix took " << timer.stop() <<std::endl;
   }
 

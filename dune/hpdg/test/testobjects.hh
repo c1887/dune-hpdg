@@ -84,11 +84,11 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
   /* assemble laplace bulk terms and ipdg terms */
   using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   DynBCRS dynMatrix{};
-  auto& matrix = dynMatrix.matrix();
+  auto& matrix = dynMatrix;
   {
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
     using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(dynamic_cast<DynBCRS::Base&>(matrix));
     auto patternBuilder = matrixBackend.patternBuilder();
 
     auto assembler = Assembler{basis, basis};
@@ -124,11 +124,11 @@ auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.
     /* We need to construct the stiffness Matrix into a separate (temporary) matrix object as otherwise the previously assembled entries
      * would be lost. This temporary matrix will be deleted after we leave the block scope*/
     auto bulkMatrix = dynMatrix;
-    bulkMatrix.matrix()=0;
-    auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix.matrix());
+    bulkMatrix=0;
+    auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix);
     // bulk pattern was inherited from the skeleton part
     assembler.assembleBulkEntries(bmatrixBackend, vintageBulkAssembler);
-    matrix+=bulkMatrix.matrix();
+    matrix+=bulkMatrix;
   }
 
   return dynMatrix;
@@ -148,11 +148,11 @@ auto dynamicMassMatrix(const GridType& grid, int k) {
   /* assemble laplace bulk terms and ipdg terms */
   using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   DynBCRS dynMatrix{};
-  auto& matrix = dynMatrix.matrix();
+  auto& matrix = dynMatrix;
   {
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
     using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(dynamic_cast<DynBCRS::Base&>(matrix));
     auto patternBuilder = matrixBackend.patternBuilder();
 
     auto assembler = Assembler{basis, basis};
@@ -168,7 +168,7 @@ auto dynamicMassMatrix(const GridType& grid, int k) {
 
     auto vintageBulkAssembler = MassAssembler<GridType,FiniteElement, FiniteElement>();
 
-    dynMatrix.matrix()=0;
+    dynMatrix=0.;
     assembler.assembleBulkEntries(matrixBackend, vintageBulkAssembler);
   }
 

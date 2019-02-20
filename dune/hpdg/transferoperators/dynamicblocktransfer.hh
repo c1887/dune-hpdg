@@ -53,7 +53,7 @@ namespace Dune {
         coarseVector.update();
 
         // step 2: restrict
-        matrix_->matrix().mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
+        matrix_->mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
  
       }
 
@@ -68,23 +68,23 @@ namespace Dune {
         }
         fineVector.update();
 
-        matrix_->matrix().mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
+        matrix_->mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
       }
 
       /** \brief Galerkin assemble a coarse stiffness matrix
      */
       void galerkinRestrict(const DynamicMatrixType& fineMat, DynamicMatrixType& coarseMat) const
       {
-        coarseMat.matrix() = 0;
+        coarseMat = 0.;
         for (std::size_t i =0; i< fineMat.N(); i++) {
-          const auto& Ai = fineMat.matrix()[i];
+          const auto& Ai = fineMat[i];
           Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
-            const auto& Ti = matrix_->matrix()[i];
-            const auto& Tj = matrix_->matrix()[j];
+            const auto& Ti = (*matrix_)[i];
+            const auto& Tj = (*matrix_)[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
                   //Dune::MatrixVector::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
-                  Impl::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
+                  Impl::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
               });
             });
           });
@@ -104,10 +104,10 @@ namespace Dune {
         auto m = matrix_->M(); // #coarse functions
         auto indices = Dune::MatrixIndexSet(m, m);
         for (std::size_t i =0; i< fineMat.N(); i++) {
-          const auto& Ai = fineMat.matrix()[i];
+          const auto& Ai = fineMat[i];
           Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&&, auto&& j) {
-            const auto& Ti = matrix_->matrix()[i];
-            const auto& Tj = matrix_->matrix()[j];
+            const auto& Ti = (*matrix_)[i];
+            const auto& Tj = (*matrix_)[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&&, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&&, auto&& l) {
                 indices.add(k, l);
@@ -115,7 +115,7 @@ namespace Dune {
             });
           });
         }
-        indices.exportIdx(coarseMat.matrix());
+        indices.exportIdx(coarseMat);
 
         // set sizes and allocate memory in the dynamic matrix
         coarseMat.finishIdx();

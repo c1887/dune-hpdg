@@ -180,12 +180,12 @@ TestSuite test_mass(const GV& gv, int k) {
 
   using DynBCRS = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
   DynBCRS dynMatrix{};
-  auto& matrix = dynMatrix.matrix();
+  auto& matrix = dynMatrix;
   {
     using Basis = decltype(basis);
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
     using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix.asBCRSMatrix());
     auto patternBuilder = matrixBackend.patternBuilder();
 
     auto assembler = Assembler{basis, basis};
