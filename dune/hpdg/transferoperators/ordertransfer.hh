@@ -56,7 +56,7 @@ namespace Dune {
 
 
       using DynamicMatrixType = DynamicBCRSMatrix<FieldMatrix<typename VectorType::field_type,1,1>>;
-      using MatrixType = typename DynamicMatrixType::Matrix;
+      using MatrixType = DynamicMatrixType;
 
       using BlockType = typename MatrixType::block_type;
     public:
