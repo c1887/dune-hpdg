@@ -205,7 +205,7 @@ namespace Dune {
               }
             }
           }
-          indices.exportIdx(*(matrixVector[level]));
+          indices.exportIdx(*matrixVector[level]);
           matrixVector[level]->finishIdx();
           for (size_t i = 0; i < matrixVector[level]->N(); i++) {
             matrixVector[level]->blockRows(i)=blockSize;
@@ -234,7 +234,7 @@ namespace Dune {
           if (element.isLeaf()) {
             // Assemble local identites on all following levels
             for (auto coarseLevel = level; coarseLevel<maxLevel; ++coarseLevel) {
-              auto& localElementMatrix = (*(matrixVector[coarseLevel]))[multiLevelBasis.index(element, coarseLevel+1)][multiLevelBasis.index(element, coarseLevel)];
+              auto& localElementMatrix = (*matrixVector[coarseLevel])[multiLevelBasis.index(element, coarseLevel+1)][multiLevelBasis.index(element, coarseLevel)];
               // set to id
               localElementMatrix=0.0;
               for (std::size_t i=0; i< localElementMatrix.N(); i++)
