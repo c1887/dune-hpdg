@@ -28,7 +28,7 @@ TestSuite testAssembly(const G& grid, int k) {
   using Basis = decltype(basis);
 
   Dune::Timer timer;
-  auto fufemMatrix = dynamicStiffnessMatrix(grid, k, penalty); 
+  auto fufemMatrix = dynamicStiffnessMatrix(grid, k, penalty);
   timer.stop();
   std::cout << "Fufem assembler took " << timer.elapsed() << " seconds." << std::endl;
   timer.reset();
@@ -38,10 +38,9 @@ TestSuite testAssembly(const G& grid, int k) {
   Matrix matrix;
   {
     timer.start();
-    auto& istlBCRS = matrix;
 
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(dynamic_cast<Matrix::Base&>(istlBCRS));
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix.asBCRSMatrix());
     auto patternBuilder = matrixBackend.patternBuilder();
 
     auto assembler = Assembler{basis, basis};
@@ -83,7 +82,7 @@ TestSuite testAssembly(const G& grid, int k) {
 
     assembler.assembleSkeletonEntries(matrixBackend, localBlockAssembler, localBoundaryAssembler); // IPDG terms
 
-    istlBCRS+=bulkMatrix;
+    matrix+=bulkMatrix;
     timer.stop();
     std::cout << "New HPDG assembler took " << timer.elapsed() << " seconds." << std::endl;
   }
