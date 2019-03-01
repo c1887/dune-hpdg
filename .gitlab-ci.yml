@@ -5,7 +5,7 @@ before_script:
   - duneci-install-module https://git.imp.fu-berlin.de/agnumpde/dune-solvers.git
 
 dune:git  clang C++17:
-  image: registry.dune-project.org/docker/ci/dune:git-debian-10-clang-6-libcpp-17
+  image: registry.dune-project.org/docker/ci/dune:git-debian-10-clang-7-libcpp-17
   script: duneci-standard-test
 
 dune:git  gcc-6 C++14:
