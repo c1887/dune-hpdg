@@ -7,7 +7,7 @@
 #include <dune/grid/utility/structuredgridfactory.hh>
 
 #include <dune/fufem/assemblers/operatorassembler.hh>
-#include <dune/hpdg/assemblers/gausslobattoipdgassembler.hh>
+#include <dune/hpdg/assemblers/localassemblers/gausslobattoipdgassembler.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/resizehelper.hh>
 
