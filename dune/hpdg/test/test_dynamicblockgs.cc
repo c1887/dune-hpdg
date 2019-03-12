@@ -38,8 +38,8 @@ TestSuite test_dynamicblockgs() {
   auto staticX = staticB;
 
   // perform a dynamic BlockGS iteration
-  auto dynamicGS = Dune::HPDG::DynamicBlockGS<decltype(dynamicMatrix)::Matrix, decltype(dynamicX)>();
-  dynamicGS.setProblem(dynamicMatrix.matrix(), dynamicX, dynamicB);
+  auto dynamicGS = Dune::HPDG::DynamicBlockGS<decltype(dynamicMatrix), decltype(dynamicX)>();
+  dynamicGS.setProblem(dynamicMatrix, dynamicX, dynamicB);
   // TODO: ignore nodes
   for (size_t i = 0; i < iter; i++)
     dynamicGS.iterate();

@@ -79,7 +79,10 @@ namespace Dune
         m_(m),
         rowAccess(nullptr, 0) {}
 
-      MatrixWindow(const MatrixWindow&) = delete;
+      /* We allow the copy constructor so that we can use the matrixwindows
+       * in data structures more easily. However, copying a matrix window will still
+       * give you just a view to the SAME data!*/
+      //MatrixWindow(const MatrixWindow&) = delete;
 
       void resize (size_type r, size_type c, value_type v = value_type() )
       {
@@ -110,8 +113,10 @@ namespace Dune
       }
 
       MatrixWindow& operator=(const MatrixWindow& other) {
-        if (data_==nullptr)
-          DUNE_THROW(Dune::Exception, "Trying to write through uninitialized MatrixWindow (you need to set the ptr to some valid place!)");
+        // if either of the windows is not initialized, do nothing
+        // (and hope nobody's mad with you)
+        if (other.data_ == nullptr or data_==nullptr)
+          return *this;
 
         DUNE_ASSERT_BOUNDS(other.n_ == n_ and other.m_ == m_);
         if (data_== other.data_) return *this;

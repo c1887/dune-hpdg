@@ -205,7 +205,7 @@ namespace Dune {
               }
             }
           }
-          indices.exportIdx(matrixVector[level]->matrix());
+          indices.exportIdx(*matrixVector[level]);
           matrixVector[level]->finishIdx();
           for (size_t i = 0; i < matrixVector[level]->N(); i++) {
             matrixVector[level]->blockRows(i)=blockSize;
@@ -234,7 +234,7 @@ namespace Dune {
           if (element.isLeaf()) {
             // Assemble local identites on all following levels
             for (auto coarseLevel = level; coarseLevel<maxLevel; ++coarseLevel) {
-              auto& localElementMatrix = matrixVector[coarseLevel]->matrix()[multiLevelBasis.index(element, coarseLevel+1)][multiLevelBasis.index(element, coarseLevel)];
+              auto& localElementMatrix = (*matrixVector[coarseLevel])[multiLevelBasis.index(element, coarseLevel+1)][multiLevelBasis.index(element, coarseLevel)];
               // set to id
               localElementMatrix=0.0;
               for (std::size_t i=0; i< localElementMatrix.N(); i++)
@@ -250,7 +250,7 @@ namespace Dune {
 
             for (const auto& son: descendantElements(element, level+1)) {
               if (son.level()==level) continue;
-              auto& localElementMatrix = matrix.matrix()[multiLevelBasis.index(son, level+1)][multiLevelBasis.index(element, level)];
+              auto& localElementMatrix = matrix[multiLevelBasis.index(son, level+1)][multiLevelBasis.index(element, level)];
               fineView.bind(son);
               const auto& fineFE = fineView.tree().finiteElement();
               const auto numFine = fineView.size();

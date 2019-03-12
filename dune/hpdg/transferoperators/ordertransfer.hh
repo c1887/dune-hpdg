@@ -56,7 +56,7 @@ namespace Dune {
 
 
       using DynamicMatrixType = DynamicBCRSMatrix<FieldMatrix<typename VectorType::field_type,1,1>>;
-      using MatrixType = typename DynamicMatrixType::Matrix;
+      using MatrixType = DynamicMatrixType;
 
       using BlockType = typename MatrixType::block_type;
     public:
@@ -74,7 +74,7 @@ namespace Dune {
           MatrixIndexSet idx(fineReference.N(), fineReference.N());
           for (size_t i = 0; i < fineReference.N(); i++)
             idx.add(i,i);
-          idx.exportIdx(matrix_.matrix());
+          idx.exportIdx(matrix_);
           matrix_.finishIdx();
         }
 
@@ -92,7 +92,7 @@ namespace Dune {
         using LocalMatrix = Dune::DynamicMatrix<field_type>;
         auto transferCache = Impl::TransferMatrixCache<LocalMatrix, dim>{};
         for (size_t i = 0; i < fineReference.N(); i++) {
-          auto& transferBlock = matrix_.matrix()[i][i];
+          auto& transferBlock = matrix_[i][i];
           auto blocks = fineReference.blockRows(i);
           // case 1: block is not too large, we can put an identity
           if (blocks<=maxBlockSize) {
@@ -117,7 +117,7 @@ namespace Dune {
       {
         coarseVector = makeDynamicBlockVector(matrix_);
 
-        matrix_.matrix().mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
+        matrix_.mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
       }
 
       /** \brief Prolong a function from the coarse onto the fine grid
@@ -133,7 +133,7 @@ namespace Dune {
 
 
         // prolong
-        matrix_.matrix().mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
+        matrix_.mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
       }
 
       /** \brief Galerkin assemble a coarse stiffness matrix
@@ -141,16 +141,16 @@ namespace Dune {
       void galerkinRestrict(const DynamicMatrixType& fineMatrix, DynamicMatrixType& coarseMatrix) const
       {
 
-        const auto& fineMat = fineMatrix.matrix();
-        auto& coarseMat = coarseMatrix.matrix();
+        const auto& fineMat = fineMatrix;
+        auto& coarseMat = coarseMatrix;
         coarseMat = 0;
 
         // code from block transfer. TODO Check it carefully!
         for (std::size_t i =0; i< fineMat.N(); i++) {
           const auto& Ai = fineMat[i];
           Dune::MatrixVector::sparseRangeFor(Ai, [&](auto&& Aij, auto&& j) {
-            const auto& Ti = matrix_.matrix()[i];
-            const auto& Tj = matrix_.matrix()[j];
+            const auto& Ti = matrix_[i];
+            const auto& Tj = matrix_[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
                   //Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
@@ -174,8 +174,8 @@ namespace Dune {
         // the coarse matrix will have the same block structure as the fine matrix.
 
         Dune::MatrixIndexSet idx(fineMat.N(), fineMat.M());
-        idx.import(fineMat.matrix());
-        idx.exportIdx(coarseMat.matrix());
+        idx.import(fineMat);
+        idx.exportIdx(coarseMat);
 
         coarseMat.finishIdx();
 

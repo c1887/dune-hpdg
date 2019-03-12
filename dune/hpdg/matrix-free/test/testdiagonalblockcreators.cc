@@ -34,9 +34,10 @@ TestSuite test_heat_diag(const GV& gv) {
   auto mass_factor = 0.7;
 
   auto fully_assembled_ipdg = dynamicStiffnessMatrix(gv.grid(), order, penalty, false);
-  fully_assembled_ipdg.matrix() *= laplace_factor;
+  fully_assembled_ipdg *= laplace_factor;
   // add also some mass term:
   {
+    // TODO: The mass matrix is also in testobjects.hh
 
     using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
 
@@ -46,15 +47,15 @@ TestSuite test_heat_diag(const GV& gv) {
     using Grid = typename GV::Grid;
     auto mass = fully_assembled_ipdg;
     mass =0.;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(mass.matrix());
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(mass.asBCRSMatrix());
 
     auto massA = MassAssembler<Grid, FiniteElement, FiniteElement>();
 
     assembler.assembleBulkEntries(matrixBackend, massA);
 
-    mass.matrix() *= mass_factor;
+    mass *= mass_factor;
 
-    fully_assembled_ipdg.matrix() += mass.matrix();
+    fully_assembled_ipdg += mass;
   }
 
   auto matrixCreator = HPDG::HeatDiagonalBlock<Basis>(basis, penalty, mass_factor, laplace_factor);

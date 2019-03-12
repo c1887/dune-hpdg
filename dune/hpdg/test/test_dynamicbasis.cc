@@ -47,7 +47,7 @@ TestSuite test_dynamicBasis(Basis& basis, const Grid& grid) {
   auto laplace = LaplaceAssembler<Grid, FE, FE>{};
 
   // set matrix pattern
-  auto mBE = Dune::Fufem::istlMatrixBackend(matrix.matrix());
+  auto mBE = Dune::Fufem::istlMatrixBackend(matrix.asBCRSMatrix());
   { // setup pattern
     auto pb = mBE.patternBuilder();
     assembler.assembleBulkPattern(pb);
