@@ -4,4 +4,5 @@ install(FILES
   dgtocgtransferassembler.hh
   dgtodggridtransferassembler.hh
   dgtransferoperatorassembler.hh
+  lumpedmass.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/assemblers)
