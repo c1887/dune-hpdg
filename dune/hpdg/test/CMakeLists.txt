@@ -29,3 +29,5 @@ dune_add_test(
   SOURCES testestimatorutility.cc)
 dune_add_test(
   SOURCES test_persistentgvdatatransfer.cc)
+dune_add_test(
+  SOURCES test_solversetup.cc)
