@@ -2,6 +2,8 @@
 // vi: set et ts=4 sw=2 sts=2
 #pragma once
 
+#include <dune/common/math.hh>
+
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/geometry/type.hh>
 
@@ -14,16 +16,6 @@ namespace Dune {
 namespace HPDG {
 
 namespace LumpedMassImpl { // do not clutter Impl namespace too much
-
-  /**
-   * std::pow is a bitch with integer types...
-   *
-   * returns base^exponent
-   *
-   * */
-  constexpr std::size_t unsignedPow(std::size_t base, std::size_t exponent) {
-    return (exponent == 0) ? std::size_t(1) : base*(unsignedPow(base, exponent -1));
-  }
 
   // group what belongs together
   template<class ctype, int dim>
@@ -81,11 +73,17 @@ namespace LumpedMassImpl { // do not clutter Impl namespace too much
   template<typename GV>
   auto gaussLobattoLumpedMass(const Dune::Functions::DynamicDGQkGLBlockBasis<GV>& basis) {
 
-    constexpr const int dim = GV::Grid::dimension;
+    /* Extract the dimension from the GridView.
+     *
+     * For some reason, g++ 6.3 has problems accepting this as an int
+     * later when calling power(), thus we (redundantly) cast to int.
+     */
+    constexpr const int dim = static_cast<int>(GV::dimension);
+
     using ctype = typename GV::Grid::ctype;
 
     auto generator = [&](auto d) {
-        auto size = LumpedMassImpl::unsignedPow(d+1, dim);
+        auto size = power(d+1, dim);
         auto ret = std::vector<LumpedMassImpl::GaussLobattoQuadPoint<ctype, dim>>(size);
 
         int order = 2*d- 1;
