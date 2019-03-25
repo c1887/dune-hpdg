@@ -4,6 +4,7 @@
 #include <map>
 #include <dune/common/fmatrix.hh>
 #include <dune/common/fvector.hh>
+#include <dune/common/math.hh>
 
 #include <dune/istl/matrix.hh>
 
@@ -163,7 +164,7 @@ namespace HPDG {
         // Even though we do not use the outer edge, we still have to find modify the
         // penalty parameter accordingly to the higher degree to reassemble the same matrix
         // blocks as for the actual assembled matrix:
-        auto penalty = penalty_ * std::pow(order, 2.0);
+        auto penalty = penalty_ * power(order, 2);
 
         using FVdimworld = FieldVector<Field, GV::Grid::dimensionworld>;
 
@@ -175,10 +176,10 @@ namespace HPDG {
         const auto edgeLength = edgeGeometry.volume();
 
         // store gradients
-        std::vector<FVdimworld> insideGradients(std::pow(localDegree_+1, 2));
-        std::vector<Dune::FieldVector<double, 1>> insideValues(std::pow(localDegree_+1, 2));
-        std::vector<FVdimworld> outsideGradients(std::pow(outerDegree+1, 2));
-        std::vector<Dune::FieldVector<double, 1>> outerValues(std::pow(outerDegree+1, 2));
+        std::vector<FVdimworld> insideGradients(power(localDegree_+1, 2));
+        std::vector<Dune::FieldVector<double, 1>> insideValues(power(localDegree_+1, 2));
+        std::vector<FVdimworld> outsideGradients(power(outerDegree+1, 2));
+        std::vector<Dune::FieldVector<double, 1>> outerValues(power(outerDegree+1, 2));
 
         const auto outerNormal = edge.centerUnitOuterNormal();
 
@@ -259,7 +260,7 @@ namespace HPDG {
       template<class E, class LM>
       void computeDirichletFace(const E& edge, LM& localMatrix) {
 
-        auto penalty = penalty_ * std::pow(localDegree_, 2.0);
+        auto penalty = penalty_ * power(localDegree_, 2);
 
         const auto& rule = *rule_;
         using FVdimworld = FieldVector<Field, GV::Grid::dimensionworld>;
@@ -271,8 +272,8 @@ namespace HPDG {
         const auto edgeLength = edgeGeometry.volume();
 
         // store gradients
-        std::vector<FVdimworld> insideGradients(std::pow(localDegree_+1, 2));
-        std::vector<Dune::FieldVector<double, 1>> insideValues(std::pow(localDegree_+1, 2));
+        std::vector<FVdimworld> insideGradients(power(localDegree_+1, 2));
+        std::vector<Dune::FieldVector<double, 1>> insideValues(power(localDegree_+1, 2));
 
         const auto outerNormal = edge.centerUnitOuterNormal();
 
@@ -381,7 +382,7 @@ namespace HPDG {
         auto deg = edgeMatrices.values.N() -1;
 
         using Value = FieldVector<double, 1>;
-        std::vector<Value> vals(std::pow(deg+1, dim), 0.);
+        std::vector<Value> vals(power(deg+1, dim), 0.);
 
         for(size_t i = 0; i < deg+1; i++) {
           switch(edgeNumber) {
@@ -409,7 +410,7 @@ namespace HPDG {
         auto deg = edgeMatrices.values.N() -1;
 
         using Gradient = FieldVector<double, dim>;
-        std::vector<Gradient> referenceGradients(std::pow(deg+1, dim));
+        std::vector<Gradient> referenceGradients(power(deg+1, dim));
 
 
         /* the size of the underlying rules for the fullMatrixpair and the edgeMatrices might differ.
