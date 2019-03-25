@@ -176,6 +176,16 @@ namespace Impl {
     }
 
     virtual void preprocess() {
+      // update fine matrix
+      data_.systemMatrix.back() = std::const_pointer_cast<Matrix>(this->mat_);
+
+      /* if fine matrix was changed, the `apply` part of the level operations
+       * on the finest level needs to be updated. Unfortunately, the level ops are not exposed,
+       * therefore we have to reset the all of them via this setup tool:
+       */
+      multigrid_.levelOperations(setupLevelOps(data_));
+
+      // recalculate matrix hierarchy
       HPDG::MultigridSetup::renewMatrixHierachy(data_);
     }
 
