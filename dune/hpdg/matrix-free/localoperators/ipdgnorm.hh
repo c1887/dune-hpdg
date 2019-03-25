@@ -3,6 +3,7 @@
 #ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_FACE_NORM_HH
 #define DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_FACE_NORM_HH
 #include <dune/common/fmatrix.hh>
+#include <dune/common/math.hh>
 
 #include <dune/istl/matrix.hh>
 
@@ -120,7 +121,7 @@ namespace MatrixFree {
 
           auto maxOrder = std::max(insideFE.localBasis().order(), outsideFE.localBasis().order());
 
-          auto penalty = penalty_ * std::pow(maxOrder, 2.0);
+          auto penalty = penalty_ * power(maxOrder, 2);
 
           auto quadKey = QuadratureRuleKey(is.type(), maxOrder).square();
           auto quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);

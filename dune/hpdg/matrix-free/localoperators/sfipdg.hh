@@ -2,6 +2,7 @@
 // vi: set et ts=4 sw=2 sts=2
 #pragma once
 #include <dune/common/fmatrix.hh>
+#include <dune/common/math.hh>
 
 #include <dune/istl/matrix.hh>
 
@@ -220,7 +221,7 @@ namespace MatrixFree {
             const auto* outsideCoeffs = &(inputBackend(outerView_.index(0)));
 
             // penalty= sigma p^2 / |e|
-            auto penalty = penalty_*std::pow(std::max(localDegree_, outerLocalDegree_), 2)
+            auto penalty = penalty_*power(std::max(localDegree_, outerLocalDegree_), 2)
               /is.geometry().volume();
             auto outerNormal = is.centerUnitOuterNormal();
 
@@ -333,7 +334,7 @@ namespace MatrixFree {
         auto innerIdx = is.indexInInside();
 
         // penalty= sigma p^2 / |e|
-        auto penalty = penalty_*std::pow(localDegree_, 2)
+        auto penalty = penalty_*power(localDegree_, 2)
           /is.geometry().volume();
         auto outerNormal = is.centerUnitOuterNormal();
 

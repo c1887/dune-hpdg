@@ -2,6 +2,7 @@
 #define DUNE_HPDG_DG_TO_DG_GRID_TRANSFER_ASSEMBLER_HH
 
 #include <type_traits>
+#include <dune/common/math.hh>
 #include <dune/istl/matrixindexset.hh>
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
 #include <dune/fufem/assemblers/istlbackend.hh>
@@ -183,7 +184,7 @@ namespace Dune {
 
       /* Setup indices */
       {
-        const int blockSize = (int) std::pow(k+1, (int)GridType::dimension);
+        const int blockSize = power(k+1, static_cast<int>(GridType::dimension));
         std::vector<Dune::MatrixIndexSet> indicesVector(maxLevel-0);
         for (int i =0; i<maxLevel; i++)
           indicesVector[i].resize(multiLevelBasis.size(i+1), multiLevelBasis.size(i));

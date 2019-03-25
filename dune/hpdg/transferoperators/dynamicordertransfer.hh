@@ -5,6 +5,7 @@
 #include <dune/istl/matrixindexset.hh>
 #include <dune/common/fmatrix.hh>
 #include <dune/common/bitsetvector.hh>
+#include <dune/common/math.hh>
 #include <dune/istl/bdmatrix.hh>
 #include <dune/istl/scaledidmatrix.hh>
 
@@ -99,10 +100,10 @@ namespace Impl {
 
   int blockSizeToOrder(const size_t& blockSize, int dim) {
     auto val = std::pow(blockSize, 1.0/dim);
-    return (int) val-1;
+    return static_cast<int>(val-1);
   }
   size_t orderToBlockSize(const int& order, int dim) {
-    return (size_t) std::pow(order+1, dim);
+    return static_cast<size_t>(power(order+1, dim));
   }
 
 

@@ -1,6 +1,7 @@
 #ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_PREC_BLOCK_PROJECTED_JACOBI_HH
 #define DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_PREC_BLOCK_PROJECTED_JACOBI_HH
 #include <dune/common/fmatrix.hh>
+#include <dune/common/math.hh>
 
 #include <dune/istl/matrix.hh>
 
@@ -83,7 +84,7 @@ namespace MatrixFree {
             lv.bind(edge.outside());
             order = std::max(order, lv.tree().finiteElement().localBasis().order());
           }
-          auto penalty = penalty_ * std::pow(order, 2.0);
+          auto penalty = penalty_ * power(order, 2);
 
           using FVdimworld = FieldVector<Field, GV::Grid::dimensionworld>;
 

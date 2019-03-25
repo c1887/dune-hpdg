@@ -5,6 +5,7 @@
 
 #include <array>
 #include <dune/common/exceptions.hh>
+#include <dune/common/math.hh>
 
 #include <dune/functions/functionspacebases/nodes.hh>
 #include <dune/functions/functionspacebases/defaultglobalbasis.hh>
@@ -140,7 +141,7 @@ public:
     if (prefix.size() == 0)
       return size();
     else if (prefix.size() == 1)
-      return static_cast<size_type>(std::pow(degreeMap_.at(prefix[0])+1, dim));
+      return static_cast<size_type>(power(degreeMap_.at(prefix[0])+1, dim));
     else
       return 0;
   }
@@ -150,7 +151,7 @@ public:
   {
     size_type count = 0;
     for (const auto& e: degreeMap_)
-      count += std::pow(e+1, dim);
+      count += power(e+1, dim);
     return count;
   }
 
@@ -160,7 +161,7 @@ public:
     auto m = *std::max_element(std::begin(degreeMap_), std::end(degreeMap_));
 
     // return tensor-product size
-    return std::pow((size_type)m+1, dim);
+    return power((size_type)m+1, dim);
   }
 
   template<typename Element>

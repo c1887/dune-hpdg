@@ -3,6 +3,7 @@
 #ifndef DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_BLOCK_JACOBI_HH
 #define DUNE_FUFEM_MATRIX_FREE_LOCAL_IPDG_BLOCK_JACOBI_HH
 #include <dune/common/fmatrix.hh>
+#include <dune/common/math.hh>
 
 #include <dune/istl/matrix.hh>
 
@@ -120,7 +121,7 @@ namespace HPDG {
           // Even though we do not use the outer edge, we still have to find modify the
           // penalty parameter accordingly to the higher degree to reassemble the same matrix
           // blocks as for the actual assembled matrix:
-          auto penalty = penalty_ * std::pow(order, 2.0);
+          auto penalty = penalty_ * power(order, 2);
 
           using FVdimworld = FieldVector<Field, GV::Grid::dimensionworld>;
 
