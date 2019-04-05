@@ -1,6 +1,4 @@
-#if HAVE_CONFIG
 #include "config.h"
-#endif
 
 #include <dune/common/parallel/mpihelper.hh>
 
