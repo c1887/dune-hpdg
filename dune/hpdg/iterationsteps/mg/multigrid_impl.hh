@@ -75,10 +75,10 @@ void Multigrid<Vector>::applySmoother(State& state,
 
   for (unsigned i = 0; i < steps; ++i) {
     smoother(state.tmp1, r);
+    x += state.tmp1;
+    op.apply(state.tmp2, state.tmp1);
+    r -= state.tmp2;
   }
-  x += state.tmp1;
-  op.apply(state.tmp2, state.tmp1);
-  r -= state.tmp2;
 }
 
 template<typename Vector>
