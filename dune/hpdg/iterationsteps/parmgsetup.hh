@@ -36,6 +36,8 @@ namespace MultigridSetup {
     // transfer operators that transfer between grid levels (for piecewise linear DG!)
     std::vector<std::shared_ptr<GridTransfer>> gridTransfer;
 
+    std::vector<std::shared_ptr<ParMG::CommHPDG>> comms;
+
   };
 
 namespace Impl {
@@ -149,6 +151,21 @@ namespace Impl {
     return ops;
   }
 
+  template<typename Grid>
+  auto setupComms(const Grid& grid) {
+    std::vector<std::shared_ptr<ParMG::CommHPDG>> comms(grid.maxLevel()+1);
+    for (int i = 0; i <= grid.maxLevel(); ++i) {
+      // TODO ohne basis
+      using Basis = Functions::DynamicDGQkGLBlockBasis<typename Grid::LevelGridView>;
+      Basis basis(grid.levelGridView(i));
+      using T = FieldVector<double, 1>;
+      //comms[i] = std::make_shared<ParMG::CommHPDG>(*ParMG::makeInterface<T>(basis));
+      comms[i] = ParMG::makeInterface<T>(basis);
+    }
+
+    return comms;
+  }
+
   template<typename Vector, int dim>
   void renewMatrixHierachy(MultigridData<Vector, dim>& data) {
     auto transfer = Impl::TransferOperators<Vector, dim>(&data);
@@ -203,8 +220,13 @@ namespace Impl {
 
     Matrix& mut_matrix = const_cast<Matrix&>(matrix);
     mg->multigridData() = setupData<Vector>(grid, maximalDegree, mut_matrix);
-    
+    mg->multigridData().comms = setupComms(grid);
+
     auto ops = setupLevelOps(mg->multigridData());
+    // set comms in the level transfers:
+    for(std::size_t i = 0; i < grid.maxLevel(); i++) {
+      ops[i].restrictToMaster = ParMG::makeDGRestrict<Vector>(*(mg->multigridData().comms[i]));
+    }
 
     mg->multigrid().levelOperations(ops);
 

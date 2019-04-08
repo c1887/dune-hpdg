@@ -3,8 +3,9 @@
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 
 #include <dune/parmg/parallel/communicationp1.hh>
-#include <dune/parmg/parallel/communicationdg.hh>
+//#include <dune/parmg/parallel/communicationdg.hh>
 #include <dune/common/parallel/variablesizecommunicator.hh>
+#include <dune/common/std/optional.hh>
 
 namespace Dune {
 namespace ParMG {
@@ -136,10 +137,10 @@ makeGlobalDofHPDG(const Basis& basis)
     localView.unbind();
   }
 
-  auto handleOwner = GlobalDofDGDataHandle<Basis, decltype(owner)>(basis, rank, owner, &owner);
+  auto handleOwner = GlobalDofHPDGDataHandle<Basis, decltype(owner)>(basis, rank, owner, &owner);
   gridView.communicate(handleOwner, InteriorBorder_All_Interface, ForwardCommunication);
 
-  auto handleDof = GlobalDofDGDataHandle<Basis, decltype(globalDof)>(basis, rank, owner, &globalDof);
+  auto handleDof = GlobalDofHPDGDataHandle<Basis, decltype(globalDof)>(basis, rank, owner, &globalDof);
   gridView.communicate(handleDof, InteriorBorder_All_Interface, ForwardCommunication);
 
 
@@ -153,19 +154,19 @@ class CommHPDG :
     public:
 
       Interface v_interface_;
-      Dune::VariableSizeCommunicator<> v_communicator_;
+      Std::optional<Dune::VariableSizeCommunicator<>> v_communicator_;
 
       Interface v_interfaceAny_;
-      Dune::VariableSizeCommunicator<> v_communicatorAny_;
+      Std::optional<Dune::VariableSizeCommunicator<>> v_communicatorAny_;
 };
 
 template<typename T, typename GridView>
-std::unique_ptr<Comm>
+std::unique_ptr<CommHPDG>
 makeInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
 {
   const auto& gridView = basis.gridView();
 
-  auto p = Impl::makeGlobalDofDG(basis);
+  auto p = Impl::makeGlobalDofHPDG(basis);
   const auto& owner = p.second;
   const auto& globalDof = p.first;
 
@@ -296,7 +297,7 @@ auto makeDGAccumulate(CommHPDG& comm)
 {
   return [&comm](Vector& v) {
     auto handle = Impl::DGAddGatherScatter<Vector> (&v);
-    comm.v_communicatorAny_.forward(handle);
+    (*comm.v_communicatorAny_).forward(handle);
     //comm.communicatorAny_.backward< Impl::AddGatherScatter<Vector> >(v);
   };
 }
@@ -307,7 +308,7 @@ auto makeDGCollect(CommHPDG& comm)
   auto restrict = makeDGRestrict<Vector>(comm);
   return [&comm, restrict](Vector& v) {
     auto handle = Impl::DGAddGatherScatter<Vector> (&v);
-    comm.v_communicator_.backward(handle);
+    (*comm.v_communicator_).backward(handle);
     restrict(v);
   };
 }
@@ -318,7 +319,7 @@ auto makeDGCopy(CommHPDG& comm)
   return [&comm](Vector& v) {
 
     auto handle = Impl::DGCopyGatherScatter<Vector>(&v);
-    comm.v_communicator_.forward(handle);
+    (*comm.v_communicator_).forward(handle);
   };
 }
 
