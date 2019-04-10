@@ -145,7 +145,7 @@ namespace Impl {
       using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector>;
       auto smoother = std::make_shared<Smoother>(); // no memory leak because shared_ptrs will be copied
       smoother->setMatrix(*matrices[l]);
-      ops[l].preSmoother = ops[l].postSmoother = smootherFromIterationStep2<Vector>(smoother);
+      ops[l].preSmoother = ops[l].postSmoother = smootherFromSolversIterationStep<Vector>(smoother);
     }
 
     return ops;
@@ -160,7 +160,7 @@ namespace Impl {
       Basis basis(grid.levelGridView(i));
       using T = FieldVector<double, 1>;
       //comms[i] = std::make_shared<ParMG::CommHPDG>(*ParMG::makeInterface<T>(basis));
-      comms[i] = ParMG::makeInterface<T>(basis);
+      comms[i] = ParMG::makeDGInterface<T>(basis);
     }
 
     return comms;
@@ -202,7 +202,22 @@ namespace Impl {
        * on the finest level needs to be updated. Unfortunately, the level ops are not exposed,
        * therefore we have to reset the all of them via this setup tool:
        */
-      multigrid_.levelOperations(setupLevelOps(data_));
+
+      auto ops= setupLevelOps(data_);
+      auto n_levels = data_.gridTransfer.size()+1;
+      for(std::size_t i = 0; i < n_levels; i++) {
+        ops[i].restrictToMaster = ParMG::makeDGRestrict<Vector>(*(data_.comms[i]));
+        ops[i].accumulate = ParMG::makeDGAccumulate<Vector>(*(data_.comms[i]));
+        ops[i].collect = ParMG::makeDGCollect<Vector>(*(data_.comms[i]));
+        ops[i].copyFromMaster = ParMG::makeDGCopy<Vector>(*(data_.comms[i]));
+      }
+      for(std::size_t i = n_levels; i< ops.size(); ++i) {
+        ops[i].restrictToMaster = ParMG::makeDGRestrict<Vector>(*(data_.comms.back()));
+        ops[i].accumulate = ParMG::makeDGAccumulate<Vector>(*(data_.comms.back()));
+        ops[i].collect = ParMG::makeDGCollect<Vector>(*(data_.comms.back()));
+        ops[i].copyFromMaster = ParMG::makeDGCopy<Vector>(*(data_.comms.back()));
+      }
+      multigrid_.levelOperations(ops);
 
       // recalculate matrix hierarchy
       HPDG::MultigridSetup::renewMatrixHierachy(data_);
@@ -223,21 +238,48 @@ namespace Impl {
     mg->multigridData().comms = setupComms(grid);
 
     auto ops = setupLevelOps(mg->multigridData());
+
     // set comms in the level transfers:
     for(std::size_t i = 0; i < grid.maxLevel(); i++) {
       ops[i].restrictToMaster = ParMG::makeDGRestrict<Vector>(*(mg->multigridData().comms[i]));
+      ops[i].accumulate = ParMG::makeDGAccumulate<Vector>(*(mg->multigridData().comms[i]));
+      ops[i].collect = ParMG::makeDGCollect<Vector>(*(mg->multigridData().comms[i]));
+      ops[i].copyFromMaster = ParMG::makeDGCopy<Vector>(*(mg->multigridData().comms[i]));
+    }
+    // and for the rest
+    for(std::size_t i = grid.maxLevel(); i< ops.size(); ++i) {
+      ops[i].restrictToMaster = ParMG::makeDGRestrict<Vector>(*(mg->multigridData().comms.back()));
+      ops[i].accumulate = ParMG::makeDGAccumulate<Vector>(*(mg->multigridData().comms.back()));
+      ops[i].collect = ParMG::makeDGCollect<Vector>(*(mg->multigridData().comms.back()));
+      ops[i].copyFromMaster = ParMG::makeDGCopy<Vector>(*(mg->multigridData().comms.back()));
     }
 
     mg->multigrid().levelOperations(ops);
 
     // GS coarse solver
-    auto coarse_matrix_ptr = mg->multigridData().systemMatrix.front();
-    auto coarse_solver = [coarse_matrix_ptr, coarseIterations](auto& x, const auto& b, bool, const auto&) {
+    auto coarse_solver = [mg, coarseIterations](auto& x, const auto& b, bool, const auto&) {
+      const auto& op = mg->multigrid().levelOperations().front();
+      auto coarse_matrix_ptr = mg->multigridData().systemMatrix.front();
       using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector>;
       auto smoother = std::make_shared<Smoother>();
-      smoother->setProblem(*coarse_matrix_ptr, x, b);
-      for (int i= 0; i < coarseIterations;i++)
+
+      auto x_iter = x;
+      x_iter =0.;
+
+      auto r = b;
+
+      smoother->setProblem(*coarse_matrix_ptr, x_iter, r);
+
+      auto tmp = x;
+
+      for (int i= 0; i < coarseIterations;i++) {
         smoother->iterate();
+        op.maybeCopyFromMaster(x_iter);
+        x+=x_iter;
+        coarse_matrix_ptr->mv(x_iter, tmp);
+        op.maybeRestrictToMaster(tmp);
+        r-=tmp;
+      }
     };
     mg->multigrid().coarseSolver(coarse_solver);
 

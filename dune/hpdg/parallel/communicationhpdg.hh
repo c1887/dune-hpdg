@@ -81,7 +81,7 @@ struct GlobalDofHPDGDataHandle
     {
       m_localView.bind(element);
 
-      assert(n == m_localView.size());
+      //assert(n == m_localView.size());
 
       typename Container::value_type tmp;
       const auto index = m_localView.index(0)[0];
@@ -153,16 +153,17 @@ class CommHPDG :
   public Comm {
     public:
 
-      Interface v_interface_;
+      //Interface v_interface_;
       Std::optional<Dune::VariableSizeCommunicator<>> v_communicator_;
 
-      Interface v_interfaceAny_;
+      //Interface v_interfaceAny_;
       Std::optional<Dune::VariableSizeCommunicator<>> v_communicatorAny_;
+
 };
 
 template<typename T, typename GridView>
 std::unique_ptr<CommHPDG>
-makeInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
+makeDGInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
 {
   const auto& gridView = basis.gridView();
 
@@ -195,11 +196,11 @@ makeInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
   comm->interfaceAny_.build(ris, Comm::anyFlag, Comm::anyFlag);
   comm->communicatorAny_.build< std::vector<T> >(comm->interfaceAny_);
 
-  comm->v_interface_.build(ris, Comm::ownerFlag, Comm::overlapFlag);
-  comm->v_communicator_=Dune::VariableSizeCommunicator<>(comm->v_interface_);
+  //comm->v_interface_.build(ris, Comm::ownerFlag, Comm::overlapFlag);
+  comm->v_communicator_=Dune::VariableSizeCommunicator<>(comm->interface_);
 
-  comm->v_interfaceAny_.build(ris, Comm::anyFlag, Comm::anyFlag);
-  comm->v_communicatorAny_=Dune::VariableSizeCommunicator<>(comm->v_interfaceAny_);
+  //comm->v_interfaceAny_.build(ris, Comm::anyFlag, Comm::anyFlag);
+  comm->v_communicatorAny_=Dune::VariableSizeCommunicator<>(comm->interfaceAny_);
 
   return comm;
 }
@@ -207,12 +208,13 @@ makeInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
 namespace Impl {
   template<typename Vector>
     struct DGAddGatherScatter {
+      using DataType = typename Vector::value_type;
       Vector* v;
 
       DGAddGatherScatter(Vector* vec) :
         v(vec) {}
 
-      constexpr bool fixedSize() const {
+      constexpr bool fixedsize() const {
         return false;
       }
 
@@ -223,7 +225,7 @@ namespace Impl {
       template<class B>
       void gather(B& buffer, std::size_t idx)
       {
-        const auto& entry = v[idx];
+        const auto& entry = (*v)[idx];
         for(std::size_t i = 0; i < entry.size(); ++i) {
           buffer.write(entry[i]);
         }
@@ -244,23 +246,24 @@ namespace Impl {
 
   template<typename Vector>
     struct DGCopyGatherScatter {
+      using DataType = typename Vector::value_type;
       Vector* v;
 
       DGCopyGatherScatter(Vector* vec) :
         v(vec) {}
 
-      constexpr bool fixedSize() const {
+      constexpr bool fixedsize() const {
         return false;
       }
 
-      std::size_t size(std::size_t i) {
+      std::size_t size(std::size_t i) const {
         return (*v)[i].size();
       }
 
       template<class B>
       void gather(B& buffer, std::size_t idx)
       {
-        const auto& entry = v[idx];
+        const auto& entry = (*v)[idx];
         for(std::size_t i = 0; i < entry.size(); ++i) {
           buffer.write(entry[i]);
         }
@@ -269,7 +272,7 @@ namespace Impl {
       template<class B>
       void scatter(B& buffer, std::size_t idx, std::size_t size)
       {
-        assert(size == v[idx].size());
+        assert(size == (*v)[idx].size());
         auto& entry = (*v)[idx];
         for(std::size_t i = 0; i < size; i++) {
           buffer.read(entry[i]);
