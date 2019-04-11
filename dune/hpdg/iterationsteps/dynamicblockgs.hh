@@ -46,8 +46,9 @@ namespace Dune {
           if (m.exists(i,i)) {
             diag = &(m[i][i]);
           }
-          else
-            DUNE_THROW(Dune::Exception, "Pointer is null");
+          else {
+            DUNE_THROW(Dune::Exception, "Diagonal block (" << i <<", " <<i <<") is null");
+          }
 
           // Update iterate with correction
           auto corr = gs(*diag, ri);
