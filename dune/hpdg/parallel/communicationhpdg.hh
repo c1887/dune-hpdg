@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 
 #include <dune/parmg/parallel/communicationp1.hh>
@@ -11,31 +12,117 @@ namespace Dune {
 namespace ParMG {
 
 namespace Impl {
+namespace HPDG {
+  // pendant to the Multilevelbasis just for the leafview
+  template<class GridType>
+  class LeafBasis {
+    public:
+    using Grid=GridType;
 
-template<typename Basis>
-std::size_t
-countOwnedElements(const Basis& basis)
-{
-  std::size_t n = 0;
+    LeafBasis(const Grid& grid):
+      grid_(grid)
+    {
+      const auto& idxset = grid_.leafIndexSet();
+      for(const auto& element : elements(grid_.leafGridView())) {
+        auto i = idxset.index(element);
+        idToIndex_[i] = {i, element.partitionType() == Dune::InteriorEntity};
+      }
+    }
 
-  for (auto&& element : elements(basis.gridView())) {
-    if (element.partitionType() != InteriorEntity)
-      continue;
-    n++;
+    template<class Index>
+    std::size_t size(Index) const {return grid_.leafGridView().size(0);}
 
-  }
+    template<class Index>
+    std::size_t interiorElements(Index) const
+    {
+      std::size_t sum=0;
+      for(const auto& element : elements(grid_.leafGridView())) {
+        if(element.partitionType() == Dune::InteriorEntity)
+          sum++;
+      }
+      return sum;
+    }
+    /** \brief Get index of an element on a given level */
+    template<class E, class Index>
+    std::size_t index(const E& element, const Index) const {
+      return grid_.leafIndexSet().index(element);
+    }
 
-  return n;
+    const auto& idToIndex(std::size_t) const {
+      return idToIndex_;
+    }
+
+    auto gridView(int) const {
+      return grid_.leafGridView();
+    }
+
+    private:
+    const GridType& grid_;
+    std::map<std::size_t, std::pair<std::size_t, char>> idToIndex_; // TODO This does not really need to be a map
+  };
+  
+  // pendant to the Multilevelbasis just for the leafview
+  template<class GridType>
+  class LevelBasis {
+    public:
+    using Grid=GridType;
+
+    LevelBasis(const Grid& grid, int l):
+      grid_(grid),
+      level_(l)
+    {
+      auto gv = grid_.levelGridView(l);
+      const auto& idxset = grid_.levelIndexSet(l);
+      for(const auto& element : elements(gv)) {
+        auto i = idxset.index(element);
+        idToIndex_[i] = {i, element.partitionType() == Dune::InteriorEntity};
+      }
+    }
+
+    template<class Index>
+    auto size(Index idx) const {return grid_.levelGridView(idx).size(0);}
+
+    template<class Index>
+    std::size_t interiorElements(Index idx) const
+    {
+      std::size_t sum=0;
+      for(const auto& element : elements(grid_.levelGridView(idx))) {
+        if(element.partitionType() == Dune::InteriorEntity)
+          sum++;
+      }
+      return sum;
+    }
+    /** \brief Get index of an element on a given level */
+    template<class E, class Index>
+    auto index(const E& element, const Index idx) const {
+      return grid_.levelIndexSet(idx).index(element);
+    }
+
+    // TODO. das ist nicht so gut, dass das dann doch am member haengt
+    const auto& idToIndex(std::size_t) const {
+      return idToIndex_;
+    }
+
+    auto gridView(int idx) const {
+      return grid_.levelGridView(idx);
+    }
+
+    private:
+    const GridType& grid_;
+    int level_;
+    std::map<std::size_t, std::pair<std::size_t, char>> idToIndex_; // TODO This does not really need to be a map
+  };
 }
 
 template<typename Basis, typename Container>
 struct GlobalDofHPDGDataHandle
   : CommDataHandleIF< GlobalDofHPDGDataHandle<Basis, Container>, typename Container::value_type >
 {
-  using Element = typename Basis::GridView::Grid::template Codim<0>::Entity;
+  using Element = typename Basis::Grid::template Codim<0>::Entity;
 
-  GlobalDofHPDGDataHandle(const Basis& basis, int rank, const std::vector<int>& owner, Container* data)
-    : m_localView(basis.localView())
+  GlobalDofHPDGDataHandle(const Basis& basis, int level, int rank, const std::vector<int>& owner, Container* data)
+    : m_basis(basis)
+    , m_level(level)
     , m_rank(rank)
     , m_owner(owner)
     , m_data(data)
@@ -64,12 +151,8 @@ struct GlobalDofHPDGDataHandle
   template<class Buffer, class Entity>
   void gather(Buffer& buffer, const Entity& element, std::enable_if_t<Entity::codimension == 0, void*> = nullptr) const
     {
-      m_localView.bind(element);
-
-      const auto index = m_localView.index(0)[0];
+      const auto index = m_basis.index(element, m_level);
       buffer.write(data()[index]);
-
-      m_localView.unbind();
     }
 
   template<class Buffer, class Entity>
@@ -79,12 +162,17 @@ struct GlobalDofHPDGDataHandle
   template<class Buffer, class Entity>
   void scatter(Buffer& buffer, const Entity& element, std::size_t n, std::enable_if_t<Entity::codimension == 0, void*> = nullptr)
     {
-      m_localView.bind(element);
-
-      //assert(n == m_localView.size());
-
       typename Container::value_type tmp;
-      const auto index = m_localView.index(0)[0];
+      const auto index = m_basis.index(element, m_level);
+
+      {
+        if(element.partitionType() == Dune::InteriorEntity) {
+          assert(m_basis.index(element, m_level) == m_basis.gridView(m_level).indexSet().index(element));
+        }
+        else {
+          assert(m_owner[index] != m_rank);
+        }
+      }
       buffer.read(tmp);
       if (m_owner[index] != m_rank) {
         /* TODO: Is this necessary here? */
@@ -92,12 +180,12 @@ struct GlobalDofHPDGDataHandle
         auto& value = data()[index];
         value = max(value, tmp);
       }
-
-      m_localView.unbind();
     }
 
 private:
-  mutable typename Basis::LocalView m_localView;
+  //mutable typename Basis::LocalView m_localView;
+  const Basis& m_basis;
+  int m_level;
   int m_rank;
   std::vector<int> const& m_owner;
   Container* m_data;
@@ -109,22 +197,31 @@ private:
     { return *m_data; }
 };
 
-template<typename Basis>
-std::pair< std::vector<std::size_t>, std::vector<int> >
-makeGlobalDofHPDG(const Basis& basis)
+template<typename MLBasis>
+std::pair< std::vector<int>, std::vector<int> >
+makeGlobalDofHPDG(const MLBasis& basis, int level)
 {
-  const auto& gridView = basis.gridView();
+  const auto& gridView = basis.gridView(level);
 
   const int rank = gridView.comm().rank();
-  const std::size_t n = Impl::countOwnedElements(basis);
+  const std::size_t n = basis.interiorElements(level);
   const std::size_t offset = parititonedSequenceLocal(gridView.comm(), n).localOffset;
 
-  std::vector<std::size_t> globalDof(basis.size());
-  std::vector<int> owner(basis.size(), -1);
+  std::vector<int> globalDof(basis.size(level), -1);
+  std::vector<int> owner(basis.size(level), -1);
 
-  auto localView = basis.localView();
+  //auto localView = basis.localView();
   std::size_t i = offset;
 
+  for (auto&& element : basis.idToIndex(level)) {
+    if(element.second.second) {
+      auto idx = element.second.first;
+      globalDof[idx]= i++;
+      owner[idx] = rank;
+    }
+  }
+
+  /*
   for (auto&& element : elements(gridView)) {
     if (element.partitionType() != InteriorEntity)
       continue;
@@ -136,11 +233,12 @@ makeGlobalDofHPDG(const Basis& basis)
 
     localView.unbind();
   }
+  */
 
-  auto handleOwner = GlobalDofHPDGDataHandle<Basis, decltype(owner)>(basis, rank, owner, &owner);
-  gridView.communicate(handleOwner, InteriorBorder_All_Interface, ForwardCommunication);
+  auto handleOwner = GlobalDofHPDGDataHandle<MLBasis, decltype(owner)>(basis, level, rank, owner, &owner);
+  gridView.communicate(handleOwner, InteriorBorder_All_Interface, ForwardCommunication); // TODO könnte schief gehen
 
-  auto handleDof = GlobalDofHPDGDataHandle<Basis, decltype(globalDof)>(basis, rank, owner, &globalDof);
+  auto handleDof = GlobalDofHPDGDataHandle<MLBasis, decltype(globalDof)>(basis, level, rank, owner, &globalDof);
   gridView.communicate(handleDof, InteriorBorder_All_Interface, ForwardCommunication);
 
 
@@ -161,17 +259,19 @@ class CommHPDG :
 
 };
 
-template<typename T, typename GridView>
+template<typename T, typename MLBasis>
 std::unique_ptr<CommHPDG>
-makeDGInterface(const Functions::DynamicDGQkGLBlockBasis<GridView>& basis)
+makeDGInterface(const MLBasis& basis, int level)
 {
-  const auto& gridView = basis.gridView();
+  const auto& gridView = basis.gridView(level);
 
-  auto p = Impl::makeGlobalDofHPDG(basis);
+  auto p = Impl::makeGlobalDofHPDG(basis, level);
   const auto& owner = p.second;
+
   const auto& globalDof = p.first;
 
   std::cout << "globalDof.size() == " << globalDof.size() << "\n";
+  std::cout << " (gridview("<<level<<"): " << gridView.size(0) << ")\n";
 
   const auto flag = [rank = gridView.comm().rank(), &owner](auto idx) {
     return owner[idx] == rank ? Comm::Flags::owner : Comm::Flags::overlap;
@@ -234,7 +334,7 @@ namespace Impl {
       template<class B>
       void scatter(B& buffer, std::size_t idx, std::size_t size)
       {
-        assert(size == v[idx].size());
+        assert(size == (*v)[idx].size());
         auto& entry = (*v)[idx];
         auto tmp = typename Vector::value_type();
         for(std::size_t i = 0; i < size; i++) {
@@ -247,8 +347,7 @@ namespace Impl {
   template<typename Vector>
     struct DGCopyGatherScatter {
       using DataType = typename Vector::value_type;
-      Vector* v;
-
+      Vector* v; 
       DGCopyGatherScatter(Vector* vec) :
         v(vec) {}
 
@@ -272,7 +371,11 @@ namespace Impl {
       template<class B>
       void scatter(B& buffer, std::size_t idx, std::size_t size)
       {
+        // DEBUG
+        if (size!= (*v)[idx].size())
+          std::cout << "got " << size << " instead of " << (*v)[idx].size() << "\n";
         assert(size == (*v)[idx].size());
+        // END DEBUG
         auto& entry = (*v)[idx];
         for(std::size_t i = 0; i < size; i++) {
           buffer.read(entry[i]);
