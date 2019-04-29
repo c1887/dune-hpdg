@@ -197,6 +197,94 @@ private:
     { return *m_data; }
 };
 
+template<typename Basis, typename Container>
+struct LeafDofHPDGDataHandle
+  : CommDataHandleIF< LeafDofHPDGDataHandle<Basis, Container>, typename Container::value_type >
+{
+  using Element = typename Basis::Grid::template Codim<0>::Entity;
+
+  LeafDofHPDGDataHandle(const Basis& basis, int level, int rank, const std::vector<int>& owner, Container* data)
+    : m_basis(basis)
+    , m_level(level)
+    , m_rank(rank)
+    , m_owner(owner)
+    , m_data(data)
+    { /* Nothing */ }
+
+  bool contains(int, int codim) const
+    { return codim == 0; }
+
+  bool fixedsize(int, int codim) const
+    { return codim != 0; }
+
+  template< class Entity>
+  std::size_t size(const Entity&, std::enable_if_t<Entity::codimension != 0, void*> = nullptr) const
+    { return 0; }
+
+  template< class Entity>
+  std::size_t size(const Entity& e, std::enable_if_t<Entity::codimension == 0, void*> = nullptr) const
+    {
+      return (e.level() < m_level) ? 1 : 0; // we need to send data if this is a leaf node coarser than the given level
+    }
+
+  template<class Buffer, class Entity>
+  void gather(Buffer&, const Entity&, std::enable_if_t<Entity::codimension != 0, void*> = nullptr) const
+    { /* Nothing. */ }
+
+  template<class Buffer, class Entity>
+  void gather(Buffer& buffer, const Entity& element, std::enable_if_t<Entity::codimension == 0, void*> = nullptr) const
+    {
+      if(element.level() < m_level) {
+        const auto index = m_basis.index(element, m_level);
+        buffer.write(data()[index]);
+      }
+    }
+
+  template<class Buffer, class Entity>
+  void scatter(Buffer&, const Entity&, std::size_t, std::enable_if_t<Entity::codimension != 0, void*> = nullptr)
+    { /* Nothing. */ }
+
+  template<class Buffer, class Entity>
+  void scatter(Buffer& buffer, const Entity& element, std::size_t n, std::enable_if_t<Entity::codimension == 0, void*> = nullptr)
+    {
+      if (n==0)
+        return;
+
+      typename Container::value_type tmp;
+      const auto index = m_basis.index(element, m_level);
+
+      {
+        if(element.partitionType() == Dune::InteriorEntity) {
+          assert(m_basis.index(element, m_level) == m_basis.gridView(m_level).indexSet().index(element));
+        }
+        else {
+          assert(m_owner[index] != m_rank);
+        }
+      }
+      buffer.read(tmp);
+      if (m_owner[index] != m_rank) {
+        /* TODO: Is this necessary here? */
+        using std::max;
+        auto& value = data()[index];
+        value = max(value, tmp);
+      }
+    }
+
+private:
+  //mutable typename Basis::LocalView m_localView;
+  const Basis& m_basis;
+  int m_level;
+  int m_rank;
+  std::vector<int> const& m_owner;
+  Container* m_data;
+
+  Container& data()
+    { return *m_data; }
+
+  Container const& data() const
+    { return *m_data; }
+};
+
 template<typename MLBasis>
 std::pair< std::vector<int>, std::vector<int> >
 makeGlobalDofHPDG(const MLBasis& basis, int level)
@@ -241,6 +329,13 @@ makeGlobalDofHPDG(const MLBasis& basis, int level)
   auto handleDof = GlobalDofHPDGDataHandle<MLBasis, decltype(globalDof)>(basis, level, rank, owner, &globalDof);
   gridView.communicate(handleDof, InteriorBorder_All_Interface, ForwardCommunication);
 
+  // also handle those dofs, that are part of the partition of Omega on the given level. The ones in the levelgridview have been handled above, but there might be objects left which live on a coarser level.
+
+  if (level>0) {
+    auto handleLeaf = LeafDofHPDGDataHandle<MLBasis, decltype(globalDof)>(basis, level, rank, owner, &globalDof);
+    auto leaf_gv = gridView.grid().leafGridView();
+    leaf_gv.communicate(handleLeaf, InteriorBorder_All_Interface, ForwardCommunication);
+  }
 
   return {std::move(globalDof), std::move(owner)};
 }
