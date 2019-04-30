@@ -28,12 +28,41 @@ namespace Dune {
         ghosts_(ghosts)
       {}
 
+      void preprocess() {
+        ghostRegularization_ = makeDynamicBlockVector(*this->mat_);
+        ghostRegularization_ = 0.;
+
+        assert(ghostRegularization_.size() == this->mat_->M());
+        const auto& m = *this->mat_;
+
+        for(auto&& ghostIdx : ghosts_) {
+          // search through ghost row to find the adjacent elements
+          const auto& mg = m[ghostIdx];
+          for(auto it = mg.begin(); it!=mg.end(); ++it) {
+
+            // we found a row, now store the l1 norm of the row-ghost block
+            auto row = it.index();
+            if (row==ghostIdx)
+              continue;
+            const auto& ghostBlock = m[row][ghostIdx];
+            auto& dii = ghostRegularization_[row];
+            for(std::size_t j = 0; j < ghostBlock.N(); j++) {
+              // add l1-norm of the rows
+              for(const auto& entry: ghostBlock[j]) {
+                dii[j]+=std::abs(entry);
+              }
+            }
+          }
+        }
+      }
+
       void iterate() {
         const auto& m = *this->mat_;
         const auto& b = *this->rhs_;
         auto& x = *this->x_;
         auto r = b;
 
+        assert(ghostRegularization_.size() == this->mat_->M());
         for (size_t i = 0; i < x.size(); ++i) {
           const auto& row_i = m[i];
 
@@ -52,9 +81,6 @@ namespace Dune {
           using MatrixBlock = typename Matrix::block_type;
           const MatrixBlock* diag = nullptr;
 
-          // TODO: More efficient way to copy matrix block
-          auto l1_block = Dune::Matrix<FieldMatrix<double,1,1>>(ri.size(), ri.size());
-
           for (auto cIt = row_i.begin(); cIt != row_i.end(); ++cIt) {
             size_t j = cIt.index();
             cIt->mmv(x[j], ri);
@@ -62,27 +88,13 @@ namespace Dune {
 
           if (m.exists(i,i)) {
             diag = &(m[i][i]);
-            l1_block = *diag;
           }
           else {
             DUNE_THROW(Dune::Exception, "Diagonal block (" << i <<", " <<i <<") is null");
           }
 
-          // TODO: This is O(N^2) !!
-          for(const auto& ghost : ghosts_) {
-            //if (m.exists(i,ghost) && ghost < i) {
-            if (m.exists(i,ghost)) {
-              for (std::size_t l = 0; l < l1_block.N(); ++l) {
-                auto& d = l1_block[l][l];
-                for (const auto& val: row_i[ghost][l]) {
-                  d+=std::abs(val);
-                }
-              }
-            }
-          }
-
           // Update iterate with correction
-          auto corr = gs(l1_block, ri, 0);
+          auto corr = gs(*diag, ri, ghostRegularization_[i], 0);
           //auto corr = gs(*diag, ri, 0);
           auto& xi = x[i];
           for (size_t k = 0; k < corr.size(); k++)
@@ -94,9 +106,13 @@ namespace Dune {
       private:
       static constexpr const double defaultGsTol = 0.0;
       const std::vector<std::size_t>& ghosts_;
+      DynamicBlockVector<FieldVector<double,1>> ghostRegularization_;
 
-      template<class MB, class VB>
-      auto gs(const MB& m, const VB& b, double tol = defaultGsTol) {
+      /** Performs Gauss-Seidel locally where a diagonal
+       * vector d is added onto the matrix diagonal for regularization
+       */
+      template<class MB, class VB, class Regularized>
+      auto gs(const MB& m, const VB& b, const Regularized& d, double tol = defaultGsTol) {
         auto x =b;
         x=0;
         for (size_t i = 0; i < m.N(); ++i) {
@@ -111,11 +127,11 @@ namespace Dune {
             if (j != i)
               x[i] -= (*it) * x[j];
           }
-          x[i] /= mii;
+          x[i] /= (mii+d[i]);
         }
         return x;
       }
     };
   }
 }
-#endif//DUNE_HPDG_ITERATIONSSTEPS_DYNAMIC_BLOCK_GS_HH
+#endif
