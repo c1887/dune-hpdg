@@ -99,9 +99,17 @@ namespace Impl {
   };
 
   int blockSizeToOrder(const size_t& blockSize, int dim) {
-    auto val = std::pow(blockSize, 1.0/dim);
-    return static_cast<int>(val-1);
+    // This is of course kind of redundant, but in fact
+    // both 'blockSize' and 'dim' are typically so small it does
+    // not really matter.
+    for(int i =0; i< blockSize; ++i) {
+      if (power(i+1, dim)==blockSize)
+        return i;
+    }
+    DUNE_THROW(Dune::Exception, "dim-th root not found");
+    return -1;
   }
+
   size_t orderToBlockSize(const int& order, int dim) {
     return static_cast<size_t>(power(order+1, dim));
   }
