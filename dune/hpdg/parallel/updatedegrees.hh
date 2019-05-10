@@ -1,12 +1,20 @@
 #pragma once
 #include <dune/hpdg/parallel/communicationhpdg.hh>
 #include <dune/parmg/parallel/communicationp1.hh>
+#include <dune/hpdg/common/dynamicbvector.hh>
 namespace Dune {
 namespace HPDG {
 
+  // TODO: This looks still very messy.
   template<typename Basis>
   void updateDegrees(Basis& basis, ParMG::CommHPDG& comm) {
-    std::vector<int> degrees(basis.size(),-1);
+    using V = DynamicBlockVector<FieldVector<double,1>>; // for some reason, std::vector did not work on first try. TODO
+    V degrees(basis.size());
+    for(std::size_t i = 0; i < basis.size(); i++) {
+      degrees.blockRows(i) = 1;
+    }
+    degrees.update();
+    degrees = -1.;
     auto lv = basis.localView();
 
     // copy degrees
@@ -15,11 +23,11 @@ namespace HPDG {
       if(element.partitionType() != InteriorEntity)
         continue;
       lv.bind(element);
-      degrees[lv.index(0)[0]] = basis.preBasis().degree(element);
-      assert(degrees[lv.index(0)[0]] >0);
+      degrees[lv.index(0)[0]][0] = (double) basis.preBasis().degree(element);
+      assert(degrees[lv.index(0)[0]][0] >0.);
     }
 
-    auto copy = ParMG::makeCopy<decltype(degrees)>(static_cast<ParMG::Comm&>(comm));
+    auto copy = ParMG::makeDGCopy<decltype(degrees)>(comm);
     // copy from master to the non masters
     copy(degrees);
 
@@ -30,10 +38,8 @@ namespace HPDG {
         continue;
 
       lv.bind(element);
-      basis.preBasis().degree(element)= degrees[lv.index(0)[0]];
-      //assert(degrees[lv.index(0)[0]] >0 && "later stage");
-      if (degrees[lv.index(0)[0]] <=0)
-        std::cout << "found a bad one\n";
+      assert(degrees[lv.index(0)[0]][0] >0.);
+      basis.preBasis().degree(element)= (int) degrees[lv.index(0)[0]][0];
     }
   }
 }
