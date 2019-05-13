@@ -11,6 +11,7 @@
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/grid/common/mcmgmapper.hh>
+#include <dune/hpdg/localfunctions/assemblycache.hh>
 
 #include "localoperator.hh"
 
@@ -86,6 +87,7 @@ namespace MatrixFree {
         const auto& gv = basis_.gridView();
 
         const auto& insideFE = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&insideFE);
         auto insideCoeffs = std::vector<Field>(insideFE.localBasis().size());
         auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
@@ -117,6 +119,7 @@ namespace MatrixFree {
           auto outsideGeometry = is.geometryInOutside();
 
           const auto& outsideFE = outerLocalView_.tree().finiteElement();
+          outsideFE_cached_.bind(&outsideFE);
 
           auto outsideCoeffs = std::vector<Field>(outsideFE.localBasis().size());
           for (size_t i = 0; i < outsideCoeffs.size(); i++) {
@@ -148,10 +151,10 @@ namespace MatrixFree {
 
             const auto& quadPos = quad[q].position();
 
-            insideFE.localBasis().evaluateFunction(insideGeometry.global(quadPos), insideValues);
-            outsideFE.localBasis().evaluateFunction(outsideGeometry.global(quadPos), outsideValues);
-            insideFE.localBasis().evaluateJacobian(insideGeometry.global(quadPos), insideRefGradients);
-            outsideFE.localBasis().evaluateJacobian(outsideGeometry.global(quadPos), outsideRefGradients);
+            insideFE_cached_.localBasis().evaluateFunction(insideGeometry.global(quadPos), insideValues);
+            insideFE_cached_.localBasis().evaluateJacobian(insideGeometry.global(quadPos), insideRefGradients);
+            outsideFE_cached_.localBasis().evaluateFunction(outsideGeometry.global(quadPos), outsideValues);
+            outsideFE_cached_.localBasis().evaluateJacobian(outsideGeometry.global(quadPos), outsideRefGradients);
 
 
             // multiply reference values and gradients with coefficient and sum them up
@@ -244,6 +247,7 @@ namespace MatrixFree {
       void computeBulk() {
 
         const auto& fe = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&fe);
         QuadratureRuleKey feQuad(fe);
         QuadratureRuleKey quadKey = feQuad.derivative().square();
         const auto& quad = QuadratureRuleCache<double, dim>::rule(quadKey);
@@ -268,7 +272,7 @@ namespace MatrixFree {
           const auto& quadPos = quad[q].position();
           const auto& invJacobian = geometry.jacobianInverseTransposed(quadPos);
 
-          fe.localBasis().evaluateJacobian(quadPos, referenceGradients);
+          insideFE_cached_.localBasis().evaluateJacobian(quadPos, referenceGradients);
 
           // multiply reference gradients with coefficient and sum them up
           for (size_t i = 0; i < fe.localBasis().size(); i++)
@@ -302,6 +306,7 @@ namespace MatrixFree {
         };
 
         const auto& insideFE = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&insideFE);
         auto penalty = penalty_ * power(insideFE.localBasis().order(), 2);
 
         auto insideGeometry = is.geometryInInside();
@@ -326,8 +331,8 @@ namespace MatrixFree {
 
           const auto& quadPos = quad[q].position();
 
-          insideFE.localBasis().evaluateFunction(insideGeometry.global(quadPos), insideValues);
-          insideFE.localBasis().evaluateJacobian(insideGeometry.global(quadPos), insideRefGradients);
+          insideFE_cached_.localBasis().evaluateFunction(insideGeometry.global(quadPos), insideValues);
+          insideFE_cached_.localBasis().evaluateJacobian(insideGeometry.global(quadPos), insideRefGradients);
 
 
           // multiply reference values and gradients with coefficient and sum them up
@@ -392,6 +397,8 @@ namespace MatrixFree {
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       std::vector<typename V::field_type> outerLocalVector_; // contiguous memory buffer
       Dune::MultipleCodimMultipleGeomTypeMapper<typename Basis::GridView> mapper_;
+      HPDG::AssemblyCache<FE> insideFE_cached_;
+      HPDG::AssemblyCache<FE> outsideFE_cached_;
   };
 }
 }
