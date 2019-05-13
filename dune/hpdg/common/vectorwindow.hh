@@ -144,7 +144,7 @@ namespace Dune {
 
     void reset() {
       if (ownData_ != nullptr)
-        ownData_.release();
+        ownData_.reset(nullptr);
       data_=nullptr;
       n_=0;
     }
