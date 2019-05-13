@@ -8,6 +8,10 @@
 
 namespace Dune {
 namespace HPDG {
+/** Forward declaration */
+template<typename LFE>
+class AssemblyCache;
+
 namespace Impl {
   template<typename LFE>
   class CachedLocalBasis {
@@ -18,45 +22,54 @@ namespace Impl {
 
     using ArrayDomain = std::array<typename Domain::block_type, Domain::dimension>; // wrap fieldvector into array
 
+    friend class AssemblyCache<LFE>;
+
     public:
     CachedLocalBasis(const LFE* lfe):
       lfe_(lfe),
-      jacobians_(
-          [lfe](const auto& pos) {
-            std::vector<Jac> out;
-            lfe->localBasis().evaluateJacobian(reinterpret_cast<const Domain&>(pos), out);
-            return out;
-          }
-          ),
-      functions_(
-          [lfe](const auto& pos) {
-            std::vector<Range> out;
-            lfe->localBasis().evaluateFunction(reinterpret_cast<const Domain&>(pos), out);
-            return out;
-          }
-          )
+      jacobians_(),
+      functions_()
      {}
+
     auto size() const {
+      assert(lfe_ != nullptr);
       return lfe_->localBasis().size();
     }
 
     auto order() const {
+      assert(lfe_ != nullptr);
       return lfe_->localBasis().order();
     }
 
+    void evaluateJacobian(const Domain& in, std::vector<Jac>& out) const {
+      out = jacobians_.value(reinterpret_cast<const ArrayDomain&>(in),
+          [this](const auto& pos) {
+            std::vector<Jac> out;
+            this->lfe_->localBasis().evaluateJacobian(reinterpret_cast<const Domain&>(pos), out);
+            return out;
+          });
+    }
+
+    void evaluateFunction(const Domain& in, std::vector<Range>& out) const {
+      out = functions_.value(reinterpret_cast<const ArrayDomain&>(in),
+          [this](const auto& pos) {
+            std::vector<Range> out;
+            this->lfe_->localBasis().evaluateFunction(reinterpret_cast<const Domain&>(pos), out);
+            return out;
+          });
+    }
+
+    private:
+    /* The following two methods are not part of the public interface.
+     * The AssemblyCache, however, can still access them as it's marked as friend.
+     */
+    void bind(const LFE* newLFE) {
+      lfe_ = newLFE;
+    }
     const auto& localFE() const {
       return *lfe_;
     }
 
-    void evaluateJacobian(const Domain& in, std::vector<Jac>& out) const {
-      out = jacobians_.value(reinterpret_cast<const ArrayDomain&>(in));
-    }
-
-    void evaluateFunction(const Domain& in, std::vector<Range>& out) const {
-      out = functions_.value(reinterpret_cast<const ArrayDomain&>(in));
-    }
-
-    private:
     const LFE* lfe_ = nullptr;
     /* Yes, using doubles as map keys is stupid.
      * But they should come from quadrature rules and therefore be
@@ -89,6 +102,7 @@ class AssemblyCache {
     current_ = &cache_.value(lfe->localBasis().order(), [&](auto&&) {
         return Impl::CachedLocalBasis<LFE>(lfe);
       });
+    current_->bind(lfe);
   }
 
   /** Get a wrapper of the localBasis of the current LFE.
@@ -107,6 +121,13 @@ class AssemblyCache {
     return current_->localFE().type();
   }
 
+  /** Reset the current state. Strictly speaking, this should not be needed.
+   * It might be useful, though, to prevent re-using a LFE that is no longer valid.
+   */
+  void unbind() {
+    current_->bind(nullptr);
+    current_ = nullptr;
+  }
 
   private:
     /** A vector that holds the cached LFE.
