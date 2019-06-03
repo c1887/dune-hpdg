@@ -27,16 +27,16 @@ class IPDGBoundaryAssembler :
 {
     private:
         static const int dim = GridType::dimension;
-        typedef typename GridType::ctype ctype;
+        using ctype = typename GridType::ctype;
         static const int dimworld = GridType::dimensionworld;
 
-        typedef typename GridType::template Codim<0>::Geometry::GlobalCoordinate GlobalCoordinate;
-        typedef VirtualGridFunction<GridType, T> GridFunction;
+        using GlobalCoordinate = typename GridType::template Codim<0>::Geometry::GlobalCoordinate;
+        using GridFunction = VirtualGridFunction<GridType, T>;
 
     public:
-        typedef typename LocalBoundaryAssembler<GridType,T>::LocalVector LocalVector;
+        using LocalVector = typename LocalBoundaryAssembler<GridType,T>::LocalVector;
 
-        typedef typename Dune::VirtualFunction<GlobalCoordinate, T> Function;
+        using Function = typename Dune::VirtualFunction<GlobalCoordinate, T>;
 
         /** \brief Constructor
          * \param neumann Neumann force function
@@ -74,9 +74,9 @@ class IPDGBoundaryAssembler :
         template <class TrialLocalFE, class BoundaryIterator>
         void assembleDirichlet(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
         {
-            typedef typename Dune::template FieldVector<ctype,dim> FVdim;
-            typedef typename Dune::template FieldVector<ctype,T::dimension> FV;
-            typedef typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType RangeType;
+            using FVdim = typename Dune::template FieldVector<ctype,dim>;
+            using FV = typename Dune::template FieldVector<ctype,T::dimension>;
+            using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
 
             localVector = 0.0;
 
