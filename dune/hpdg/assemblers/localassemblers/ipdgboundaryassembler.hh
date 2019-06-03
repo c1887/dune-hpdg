@@ -67,8 +67,7 @@ class IPDGBoundaryAssembler :
             if (dirichlet)
                 assembleDirichlet(it, localVector, tFE);
             else
-                DUNE_THROW(Dune::NotImplemented, "Neumann data not yet implemented");
-//                assembleNeumann();
+                assembleNeumann(it, localVector, tFE);
         }
 
         template <class TrialLocalFE, class BoundaryIterator>
@@ -152,6 +151,62 @@ class IPDGBoundaryAssembler :
                 }
             }
             return;
+        }
+
+        template <class TrialLocalFE, class BoundaryIterator>
+        void assembleNeumann(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
+        {
+            using FVdim = typename Dune::template FieldVector<ctype,dim>;
+            using FV = typename Dune::template FieldVector<ctype,T::dimension>;
+            using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
+
+            localVector = 0.0;
+
+            // geometry of the boundary face
+            const auto& segmentGeometry = it->geometry();
+
+            // get quadrature rule
+            QuadratureRuleKey tFEquad(it->type(), tFE.localBasis().order());
+            auto quadKey = tFEquad.square();
+
+            const auto& quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
+
+            // store values of shape functions
+            std::vector<RangeType> values(tFE.localBasis().size());
+
+            const auto inside = it->inside();
+
+            // loop over quadrature points
+            for (size_t pt=0; pt < quad.size(); ++pt)
+            {
+                // get quadrature point
+                const auto& quadPos = quad[pt].position();
+
+                // get integration factor
+                const auto integrationElement = segmentGeometry.integrationElement(quadPos);
+
+                // position of the quadrature point within the element
+                const auto elementQuadPos = it->geometryInInside().global(quadPos);
+
+                // evaluate basis functions
+                tFE.localBasis().evaluateFunction(elementQuadPos, values);
+
+                // Evaluate Neumann function at quadrature point. If it is a grid function use that to speed up the evaluation
+                FV neumannVal;
+
+                const GridFunction* gf = dynamic_cast<const GridFunction*>(bdrFunction_.get());
+                if (gf and gf->isDefinedOn(inside))
+                    gf->evaluateLocal(inside, elementQuadPos, neumannVal);
+                else
+                    bdrFunction_->evaluate(segmentGeometry.global(quadPos), neumannVal);
+
+                // and vector entries
+                for (size_t i=0; i<values.size(); ++i)
+                {
+                    double factor =quad[pt].weight()*integrationElement*values[i];
+                    localVector[i].axpy(factor, neumannVal);
+                }
+            }
         }
 
         void setDGType(double dg)
