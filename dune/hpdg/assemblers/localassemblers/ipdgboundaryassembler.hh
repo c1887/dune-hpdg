@@ -73,7 +73,6 @@ class IPDGBoundaryAssembler :
         template <class TrialLocalFE, class BoundaryIterator>
         void assembleDirichlet(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
         {
-            using FVdim = typename Dune::template FieldVector<ctype,dim>;
             using FV = typename Dune::template FieldVector<ctype,T::dimension>;
             using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
 
@@ -89,14 +88,13 @@ class IPDGBoundaryAssembler :
 
 
             // geometry of the boundary face
-            const typename BoundaryIterator::Intersection::Geometry segmentGeometry = it->geometry();
-
+            const auto& segmentGeometry = it->geometry();
 
             // get quadrature rule
             QuadratureRuleKey tFEquad(it->type(), tFE.localBasis().order());
-            QuadratureRuleKey quadKey = tFEquad.square();
+            auto quadKey = tFEquad.square();
 
-            const Dune::template QuadratureRule<double, dim-1>& quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
+            const auto& quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
 
             // store values of shape functions
             std::vector<RangeType> values(tFE.localBasis().size());
@@ -113,13 +111,13 @@ class IPDGBoundaryAssembler :
             {
 
                 // get quadrature point
-                const Dune::FieldVector<ctype,dim-1>& quadPos = quad[pt].position();
+                const auto& quadPos = quad[pt].position();
 
                 // get integration factor
-                const ctype integrationElement = segmentGeometry.integrationElement(quadPos);
+                const auto integrationElement = segmentGeometry.integrationElement(quadPos);
 
                 // position of the quadrature point within the element
-                const FVdim elementQuadPos = it->geometryInInside().global(quadPos);
+                const auto& elementQuadPos = it->geometryInInside().global(quadPos);
 
                 // get transposed inverse of Jacobian of transformation
                 const auto& invJacobian = inside.geometry().jacobianInverseTransposed(elementQuadPos);
@@ -150,13 +148,11 @@ class IPDGBoundaryAssembler :
                     localVector[i].axpy(factor, dirichletVal);
                 }
             }
-            return;
         }
 
         template <class TrialLocalFE, class BoundaryIterator>
         void assembleNeumann(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
         {
-            using FVdim = typename Dune::template FieldVector<ctype,dim>;
             using FV = typename Dune::template FieldVector<ctype,T::dimension>;
             using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
 
