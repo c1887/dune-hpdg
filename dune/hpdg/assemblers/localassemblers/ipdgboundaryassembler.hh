@@ -95,7 +95,7 @@ class IPDGBoundaryAssembler :
 
             // get quadrature rule
             QuadratureRuleKey tFEquad(it->type(), tFE.localBasis().order());
-            QuadratureRuleKey quadKey = tFEquad.derivative().square();
+            QuadratureRuleKey quadKey = tFEquad.square();
 
             const Dune::template QuadratureRule<double, dim-1>& quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
 
