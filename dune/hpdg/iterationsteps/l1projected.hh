@@ -40,7 +40,6 @@ namespace Dune {
       void preprocess() {
         ghostRegularization_ = makeDynamicBlockVector(*this->mat_);
         ghostRegularization_ = 0.;
-        //return;
 
         assert(ghostRegularization_.size() == this->mat_->M());
         const auto& m = *this->mat_;
@@ -106,7 +105,8 @@ namespace Dune {
           up-=x[i];
 
           // Update iterate with correction
-          auto corr = gs(*diag, ri, low, up, ghostRegularization_[i], 0);
+          gs(*diag, ri, low, up, ghostRegularization_[i], 0);
+          const auto& corr = localCorrection_;
           auto& xi = x[i];
           for (size_t k = 0; k < corr.size(); k++)
             xi[k]+=corr[k];
@@ -120,15 +120,20 @@ namespace Dune {
       const Vector& lowerObstacle_;
       const Vector& upperObstacle_;
       DynamicBlockVector<FieldVector<double,1>> ghostRegularization_;
+      std::vector<FieldVector<double,1>> localCorrection_;
 
       /** Performs Projected Gauss--Seidel locally where a diagonal
        * vector d is added onto the matrix diagonal for regularization
        */
       template<class MB, class VB, class Regularized>
-      auto gs(const MB& m, const VB& b, const VB& lower, const VB& upper, const Regularized& d, double tol = defaultGsTol) {
-        auto x =b;
+      void gs(const MB& m, const VB& b, const VB& lower, const VB& upper, const Regularized& d, double tol = defaultGsTol) {
+        //auto x =b;
+        auto& x = localCorrection_;
+        x.resize(b.size());
 
-        x=0;
+        for(auto& xx: x)
+          xx=0.;
+
         for (size_t i = 0; i < m.N(); ++i) {
           const auto& mi = m[i];
           const auto& mii = mi[i];
@@ -141,10 +146,9 @@ namespace Dune {
             if (j != i)
               x[i] -= (*it) * x[j];
           }
-          x[i] /= (mii+0.5*d[i]);
+          x[i] /= (mii+d[i]);
           x[i] = Impl::clamp(x[i], lower[i], upper[i]);
         }
-        return x;
       }
     };
   }
