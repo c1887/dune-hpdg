@@ -22,9 +22,9 @@ namespace MultigridSetup {
         all_displs.resize(size+1);
       }
 
-      int localSize = dofs.size();
+      local_count = dofs.size();
       MPI_Gather(
-        &localSize, 1, MPI_INT,
+        &local_count, 1, MPI_INT,
         all_counts.data(), 1, MPI_INT,
         0, comm_
         );
@@ -111,28 +111,42 @@ namespace MultigridSetup {
     template<typename V> // TODO: V is always DynamicBlockVector
     void scatterVector(const V& global, V& local) {
       auto blocksize = local[0].size();
-      auto* recv = &(local[0][0]);
-      const void* send;
-      if(rank==0)
-        send = &(global[0][0]);
+      // copy global vector to all processes and let them figure out which entries to take
+      int n_global = global.size();
+      MPI_Bcast(&n_global, 1, MPI_INT, 0, comm_);
 
-      int local_size = local.size()*blocksize;
+      V tmp(n_global);
+      for(std::size_t i = 0; i < tmp.size(); i++) {
+        tmp.blockRows(i)=blocksize;
+      }
+      tmp.update();
 
-      auto cts = all_counts;
-      for(auto& c : cts)
-        c*=blocksize;
+      if(rank==0) {
+        tmp=global;
+      }
 
-      auto disps = all_displs;
-      for(auto& d : disps)
-        d*=blocksize;
+      void* buffer = &(tmp[0][0]);
 
-      MPI_Scatterv(send, cts.data(), disps.data(), MPI_DOUBLE, recv, local_size, MPI_DOUBLE, 0, comm_);
+      // send data to all processes
+      MPI_Bcast(buffer, n_global*blocksize, MPI_DOUBLE,
+          0, comm_);
+
+      auto dofs = std::vector<int>(local_count);
+      MPI_Scatterv(all_globalDof.data(), all_counts.data(), all_displs.data(), MPI_INT,
+          dofs.data(), local_count, MPI_INT, 0, comm_);
+
+      for(std::size_t i = 0; i < local_count; ++i) {
+        const auto idx = dofs[i];
+        local[i] = tmp[idx];
+      }
     }
+
     /** Collects the local matrix patches from all processes and creates
      * a global matrix index set on process 0 (aka "root").
      */
     template<typename Matrix>
-    void setupMatrixIdxSet(const Matrix& localMatrix, MatrixIndexSet& idxSet) {
+    void restrictMatrix(const Matrix& localMatrix, Matrix& matrix) {
+      MatrixIndexSet idxSet;
       if (rank==0) {
         idxSet.resize(ownedSize_, ownedSize_);
       }
@@ -155,30 +169,33 @@ namespace MultigridSetup {
 
       // step 1: collect column indices and send them to root
       std::vector<int> all_colIndices;
-      auto size = std::accumulate(all_nnzByRow.begin(), all_nnzByRow.end(), 0);
-      if(rank==0)
+      if(rank==0) {
+        auto size = std::accumulate(all_nnzByRow.begin(), all_nnzByRow.end(), 0);
         all_colIndices.resize(size);
+      }
 
       int local_size = std::accumulate(local_nnzPerRow.begin(), local_nnzPerRow.end(), 0);
       std::vector<int> local_colIndices(local_size);
 
-      std::size_t j =0;
-      for(std::size_t i = 0; i < localMatrix.N(); i++) {
-        for(auto it = localMatrix[i].begin(); it != localMatrix[i].end(); ++it)
-          local_colIndices[j++] = it.index();
+      {
+        std::size_t j =0;
+        for(std::size_t i = 0; i < localMatrix.N(); i++) {
+          for(auto it = localMatrix[i].begin(); it != localMatrix[i].end(); ++it)
+            local_colIndices[j++] = it.index();
+        }
       }
 
       // sum the number of column indices on all processes
       int n_proc=0;
       MPI_Comm_size(comm_, &n_proc);
-      int n_allColIndices = 0;
-      if(rank==0)
-        n_allColIndices = std::accumulate(all_nnzByRow.begin(), all_nnzByRow.end(), 0);
-
-      if (rank==0)
+      if(rank==0) {
+        int n_allColIndices = std::accumulate(all_nnzByRow.begin(), all_nnzByRow.end(), 0);
         all_colIndices.resize(n_allColIndices);
+      }
+
 
       {
+        // gather how many nnz we have in total per rank
         std::vector<int> all_nnzByRank;
         std::vector<int> all_nnzByRank_displ;
 
@@ -199,6 +216,7 @@ namespace MultigridSetup {
               );
         }
 
+        // gather the column indices
         MPI_Gatherv(local_colIndices.data(), local_colIndices.size(), MPI_INT,
             all_colIndices.data(), all_nnzByRank.data(), all_nnzByRank_displ.data(), MPI_INT,
             0, comm_);
@@ -222,21 +240,30 @@ namespace MultigridSetup {
         }
         assert(idx == all_colIndices.size()); // check if we reached the end of the indices
       }
-    }
 
-    template<typename Matrix>
-    void restrictMatrixEntries(const Matrix& localMatrix, Matrix& matrix) {
-      // step 0a: calculate local matrix size:
-      int blocksize = localMatrix[0][0].N();
+      int blocksize = localMatrix[0][0].N(); // if this block does not exist, we're in trouble anyway
+
+      // setup matrix:
+      if(rank==0)
+      {
+        idxSet.exportIdx(matrix);
+        matrix.finishIdx();
+        for(std::size_t i = 0; i < matrix.N(); i++) {
+          matrix.blockRows(i)=blocksize;
+        }
+        matrix.setSquare();
+        matrix.update();
+      }
+
       int blocks = 0;
       for(std::size_t i = 0; i < localMatrix.N(); i++) {
         blocks+=localMatrix.getrowsize(i);
       }
+
       auto data_size = blocks*blocksize*blocksize;
       assert(data_size == localMatrix.dataSize());
+
       // step 0b: gather local matrix sizes to root
-      int n_proc;
-      MPI_Comm_size(comm_, &n_proc);
       std::vector<int> all_dataSizes(n_proc);
       std::vector<int> all_dataSizes_displs(n_proc);
 
@@ -247,6 +274,7 @@ namespace MultigridSetup {
       ParMG::Impl::exclusive_scan(all_dataSizes.begin(), all_dataSizes.end(), all_dataSizes_displs.begin(), 0);
 
 
+#if 0
       // we (again) need the nnz per row
       std::vector<int> local_nnzPerRow(localMatrix.N());
       for(std::size_t i = 0; i < local_nnzPerRow.size(); i++) {
@@ -260,6 +288,7 @@ namespace MultigridSetup {
                     all_nnzByRow.data(), all_counts.data(), all_displs.data(), MPI_INT,
                     0, comm_);
       }
+#endif
 
       // step 1: gather data
       std::vector<double> all_data{};
@@ -270,8 +299,24 @@ namespace MultigridSetup {
 
       {
         //auto* local_data = &(localMatrix[0][0][0][0]); // TODO can one actually assume this?
-        auto* local_data = localMatrix.data(); // TODO can one actually assume this?
-        MPI_Gatherv(local_data, data_size, MPI_DOUBLE,
+        //auto* local_data = localMatrix.data();
+
+        // just extracting the local data does not seem to work reliably. Therefore, we copy the data into
+        // a buffer block by block...
+        // // TODO Check if this is still true after the bigger bug is fixed.
+        auto tmp = std::vector<double>(data_size);
+        std::size_t local_idx=0;
+        for(const auto& row: localMatrix) {
+          for(const auto& block: row) {
+            for(const auto& block_row : block) {
+              for(const auto& entry : block_row) {
+                tmp[local_idx++] = entry;
+              }
+            }
+          }
+        }
+
+        MPI_Gatherv(tmp.data(), data_size, MPI_DOUBLE,
             all_data.data(), all_dataSizes.data(), all_dataSizes_displs.data(), MPI_DOUBLE,
             0, comm_);
 
@@ -283,19 +328,27 @@ namespace MultigridSetup {
         for (int p = 0; p < n_proc; ++p) {
           for(std::size_t i = 0; i < all_counts[p]; i++) { // matrix row
             auto all_i = all_displs[p]+i;
+
             if (not all_owned[all_i]) {
               idx+=all_nnzByRow[all_i]*blocksize*blocksize;
               continue;
             }
 
             // now, we're at a owned matrix row. Let us fill it!
+            // TODO: We're assuming here that the local_i < local_j implies global(i)<global(j)
+            // which might not be true
             auto& ai = matrix[all_globalDof[all_i]];
-            for(auto& aij : ai) { // matrix block A_ij =: B
+            for(std::size_t local_j = 0; local_j < all_nnzByRow[all_i]; ++local_j) {
+              auto global_j = all_globalDof[all_displs[p]+all_colIndices[idx/(blocksize*blocksize)]];
+              auto& aij = ai[global_j];
+
+              // fill block
               for (auto& bk: aij) {
                 for (auto& bkl : bk) {
                   bkl=all_data[idx++];
                 }
               }
+
             }
           }
         }
@@ -306,6 +359,8 @@ namespace MultigridSetup {
       MPI_Comm comm_;
       int rank;
       int ownedSize_=0;
+
+      int local_count;
 
       std::vector<int> all_counts;
       std::vector<int> all_displs;
