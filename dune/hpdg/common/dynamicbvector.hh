@@ -385,6 +385,7 @@ namespace Dune {
     */
   }
 
+#if HAVE_MPI
   template<class K>
   struct CommPolicy<HPDG::DynamicBlockVector<K>> {
     using Type = HPDG::DynamicBlockVector<K>;
@@ -400,6 +401,7 @@ namespace Dune {
     }
 
   };
+#endif
 
   template<class T>
   struct FieldTraits<HPDG::DynamicBlockVector<T>>
