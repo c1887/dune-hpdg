@@ -1,5 +1,5 @@
 #pragma once
-
+#if HAVE_DUNE_PARMG
 #include <memory>
 
 #include <dune/parmg/iterationstep/multigrid.hh>
@@ -14,6 +14,7 @@
 #include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
 #include <dune/hpdg/transferoperators/dynamicblocktransfer.hh>
 
+#include <dune/hpdg/transferoperators/fulldomainindexsets.hh>
 #include <dune/hpdg/assemblers/dgtodggridtransferassembler.hh>
 #include <dune/solvers/common/defaultbitvector.hh>
 
@@ -26,8 +27,7 @@
 namespace Dune {
 namespace HPDG {
 namespace MultigridSetup {
-  //using namespace ParMG; // ouchie
-  template<typename Vector, int dim>
+  template<typename Vector, int dim, typename Grid>
   struct MultigridData {
 
     using Matrix = DynamicBCRSMatrix<FieldMatrix<double,1,1>>;
@@ -35,6 +35,9 @@ namespace MultigridSetup {
     using GridTransfer = DynamicBlockTransferOperator<Vector>;
 
     int ranks;
+
+    const Grid* grid;
+    std::vector<int> orders;
 
     // system matrices on each level
     std::vector<std::shared_ptr<Matrix>> systemMatrix;
@@ -60,11 +63,11 @@ namespace MultigridSetup {
   };
 
 namespace Impl {
-  template<class Vector, int dim>
+  template<class Vector, int dim, class Grid>
   class TransferOperators {
     public:
 
-      TransferOperators(MultigridData<Vector, dim>* data):
+      TransferOperators(MultigridData<Vector, dim, Grid>* data):
         data_(data)
       {}
 
@@ -82,7 +85,7 @@ namespace Impl {
         return global_idx - data_->gridTransfer.size();
       }
 
-      MultigridData<Vector, dim>* data_;
+      MultigridData<Vector, dim, Grid>* data_;
   };
 
 }
@@ -93,7 +96,7 @@ namespace Impl {
   template<typename Vector, typename Grid, typename M>
   auto setupData(const Grid& grid, int maximalDegree, M& matrix) {
     constexpr const int dim = Grid::dimension;
-    using MGData = MultigridData<Vector, dim>;
+    using MGData = MultigridData<Vector, dim, Grid>;
     MGData mgData;
     mgData.ranks = grid.comm().size();
 
@@ -102,6 +105,8 @@ namespace Impl {
     const auto levels = pLevels + gridLevels; // actually, number of transfers
 
     mgData.systemMatrix.resize(levels+1);
+    mgData.orders.resize(levels+1, 1);
+    mgData.orders.back() = maximalDegree;
     for (auto& matrix : mgData.systemMatrix)
       matrix = std::make_shared<typename MGData::Matrix>();
     mgData.systemMatrix.back() = Dune::stackobject_to_shared_ptr(matrix);
@@ -116,6 +121,7 @@ namespace Impl {
     for (int l = levels - 1; l >= gridLevels; --l) {
       int currentIdx = l-gridLevels;
       int halfedOrder = maximalDegree/((pLevels-currentIdx)*2);
+      mgData.orders[l] = halfedOrder;
       auto& p = mgData.pTransfer[currentIdx];
       p=std::make_shared<typename MGData::PTransfer>();
       p->setup(*mgData.systemMatrix[l+1], halfedOrder); // setup up transfer
@@ -130,22 +136,22 @@ namespace Impl {
 
     // setup ghost indicators
     mgData.ghostsPerLevel.resize(levels+1);
-    using Basis = ::Impl::MultilevelBasis<Grid>;
-    Basis basis(grid);
+    using IdxSet = HPDG::FullDomainLevelIndexSets<Grid>;
+    IdxSet idxSet(grid);
     for(std::size_t i = 0; i < grid.maxLevel(); i++) {
-      mgData.ghostsPerLevel[i] = basis.nonInteriorElements(i);
+      mgData.ghostsPerLevel[i] = idxSet.nonInteriorElements(i);
     }
 
     for(std::size_t i = grid.maxLevel(); i < levels+1; i++) {
-      mgData.ghostsPerLevel[i] = basis.nonInteriorElements(grid.maxLevel());
+      mgData.ghostsPerLevel[i] = idxSet.nonInteriorElements(grid.maxLevel());
     }
 
     return mgData;
   }
 
 
-  template<typename Vector, int dim>
-  auto setupLevelOps(const MultigridData<Vector, dim>& data) {
+  template<typename Vector, int dim, typename Grid>
+  auto setupLevelOps(const MultigridData<Vector, dim, Grid>& data) {
     using LevelOps = typename ParMG::Multigrid<Vector>::LevelOperations;
     std::vector<LevelOps> ops(data.systemMatrix.size()); // size levels+1
 
@@ -172,7 +178,7 @@ namespace Impl {
       ops[l+1].restrict = ParMG::restrictFromMultigridTransfer<Vector>(gtransfer[l]);
       ops[l+1].prolong = ParMG::prolongFromMultigridTransfer<Vector>(gtransfer[l]);
     }
-    using Matrix = typename MultigridData<Vector, dim>::Matrix;
+    using Matrix = typename MultigridData<Vector, dim, Grid>::Matrix;
 
     // setup smoothers
     for (std::size_t l = 0; l < ops.size(); ++l) {
@@ -183,6 +189,8 @@ namespace Impl {
       smoother->setMatrix(*matrices[l]);
       smoother->preprocess();
       ops[l].preSmoother = ops[l].postSmoother = ParMG::smootherFromSolversIterationStep<Vector>(smoother);
+      //auto gv = data.grid->levelGridView(std::min(l, maxGridLevel));
+      //ops[l].preSmoother = ops[l].postSmoother = smootherWithReg<Vector, decltype(gv)>(smoother, gv, data.orders[l]);
       //ops[l].preSmoother = ops[l].postSmoother = ParMG::smootherFromSolversIterationStep<Vector>(smoother, 1./data.ranks);
     }
 
@@ -192,11 +200,11 @@ namespace Impl {
   template<typename Grid>
   auto setupComms(const Grid& grid) {
     std::vector<std::shared_ptr<ParMG::CommHPDG>> comms(grid.maxLevel()+1);
-    using Basis = ::Impl::MultilevelBasis<Grid>;
-    Basis basis(grid);
+    using IdxSet = HPDG::FullDomainLevelIndexSets<Grid>;
+    IdxSet idxSet(grid);
     for (int i = 0; i <= grid.maxLevel(); ++i) {
       using T = FieldVector<double, 1>;
-      comms[i] = ParMG::makeDGInterface<T>(basis, i);
+      comms[i] = ParMG::makeDGInterface<T>(idxSet, i);
     }
 
     return comms;
@@ -206,22 +214,22 @@ namespace Impl {
   template<typename Grid>
   auto setupLeafComm(const Grid& grid) {
     std::shared_ptr<ParMG::CommHPDG> comm;
-    auto basis = ParMG::Impl::HPDG::LeafBasis<Grid>(grid);
+    auto idxSet = HPDG::FullDomainLeafIndexSet<Grid>(grid);
     using T = FieldVector<double, 1>;
-    comm = ParMG::makeDGInterface<T>(basis, grid.maxLevel());
+    comm = ParMG::makeDGInterface<T>(idxSet, grid.maxLevel());
     return comm;
   }
 
-  template<typename Vector, int dim>
-  void renewMatrixHierachy(MultigridData<Vector, dim>& data) {
-    auto transfer = Impl::TransferOperators<Vector, dim>(&data);
+  template<typename Vector, int dim, typename Grid>
+  void renewMatrixHierachy(MultigridData<Vector, dim, Grid>& data) {
+    auto transfer = Impl::TransferOperators<Vector, dim, Grid>(&data);
 
     for (int l = data.systemMatrix.size()-2; l>=0; --l) {
       transfer.restrictMatrix(l, *data.systemMatrix[l+1], *data.systemMatrix[l]);
     }
   }
 
-  template<typename Matrix, typename Vector, int dim>
+  template<typename Matrix, typename Vector, int dim, typename Grid>
   class DGMultigridStep : public LinearIterationStep<Matrix, Vector, Solvers::DefaultBitVector_t<Vector>> {
 
     public:
@@ -267,17 +275,31 @@ namespace Impl {
       }
       multigrid_.levelOperations(ops);
 
+      // set ascending number of iteration steps on coarser levels
+      // this saves you (to an extend) from getting very bad convergence
+      // rates with growing number of grid levels.
+      {
+        //auto iter = multigrid_.levelOperations().back().preSmootherSteps;
+        auto iter = 10;
+
+        for(int i = n_levels-2; i >=0; --i) {
+          iter*=1.412;
+          multigrid_.levelOperations()[i].preSmootherSteps = iter;
+          multigrid_.levelOperations()[i].postSmootherSteps = iter;
+        }
+      }
+
       // recalculate matrix hierarchy
       HPDG::MultigridSetup::renewMatrixHierachy(data_);
     }
 
     private:
-      MultigridData<Vector, dim> data_;
+      MultigridData<Vector, dim, Grid> data_;
       ParMG::Multigrid<Vector> multigrid_;
   };
 
-  template<typename Matrix, typename Vector, int dim>
-  auto gaussSeidelCoarseSolver(std::shared_ptr<DGMultigridStep<Matrix, Vector, dim>> mg, int coarseIterations = 5) {
+  template<typename Matrix, typename Vector, int dim, class Grid>
+  auto gaussSeidelCoarseSolver(std::shared_ptr<DGMultigridStep<Matrix, Vector, dim, Grid>> mg, int coarseIterations = 5) {
     /// GS coarse solver
 
     /* If the shared_ptr "mg" is copied here, we get a circular references.
@@ -306,7 +328,7 @@ namespace Impl {
         smoother.iterate();
         op.maybeCopyFromMaster(x_iter);
         // damping:
-        x_iter *= 0.8;
+        //x_iter *= 0.8;
         x+=x_iter;
         coarse_matrix_ptr->mv(x_iter, tmp);
         op.maybeRestrictToMaster(tmp);
@@ -316,8 +338,8 @@ namespace Impl {
     return coarse_solver;
   }
 
-  template<typename Matrix, typename Vector, int dim>
-  auto l1CoarseSolver(std::shared_ptr<DGMultigridStep<Matrix, Vector, dim>> mg, int coarseIterations = 5) {
+  template<typename Matrix, typename Vector, int dim, class Grid>
+  auto l1CoarseSolver(std::shared_ptr<DGMultigridStep<Matrix, Vector, dim, Grid>> mg, int coarseIterations = 5) {
     /// GS coarse solver
 
     /* If the shared_ptr "mg" is copied here, we get a circular references.
@@ -362,11 +384,11 @@ namespace Impl {
    * only on process 0;
    * */
   template<typename Grid, typename Matrix, typename Vector, int dim>
-  void globalCoarseMatrix(const Grid& grid, DGMultigridStep<Matrix, Vector, dim>& mg) {
+  void globalCoarseMatrix(const Grid& grid, DGMultigridStep<Matrix, Vector, dim, Grid>& mg) {
     auto matrix = Matrix();
     auto rank = grid.comm().rank();
-    auto basis = ParMG::Impl::HPDG::LevelBasis<Grid>(grid, 0);
-    auto dofs = ParMG::Impl::makeGlobalDofHPDG(basis, 0);
+    auto idxSet = HPDG::FullDomainSingleLevelIndexSet<Grid>(grid, 0);
+    auto dofs = ParMG::Impl::makeGlobalDofHPDG(idxSet, 0);
     const auto& global = dofs.first;
     const auto& owner = dofs.second;
 
@@ -385,8 +407,8 @@ namespace Impl {
   auto globalCoarseVector(const Grid& grid, const Vector& vector) {
     auto result = Vector();
 
-    auto basis = ParMG::Impl::HPDG::LevelBasis<Grid>(grid, 0);
-    auto dofs = ParMG::Impl::makeGlobalDofHPDG(basis, 0);
+    auto idxSet = HPDG::FullDomainSingleLevelIndexSet<Grid>(grid, 0);
+    auto dofs = ParMG::Impl::makeGlobalDofHPDG(idxSet, 0);
     const auto& global = dofs.first;
     const auto& owner = dofs.second;
 
@@ -398,7 +420,7 @@ namespace Impl {
 
 
   template<typename Grid, typename Matrix, typename Vector, int dim>
-  auto singleProcessGaussSeidel(const Grid& grid, std::shared_ptr<DGMultigridStep<Matrix, Vector, dim>> mg, int coarseIterations = 5) {
+  auto singleProcessGaussSeidel(const Grid& grid, std::shared_ptr<DGMultigridStep<Matrix, Vector, dim, Grid>> mg, int coarseIterations = 5) {
     int rank = grid.comm().rank();
     /// GS coarse solver where the matrix is collected on process 0.
 
@@ -440,8 +462,8 @@ namespace Impl {
       }
       grid.comm().barrier();
 
-      auto basis = ParMG::Impl::HPDG::LevelBasis<Grid>(grid, 0);
-      auto dofs = ParMG::Impl::makeGlobalDofHPDG(basis, 0);
+      auto idxSet = HPDG::FullDomainSingleLevelIndexSet<Grid>(grid, 0);
+      auto dofs = ParMG::Impl::makeGlobalDofHPDG(idxSet, 0);
       const auto& global = dofs.first;
       const auto& owner = dofs.second;
 
@@ -454,10 +476,11 @@ namespace Impl {
   template<typename Vector, typename Grid, typename Matrix>
   auto multigridSolver(const Grid& grid, int maximalDegree, const Matrix& matrix) {
     constexpr const int dim = Grid::dimension;
-    auto mg = std::make_shared<DGMultigridStep<Matrix, Vector, dim>>();
+    auto mg = std::make_shared<DGMultigridStep<Matrix, Vector, dim, Grid>>();
 
     Matrix& mut_matrix = const_cast<Matrix&>(matrix);
     mg->multigridData() = setupData<Vector>(grid, maximalDegree, mut_matrix);
+    mg->multigridData().grid = &grid;
     mg->multigridData().comms = setupComms(grid);
 
     auto ops = setupLevelOps(mg->multigridData());
@@ -485,3 +508,4 @@ namespace Impl {
 }
 }
 }
+#endif
