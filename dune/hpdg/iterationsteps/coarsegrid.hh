@@ -1,5 +1,6 @@
 #pragma once
 #ifdef HAVE_MPI
+#ifdef HAVE_DUNE_PARMG
 #include <dune/hpdg/iterationsteps/parmgsetup.hh>
 #include <dune/hpdg/parallel/communicationhpdg.hh>
 #include <dune/parmg/std/numeric.hh>
@@ -372,4 +373,5 @@ namespace MultigridSetup {
 }
 }
 }
+#endif
 #endif
