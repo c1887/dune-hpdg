@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <numeric>
 #include <cassert>
+#if HAVE_MPI
+#include <mpi.h>
+#endif
 namespace Dune {
 namespace HPDG {
   /** \brief Returns the value at a given quantile of a vector
@@ -72,6 +75,47 @@ namespace HPDG {
       }
     }
   }
+#if HAVE_MPI
+  template<typename K, typename G>
+  auto globalFraction (const std::vector<K>& errors, const G& grid, double frac) {
+    double border;
+    int rank = grid.comm().rank();
+    int n_procs = grid.comm().size();
+
+    int local_size = errors.size();
+
+    std::vector<double> e;
+    // gather all errors on root
+
+    std::vector<int> sizes(n_procs);
+    std::vector<int> disps(n_procs,0);
+    MPI_Gather(&local_size, 1, MPI_INT, sizes.data(), 1, MPI_INT, 0, grid.comm());
+    if(rank==0) {
+      for(int i=1; i < n_procs; i++) {
+        disps[i] = disps[i-1]+sizes[i-1];
+      }
+      auto full_size = std::accumulate(sizes.begin(), sizes.end(), 0);
+      e.resize(full_size);
+    }
+
+    MPI_Gatherv(errors.data(), local_size, MPI_DOUBLE,
+        e.data(), sizes.data(), disps.data(), MPI_DOUBLE, 0, grid.comm());
+    /*
+    if(rank==0) {
+      for(const auto& val : e ) {
+        if(val <0.)
+          DUNE_THROW(Dune::Exception, "omgwtf");
+      }
+    }
+    */
+
+    if(rank==0)
+      border = fraction(e, frac);
+    MPI_Bcast(&border, 1, MPI_DOUBLE, 0, grid.comm());
+
+    return border;
+  }
+#endif
 
 }} // end namespace Dune::HPDG
 

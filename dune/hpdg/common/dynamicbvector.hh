@@ -8,6 +8,7 @@
 
 #include <dune/common/fvector.hh>
 #include <dune/common/typetraits.hh>
+#include <dune/common/parallel/communicator.hh>
 
 #include <dune/hpdg/common/vectorwindow.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
@@ -52,6 +53,7 @@ namespace Dune {
       using real_type = real_t<K>;
       using size_type = size_t;
       using block_type = BlockType;
+      using value_type = K;
 
       DynamicBlockVector(size_t n, size_t blockRows=1) :
         n_(n),
@@ -375,7 +377,32 @@ namespace Dune {
       v.update();
       return v;
     }
+
+    /** TODO.
+    template<class K>
+    auto makeISTLVariableBlockVector(const DynamicBCRSMatrix<K>& matrix) {
+    }
+    */
   }
+
+#if HAVE_MPI
+  template<class K>
+  struct CommPolicy<HPDG::DynamicBlockVector<K>> {
+    using Type = HPDG::DynamicBlockVector<K>;
+
+    using IndexedType = K;
+
+    static const void* getAddress(const Type& v, int i) {
+      return &(v[i])[0];
+    }
+
+    static int getSize(const Type& v, int index) {
+      return v[index].size();
+    }
+
+  };
+#endif
+
   template<class T>
   struct FieldTraits<HPDG::DynamicBlockVector<T>>
   {
