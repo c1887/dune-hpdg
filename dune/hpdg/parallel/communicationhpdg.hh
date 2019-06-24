@@ -4,7 +4,6 @@
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 
 #include <dune/parmg/parallel/communicationp1.hh>
-//#include <dune/parmg/parallel/communicationdg.hh>
 #include <dune/common/parallel/variablesizecommunicator.hh>
 #include <dune/common/std/optional.hh>
 
@@ -13,7 +12,7 @@ namespace ParMG {
 
 namespace Impl {
 namespace HPDG {
-  // pendant to the Multilevelbasis just for the leafview
+  /** Pendant to the Multilevelbasis just for the leafview */
   template<class GridType>
   class LeafBasis {
     public:
@@ -61,7 +60,11 @@ namespace HPDG {
     std::map<std::size_t, std::pair<std::size_t, char>> idToIndex_; // TODO This does not really need to be a map
   };
   
-  // pendant to the Multilevelbasis just for the leafview
+  /** Pendant to the Multilevelbasis just for a single level.
+   *
+   * This is only useful, if the full multi-level basis is too much, e.g. when assembling a coarse matrix on the lowest
+   * grid level
+   */
   template<class GridType>
   class LevelBasis {
     public:
@@ -183,7 +186,6 @@ struct GlobalDofHPDGDataHandle
     }
 
 private:
-  //mutable typename Basis::LocalView m_localView;
   const Basis& m_basis;
   int m_level;
   int m_rank;
@@ -298,7 +300,6 @@ makeGlobalDofHPDG(const MLBasis& basis, int level)
   std::vector<int> globalDof(basis.size(level), -1);
   std::vector<int> owner(basis.size(level), -1);
 
-  //auto localView = basis.localView();
   std::size_t i = offset;
 
   for (auto&& element : basis.idToIndex(level)) {
@@ -309,28 +310,13 @@ makeGlobalDofHPDG(const MLBasis& basis, int level)
     }
   }
 
-  /*
-  for (auto&& element : elements(gridView)) {
-    if (element.partitionType() != InteriorEntity)
-      continue;
-
-    localView.bind(element);
-    const auto index = localView.index(0)[0]; // only store element idx
-    globalDof[index] = i++;
-    owner[index]=rank;
-
-    localView.unbind();
-  }
-  */
-
   auto handleOwner = GlobalDofHPDGDataHandle<MLBasis, decltype(owner)>(basis, level, rank, owner, &owner);
-  gridView.communicate(handleOwner, InteriorBorder_All_Interface, ForwardCommunication); // TODO könnte schief gehen
+  gridView.communicate(handleOwner, InteriorBorder_All_Interface, ForwardCommunication);
 
   auto handleDof = GlobalDofHPDGDataHandle<MLBasis, decltype(globalDof)>(basis, level, rank, owner, &globalDof);
   gridView.communicate(handleDof, InteriorBorder_All_Interface, ForwardCommunication);
 
   // also handle those dofs, that are part of the partition of Omega on the given level. The ones in the levelgridview have been handled above, but there might be objects left which live on a coarser level.
-
   if (level>0) {
     auto handleLeaf = LeafDofHPDGDataHandle<MLBasis, decltype(globalDof)>(basis, level, rank, owner, &globalDof);
     auto leaf_gv = gridView.grid().leafGridView();
@@ -342,18 +328,26 @@ makeGlobalDofHPDG(const MLBasis& basis, int level)
 
 } /* namespace Impl */
 
+/** Extended communication interface
+ *
+ * This takes the dune-parmg Comm class and adds two communicators
+ * which can communicate variable sizes.
+ *
+ * One of these communicates only across the interface, the other
+ * to any partition.
+ */
 class CommHPDG :
   public Comm {
     public:
 
-      //Interface v_interface_;
       Std::optional<Dune::VariableSizeCommunicator<>> v_communicator_;
-
-      //Interface v_interfaceAny_;
       Std::optional<Dune::VariableSizeCommunicator<>> v_communicatorAny_;
 
 };
 
+/** Creates a CommHPDG object based on a given
+ * multilevel basis and a given level.
+ */
 template<typename T, typename MLBasis>
 std::unique_ptr<CommHPDG>
 makeDGInterface(const MLBasis& basis, int level)
@@ -391,10 +385,8 @@ makeDGInterface(const MLBasis& basis, int level)
   comm->interfaceAny_.build(ris, Comm::anyFlag, Comm::anyFlag);
   comm->communicatorAny_.build< std::vector<T> >(comm->interfaceAny_);
 
-  //comm->v_interface_.build(ris, Comm::ownerFlag, Comm::overlapFlag);
   comm->v_communicator_=Dune::VariableSizeCommunicator<>(comm->interface_);
 
-  //comm->v_interfaceAny_.build(ris, Comm::anyFlag, Comm::anyFlag);
   comm->v_communicatorAny_=Dune::VariableSizeCommunicator<>(comm->interfaceAny_);
 
   return comm;
@@ -466,11 +458,7 @@ namespace Impl {
       template<class B>
       void scatter(B& buffer, std::size_t idx, std::size_t size)
       {
-        // DEBUG
-        if (size!= (*v)[idx].size())
-          std::cout << "got " << size << " instead of " << (*v)[idx].size() << "\n";
         assert(size == (*v)[idx].size());
-        // END DEBUG
         auto& entry = (*v)[idx];
         for(std::size_t i = 0; i < size; i++) {
           buffer.read(entry[i]);
@@ -481,6 +469,11 @@ namespace Impl {
 }
 
 
+/** Sets vector blocks that are not owned to zero.
+ *
+ * Note that this requires no communication and is
+ * therefore cheap.
+ */
 template<typename Vector>
 auto makeDGRestrict(CommHPDG& comm)
 {
@@ -493,6 +486,7 @@ auto makeDGRestrict(CommHPDG& comm)
     }
   };
 }
+/** Adds up all entries on elements that are known to known to >1 processes */
 template<typename Vector>
 auto makeDGAccumulate(CommHPDG& comm)
 {
@@ -503,6 +497,8 @@ auto makeDGAccumulate(CommHPDG& comm)
   };
 }
 
+/** Adds up all entries on elements that are known to >1 processes and restricts to
+ * master afterwards */
 template<typename Vector>
 auto makeDGCollect(CommHPDG& comm)
 {
@@ -514,6 +510,7 @@ auto makeDGCollect(CommHPDG& comm)
   };
 }
 
+/** Copies the entry at master element to all ghost elements */
 template<typename Vector>
 auto makeDGCopy(CommHPDG& comm)
 {
