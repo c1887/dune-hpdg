@@ -9,80 +9,17 @@
 #include <dune/geometry/referenceelements.hh>
 #include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
+#include <dune/hpdg/transferoperators/fulldomainindexsets.hh>
+#include <dune/grid/uggrid.hh>
+#include <dune/grid/common/gridenums.hh>
 
 #include <dune/functions/gridfunctions/discreteglobalbasisfunction.hh>
-// implementation details
-namespace Impl{
-  template<class GridType>
-  class MultilevelBasis
-  {
-    private:
-      static const int dim = GridType::dimension;
-    public:
-      //using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, 1>;
-      //using LocalFiniteElement = typename LevelBasis::LocalView::Tree::FiniteElement;
 
-      MultilevelBasis(const GridType& grid) :
-        grid_(grid)
-      {
-        const auto& globalIdSet = grid.globalIdSet();
-        const auto& leafIndexSet = grid.leafIndexSet();
-
-        auto maxLevel = grid.maxLevel();
-
-        //levelBasis_.resize(maxLevel+1);
-        //for (std::size_t level=0; level<=maxLevel; ++level)
-          //levelBasis_[level] = std::make_shared<LevelBasis>(grid.levelGridView(level));
-
-        idToIndex.resize(maxLevel+1);
-        size_.resize(maxLevel+1);
-        size_[maxLevel] = grid.size(0); // 0 because we're in elementwise DG and count the number of elements, not vertices
-
-        // iterate over levels
-        for (int level=0; level<maxLevel; level++) {
-          const auto& indexSet = grid.levelIndexSet(level);
-          size_[level]=indexSet.size(0);
-          for (const auto& e: elements(grid.levelGridView(level)))
-            idToIndex[level][globalIdSet.id(e)]=indexSet.index(e); // TODO: subIndex??
-        }
-
-        for (const auto& e: elements(grid.leafGridView())) {
-          idToIndex[maxLevel][globalIdSet.id(e)]=leafIndexSet.index(e);
-
-          for (auto level=e.level()+1; level<maxLevel; level++) {
-            idToIndex[level][globalIdSet.id(e)]= size_[level];
-            ++size_[level];
-          }
-        }
-      }
-
-      template<class Index>
-      std::size_t size(Index level) const {return size_[level];}
-
-      /** \brief Get index of an element on a given level */
-      template<class E, class Index>
-      std::size_t index(const E& element, const Index level) const {
-        const auto id = grid_.globalIdSet().id(element);
-        const auto entry = idToIndex[level].find(id);
-        if (entry != idToIndex[level].end())
-          return entry->second;
-        else
-          DUNE_THROW(Dune::Exception, "Element was not found on level " << level);
-      }
-
-    private:
-      const GridType& grid_;
-      //std::vector<std::shared_ptr<LevelBasis> > levelBasis_;
-      std::vector<std::size_t> size_;
-      using IdType = typename GridType::Traits::GlobalIdSet::IdType;
-      std::vector< std::map<IdType, std::size_t> > idToIndex;
-  };
-}
 namespace Dune {
   namespace HPDG{
     template<int k=1, typename MatrixType, typename GridType>
     void assembleDGGridTransferHierarchy(std::vector<std::shared_ptr<MatrixType>>& matrixVector, const GridType& grid){
-      const auto multiLevelBasis = ::Impl::MultilevelBasis<GridType>(grid);
+      const auto multiLevelBasis = FullDomainLevelIndexSets<GridType>(grid);
       const auto maxLevel = grid.maxLevel();
 
       /* Setup indices */
@@ -179,7 +116,7 @@ namespace Dune {
 
     template<int k=1, typename K, typename GridType>
     void assembleDGGridTransferHierarchy(std::vector<std::shared_ptr<DynamicBCRSMatrix<K>>>& matrixVector, const GridType& grid){
-      const auto multiLevelBasis = ::Impl::MultilevelBasis<GridType>(grid);
+      const auto multiLevelBasis = FullDomainLevelIndexSets<GridType>(grid);
       const auto maxLevel = grid.maxLevel();
 
       /* Setup indices */
