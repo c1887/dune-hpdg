@@ -16,6 +16,7 @@
 
 #include <dune/hpdg/common/indexedcache.hh>
 #include <dune/hpdg/common/mutablequadraturenodes.hh>
+#include <dune/hpdg/localfunctions/assemblycache.hh>
 #include <dune/hpdg/matrix-free/localoperators/gausslobattomatrices.hh>
 
 /** This is a factory for the diagonal block of an IPDG Laplace discretization.
@@ -35,8 +36,7 @@ namespace HPDG {
     using Field = double;
     using FV = Dune::FieldVector<Field, dim>;
     using LocalMatrix = Dune::Matrix<Dune::FieldMatrix<Field, 1,1>>; // TODO: This is not necessarily 1x1
-
-    enum class DGType {SIPG = -1, IIPG = 0, NIPG = 1};
+    using FE = std::decay_t<decltype(std::declval<LV>().tree().finiteElement())>;
 
     public:
 
@@ -44,7 +44,8 @@ namespace HPDG {
         basis_(b),
         penalty_(penalty),
         dirichlet_(dirichlet),
-        localView_(basis_.localView())
+        localView_(basis_.localView()),
+        outerView_(basis_.localView())
       {}
 
       template<class Entity>
@@ -72,8 +73,8 @@ namespace HPDG {
 
       void computeFace() {
         const auto& fe = localView_.tree().finiteElement();
-        using FE = std::decay_t<decltype(fe)>;
-        auto localAssembler = VInteriorPenaltyDGAssembler<typename GV::Grid, FE, FE>(penalty_, dirichlet_);
+        insideCache_.bind(&fe);
+        auto localAssembler = VInteriorPenaltyDGAssembler<typename GV::Grid, HPDG::AssemblyCache<FE>, HPDG::AssemblyCache<FE>>(penalty_, dirichlet_);
 
         // this is of course way too much work :(
         // TODO: We only need the inner x inner terms but we do compute all of the stuff
@@ -81,7 +82,6 @@ namespace HPDG {
         using MatrixContainer = Dune::Matrix<LocalMatrix>;
         auto mc = MatrixContainer(2,2);
 
-        auto outerView = basis_.localView();
 
         for (const auto& is: intersections(basis_.gridView(), localView_.element())) {
           if (not is.neighbor()) {
@@ -89,7 +89,7 @@ namespace HPDG {
             //continue; // TODO <-- Die Zeile dann löschen
             auto tmp =localMatrix_;
 
-            localAssembler.assemble(is, tmp, fe, fe);
+            localAssembler.assemble(is, tmp, insideCache_, insideCache_);
             //localMatrix_+=tmp;
             for(std::size_t i = 0; i < fe.size(); i++) {
               auto row = localView_.index(i)[1];
@@ -100,20 +100,80 @@ namespace HPDG {
             }
           }
           else {
-            outerView.bind(is.outside());
-            const auto& ofe = outerView.tree().finiteElement();
+            outerView_.bind(is.outside());
+            const auto& ofe = outerView_.tree().finiteElement();
 
-            mc[0][0].setSize(fe.size(), fe.size());
-            mc[0][1].setSize(fe.size(), ofe.size());
-            mc[1][0].setSize(ofe.size(), fe.size());
-            mc[1][1].setSize(ofe.size(), ofe.size());
 
-            localAssembler.assembleBlockwise(is, mc, fe, fe, ofe, ofe);
+            auto maxOrder = std::max(ofe.localBasis().order(), fe.localBasis().order());
+            auto penalty = penalty_ * maxOrder*maxOrder; // TODO: ^2 scaling is wrong for dim==1
 
-            //localMatrix_+=mc[0][0];
-            //
-            const auto& tmp = mc[0][0];
+            using FVdimworld = typename Dune::template FieldVector<double,dim>;
 
+            using JacobianType = typename FE::Traits::LocalBasisType::Traits::JacobianType;
+            using RangeType = typename FE::Traits::LocalBasisType::Traits::RangeType;
+
+            // get geometry and store it
+            const auto edgeGeometry = is.geometry();
+            const auto insideGeometry = is.inside().geometry();
+
+            const auto edgeLength = edgeGeometry.volume();
+
+            // get quadrature rule
+            QuadratureRuleKey tFEquad(is.type(), maxOrder);
+            QuadratureRuleKey quadKey = tFEquad.square();
+
+            const auto& quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
+
+            // store gradients for both the inner and outer elements
+            std::vector<JacobianType> insideReferenceGradients(fe.localBasis().size());
+            std::vector<FVdimworld> insideGradients(fe.localBasis().size());
+
+            // store values of shape functions
+            std::vector<RangeType> tFEinsideValues(fe.localBasis().size());
+
+            const auto outerNormal = is.centerUnitOuterNormal();
+
+            // loop over quadrature points
+            for (size_t pt=0; pt < quad.size(); ++pt)
+            {
+              // get quadrature point
+              const auto& quadPos = quad[pt].position();
+
+              // get transposed inverse of Jacobian of transformation
+              const auto& invJacobian = insideGeometry.jacobianInverseTransposed(is.geometryInInside().global(quadPos));
+
+              // get integration factor
+              const auto integrationElement = edgeGeometry.integrationElement(quadPos);
+
+              // get gradients of shape functions on both the inside and outside element
+              insideCache_.localBasis().evaluateJacobian(is.geometryInInside().global(quadPos), insideReferenceGradients);
+
+              // transform gradients
+              for (size_t i=0; i<insideGradients.size(); ++i)
+                invJacobian.mv(insideReferenceGradients[i][0], insideGradients[i]);
+
+              // evaluate basis functions
+              insideCache_.localBasis().evaluateFunction(is.geometryInInside().global(quadPos), tFEinsideValues);
+
+              // compute matrix entries
+              auto z = quad[pt].weight() * integrationElement;
+
+              // Basis functions from inside as test functions
+              for (size_t i=0; i<fe.localBasis().size(); ++i)
+              {
+                // Basis functions from inside as ansatz functions
+                for (size_t j=0; j<fe.localBasis().size(); ++j)
+                {
+                  // M11, see Riviere, p. 54f
+                  auto zij = -0.5*z*tFEinsideValues[i]*(insideGradients[j]*outerNormal);
+                  zij += -0.5*z*tFEinsideValues[j]*(insideGradients[i]*outerNormal);
+                  zij += penalty*z/edgeLength*tFEinsideValues[i]*tFEinsideValues[j];
+                  localMatrix_[i][j]+=zij;
+                }
+              }
+            }
+
+            /*
             for(std::size_t i = 0; i < fe.size(); i++) {
               auto row = localView_.index(i)[1];
               for(std::size_t j = 0; j < fe.size(); j++) {
@@ -121,25 +181,27 @@ namespace HPDG {
                 localMatrix_[row][col]+=tmp[i][j];
               }
             }
+            */
           }
         }
       }
 
       void computeBulk() {
         const auto& fe = localView_.tree().finiteElement();
-        using FE = std::decay_t<decltype(fe)>;
-        auto localAssembler = LaplaceAssembler<typename GV::Grid, FE, FE>();
+        insideCache_.bind(&fe);
+        //using FE = std::decay_t<decltype(fe)>;
+        auto localAssembler = LaplaceAssembler<typename GV::Grid, HPDG::AssemblyCache<FE>, HPDG::AssemblyCache<FE>>();
         auto tmp = localMatrix_;
-        localAssembler.assemble(localView_.element(), tmp, fe, fe);
+        localAssembler.assemble(localView_.element(), tmp, insideCache_, insideCache_);
         //localMatrix_+=tmp;
 
-            for(std::size_t i = 0; i < fe.size(); i++) {
-              auto row = localView_.index(i)[1];
-              for(std::size_t j = 0; j < fe.size(); j++) {
-                auto col = localView_.index(j)[1];
-                localMatrix_[row][col]+=tmp[i][j];
-              }
-            }
+        for(std::size_t i = 0; i < fe.size(); i++) {
+          auto row = localView_.index(i)[1];
+          for(std::size_t j = 0; j < fe.size(); j++) {
+            auto col = localView_.index(j)[1];
+            localMatrix_[row][col]+=tmp[i][j];
+          }
+        }
       }
 
 
@@ -149,7 +211,9 @@ namespace HPDG {
       double penalty_;
       bool dirichlet_;
       LV localView_;
+      LV outerView_;
       LocalMatrix localMatrix_;
+      HPDG::AssemblyCache<FE> insideCache_;
   };
 }
 }
