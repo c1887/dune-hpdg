@@ -1,4 +1,5 @@
 #pragma once
+#if HAVE_DUNE_PARMG
 
 #include <map>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
@@ -417,3 +418,4 @@ auto makeDGCopy(CommHPDG& comm)
 
 } /* namespace ParMG */
 } /* namespace Dune */
+#endif

@@ -1,7 +1,8 @@
 #pragma once
+#if HAVE_DUNE_PARMG
 #include <dune/hpdg/parallel/communicationhpdg.hh>
-#include <dune/parmg/parallel/communicationp1.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
+#include <dune/grid/common/gridenums.hh>
 namespace Dune {
 namespace HPDG {
 
@@ -44,3 +45,4 @@ namespace HPDG {
   }
 }
 }
+#endif
