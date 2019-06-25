@@ -275,6 +275,7 @@ namespace Impl {
       }
       multigrid_.levelOperations(ops);
 
+#if 0 // The following requires an interface change in dune-parmg. Also, it seems it doesnt help anyway.
       // set ascending number of iteration steps on coarser levels
       // this saves you (to an extend) from getting very bad convergence
       // rates with growing number of grid levels.
@@ -288,9 +289,14 @@ namespace Impl {
           multigrid_.levelOperations()[i].postSmootherSteps = iter;
         }
       }
+#endif
 
       // recalculate matrix hierarchy
       HPDG::MultigridSetup::renewMatrixHierachy(data_);
+    }
+
+    void setSmoothingSteps(unsigned int steps) {
+      multigrid_->preSmootherSteps_ = multigrid_->postSmootherSteps_ = steps;
     }
 
     private:
