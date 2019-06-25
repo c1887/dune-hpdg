@@ -26,6 +26,8 @@ namespace HPDG {
 
   /** \brief Returns a value v such that such the sum over all
    * elements >=v in vec will be at least a given fraction of the total sum.
+   *
+   * All elements in vec are expected to be nonnegative.
    */
   template<typename K>
   K fraction(const std::vector<K>& vec, double frac) {
@@ -40,6 +42,9 @@ namespace HPDG {
       return K(0.0);
 
     for(const auto& val : vec_sorted) {
+      if(val<0)
+        DUNE_THROW(Dune::Exception, "Negative value while calculating fraction of values");
+
       fullSum -= val;
       if (fullSum <= thresh)
         return val;
