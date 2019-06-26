@@ -6,6 +6,7 @@ install_files(
   ipdgblockjacobi.hh
   ipdgblockprojectedjacobi.hh
   ipdgdiagonalblock.hh
+  ipdglocalnorm.hh
   ipdgnorm.hh
   ipdgoperator.hh
   ipdgprec.hh

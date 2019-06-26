@@ -183,7 +183,8 @@ namespace MatrixFree {
             }
           }
 
-          // hier müssen dann die terme direkt geschrieben werden, weil wir noch andere Kanten besuchen werden
+          // write terms directly now since other edges will be visited and
+          // the terms would be lost
           auto sum=0.;
           for(std::size_t i = 0; i < localVector_.size(); i++) {
             sum+=localVector_[i]*insideCoeffs[i];
@@ -216,10 +217,6 @@ namespace MatrixFree {
         // we need the coefficients at every quadrature point. We extract and order them once:
         auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
         const Field* coeffs = &(inputBackend(localView_.index(0)));
-        //auto coeffs = std::vector<Field>(fe.localBasis().size());
-        //for (size_t i = 0; i < coeffs.size(); i++) {
-          //coeffs[i] = inputBackend(localView_.index(i));
-        //}
 
         for (size_t q = 0; q < nPoints; q++) {
 
