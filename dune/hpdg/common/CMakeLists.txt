@@ -10,4 +10,5 @@ mmmatrix.hh
 mutablequadraturenodes.hh
 resizehelper.hh
 vectorwindow.hh
+integertostring.hh
 DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/hpdg/common)
