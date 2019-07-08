@@ -10,6 +10,8 @@
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
+#include <dune/hpdg/localfunctions/assemblycache.hh>
+
 #include <dune/grid/common/mcmgmapper.hh>
 
 #include "localoperator.hh"
@@ -28,8 +30,6 @@ namespace MatrixFree {
    * IPDGLocalNorm(x)_i = (Dx, Dx)_E(i) + sum_(e in E(i)) sigma/(2|e|) \int [x]^2 dS
    *
    * (and similar for Dirichlet edges).
-   *
-   * TODO: Use cached local finite elements
    * */
   template<class V, class GV, class Basis>
   class IPDGLocalNorm : public LocalOperator<V, GV> {
@@ -93,7 +93,10 @@ namespace MatrixFree {
       void computeFace() {
         const auto& gv = basis_.gridView();
 
-        const auto& insideFE = localView_.tree().finiteElement();
+        const auto& insideFEfromLV = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&insideFEfromLV);
+        auto& insideFE = insideFE_cached_; // alias for shorter notation
+
         // for dg, we know that the coeffs. will be continous in memory
         //auto insideCoeffs = std::vector<Field>(insideFE.localBasis().size());
         const Field* insideCoeffs;
@@ -125,7 +128,9 @@ namespace MatrixFree {
           auto insideGeometry = is.geometryInInside();
           auto outsideGeometry = is.geometryInOutside();
 
-          const auto& outsideFE = outerLocalView_.tree().finiteElement();
+          const auto& outsideFEfromLV = outerLocalView_.tree().finiteElement();
+          outsideFE_cached_.bind(&outsideFEfromLV);
+          auto& outsideFE = outsideFE_cached_; // shorthand
 
           //auto outsideCoeffs = std::vector<Field>(outsideFE.localBasis().size());
           const Field* outsideCoeffs = &(inputBackend(outerLocalView_.index(0)));
@@ -203,7 +208,10 @@ namespace MatrixFree {
 
       void computeBulk() {
 
-        const auto& fe = localView_.tree().finiteElement();
+        const auto& feFromLV = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&feFromLV);
+        auto& fe = insideFE_cached_;
+
         QuadratureRuleKey feQuad(fe);
         QuadratureRuleKey quadKey = feQuad.derivative().square();
         const auto& quad = QuadratureRuleCache<double, dim>::rule(quadKey);
@@ -253,7 +261,9 @@ namespace MatrixFree {
       // However, guarding everything in if/else clauses there is even uglier
       template<class IS, class C>
       void computeDirichletBoundaryEdge(const IS& is, const C& insideCoeffs) {
-        const auto& insideFE = localView_.tree().finiteElement();
+        const auto& insideFEfromLV = localView_.tree().finiteElement();
+        insideFE_cached_.bind(&insideFEfromLV);
+        auto& insideFE = insideFE_cached_;
         auto penalty = penalty_ * std::pow(insideFE.localBasis().order(), 2.0);
 
         auto insideGeometry = is.geometryInInside();
@@ -315,6 +325,8 @@ namespace MatrixFree {
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       std::vector<typename V::field_type> outerLocalVector_; // contiguous memory buffer
       Dune::MultipleCodimMultipleGeomTypeMapper<typename Basis::GridView> mapper_;
+      HPDG::AssemblyCache<FE> insideFE_cached_;
+      HPDG::AssemblyCache<FE> outsideFE_cached_;
   };
 }
 }
