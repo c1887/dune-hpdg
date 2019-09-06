@@ -6,7 +6,7 @@
 
 #include "qkgausslobatto/qkgllocalinterpolation.hh"
 #include "qkgausslobatto/qkgllocalbasis.hh"
-#include <dune/localfunctions/lagrange/qk/qklocalcoefficients.hh> // Makes no difference whether GL or equidistant nodes are used
+#include <dune/localfunctions/lagrange/lagrangecube.hh> // Makes no difference whether GL or equidistant nodes are used
 
 namespace Dune
 {
@@ -22,14 +22,14 @@ namespace Dune
   class QkGaussLobattoLocalFiniteElement {
 
     typedef QkGaussLobattoLocalBasis<D,R,k,d> LocalBasis;
-    typedef QkLocalCoefficients<k,d> LocalCoefficients;
+    typedef Dune::Impl::LagrangeCubeLocalCoefficients<k,d> LocalCoefficients;
     typedef QkGaussLobattoLocalInterpolation<k,d,LocalBasis> LocalInterpolation;
 
   public:
 
     /** \todo Please doc me !
      */
-    typedef LocalFiniteElementTraits<LocalBasis,QkLocalCoefficients<k,d>,LocalInterpolation> Traits;
+    typedef LocalFiniteElementTraits<LocalBasis,Impl::LagrangeCubeLocalCoefficients<k,d>,LocalInterpolation> Traits;
 
     /** \todo Please doc me !
      */
