@@ -22,14 +22,14 @@ namespace Dune
   class QkGaussLobattoLocalFiniteElement {
 
     typedef QkGaussLobattoLocalBasis<D,R,k,d> LocalBasis;
-    typedef Dune::Impl::LagrangeCubeLocalCoefficients<k,d> LocalCoefficients;
+    typedef Dune::Impl::LagrangeCubeLocalCoefficients<d,k> LocalCoefficients;
     typedef QkGaussLobattoLocalInterpolation<k,d,LocalBasis> LocalInterpolation;
 
   public:
 
     /** \todo Please doc me !
      */
-    typedef LocalFiniteElementTraits<LocalBasis,Impl::LagrangeCubeLocalCoefficients<k,d>,LocalInterpolation> Traits;
+    typedef LocalFiniteElementTraits<LocalBasis,Impl::LagrangeCubeLocalCoefficients<d,k>,LocalInterpolation> Traits;
 
     /** \todo Please doc me !
      */
