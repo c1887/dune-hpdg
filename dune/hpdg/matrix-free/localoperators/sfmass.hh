@@ -10,7 +10,6 @@
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
-#include <dune/localfunctions/lagrange/qk/qklocalcoefficients.hh>
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/common/mmmatrix.hh>
