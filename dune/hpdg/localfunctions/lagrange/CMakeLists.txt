@@ -1,6 +1,7 @@
 add_subdirectory(qkgausslobatto)
 
 install(FILES
+  qkcache.hh
   qkdynamicordercache.hh
   qkgauskronrod.hh
   qkgauslegendre.hh
