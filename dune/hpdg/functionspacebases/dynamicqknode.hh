@@ -6,9 +6,9 @@
 #include <array>
 #include <dune/common/exceptions.hh>
 
-#include <dune/hpdg/localfunctions/lagrange/qkglfactory.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslegendre.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausskronrod.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkcache.hh>
 
 #include <dune/typetree/leafnode.hh>
 
@@ -81,7 +81,7 @@ protected:
 
 // for backward-compatibility
 template<typename GV, typename Mapper, typename DGM>
-using DynamicQkGLNode = DynamicQkNode<GV, Mapper, DGM, Dune::DynamicOrderQkGLLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
+using DynamicQkGLNode = DynamicQkNode<GV, Mapper, DGM, Dune::QkGLVaryingOrderCache<typename GV::ctype, double, GV::dimension, 14>>;
 
 template<typename GV, typename Mapper, typename DGM>
 using DynamicQkGaussLegendreNode = DynamicQkNode<GV, Mapper, DGM, Dune::DynamicOrderQkGaussLegendreLocalFiniteElementCache<typename GV::ctype, double, GV::dimension>>;
