@@ -33,7 +33,7 @@ namespace Impl {
       auto seq = std::make_integer_sequence<int, maxOrder>();
 
       return static_enumerate(
-          [](auto k){ return [k](){ return Dune::QkGaussLobattoLocalFiniteElement<D, R, dim, k>();};},
+          [](auto k){ return [k](){ return Dune::QkGaussLobattoLocalFiniteElement<D, R, dim, k.value>();};},
           std::move(seq)
       );
     }
