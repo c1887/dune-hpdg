@@ -11,3 +11,7 @@ dune:git  clang C++17:
 dune:git  gcc-6 C++14:
   image: registry.dune-project.org/docker/ci/dune:git-debian-9-gcc-6-14
   script: duneci-standard-test
+
+dune:git  gcc-6 C++14:
+  image: registry.dune-project.org/docker/ci/dune:git-debian-9-gcc-6-14
+  script: duneci-standard-test
