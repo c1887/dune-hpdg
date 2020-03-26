@@ -13,7 +13,7 @@
 #include <dune/matrix-vector/algorithm.hh>
 
 #include <dune/hpdg/common/dynamicbcrs.hh>
-#include <dune/hpdg/localfunctions/lagrange/qkglfactory.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkcache.hh>
 
 #include <dune/hpdg/common/blockwiseoperations.hh>
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
@@ -38,8 +38,10 @@ namespace Impl {
 
     private:
 
-    using field_type = typename MatrixType::field_type; std::map<std::pair<int, int>, MatrixType> matrix_;
-    using FECache = Dune::DynamicOrderQkGLLocalFiniteElementCache<field_type, field_type, dim>;
+    std::map<std::pair<int, int>, MatrixType> matrix_;
+
+    using field_type = typename MatrixType::field_type;
+    using FECache = Dune::QkGLVaryingOrderCache<field_type, field_type, dim, 14>;
     FECache cache_;
 
     using FE = typename FECache::FiniteElementType;
