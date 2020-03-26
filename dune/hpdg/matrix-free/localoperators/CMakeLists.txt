@@ -15,6 +15,7 @@ install_files(
   laplacepointjacobi.hh
   localassembleroperator.hh
   localoperator.hh
+  sfdiagonalipdg.hh
   sfidpg.hh
   sflaplace.hh
   sfmass.hh
