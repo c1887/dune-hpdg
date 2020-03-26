@@ -7,7 +7,7 @@
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/geometry/referenceelements.hh>
-#include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
+#include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/transferoperators/fulldomainindexsets.hh>
 #include <dune/grid/uggrid.hh>
@@ -50,13 +50,13 @@ namespace Dune {
       }
 
       /* Assemble matrices */
-      using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, k>;
+      using LevelBasis = Dune::Functions::DynamicDGQkGLBlockBasis<typename GridType::LevelGridView>;
       using CoarseFE = typename LevelBasis::LocalView::Tree::FiniteElement;
 
       for (int level=0; level<maxLevel; level++) {
         // Set up bases
-        const auto cbasis = LevelBasis(grid.levelGridView(level));
-        const auto fbasis = LevelBasis(grid.levelGridView(level+1));
+        const auto cbasis = LevelBasis(grid.levelGridView(level), k);
+        const auto fbasis = LevelBasis(grid.levelGridView(level+1), k);
         auto fineView = fbasis.localView();
         auto coarseView = cbasis.localView();
 
@@ -230,7 +230,7 @@ namespace Dune {
       const auto maxLevel = grid.maxLevel();
       const auto multiLevelBasis = FullDomainLevelIndexSets<GridType>(grid);
 
-      using LevelBasis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LevelGridView, k>;
+      using LevelBasis = Dune::Functions::DynamicDGQkGLBlockBasis<typename GridType::LevelGridView>;
       /* Setup indices */
       {
         const int blockSize = power(k+1, dim);
@@ -280,8 +280,8 @@ namespace Dune {
 
       for (int level=maxLevel; level>0; level--) {
         // Set up bases
-        const auto cbasis = LevelBasis(grid.levelGridView(level-1));
-        const auto fbasis = LevelBasis(grid.levelGridView(level));
+        const auto cbasis = LevelBasis(grid.levelGridView(level-1), k);
+        const auto fbasis = LevelBasis(grid.levelGridView(level), k);
         auto fineView = fbasis.localView();
         auto coarseView = cbasis.localView();
 

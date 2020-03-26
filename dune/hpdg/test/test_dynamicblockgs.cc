@@ -21,47 +21,27 @@ TestSuite test_dynamicblockgs() {
 
   constexpr const int dim =2;
   using Grid = Dune::YaspGrid<dim>;
-  auto gridptr = Dune::StructuredGridFactory<Grid>::createCubeGrid({{0,0}}, {{1,1}}, {{4,4}});
+  auto gridptr = Dune::StructuredGridFactory<Grid>::createCubeGrid({{0,0}}, {{1,1}}, {{2,2}});
 
-  size_t iter = 1;
+  size_t iter = 100;
 
   constexpr const int k = 2;
   auto dynamicMatrix = dynamicStiffnessMatrix(*gridptr, k);
-  auto staticMatrix = stiffnessMatrix<k>(*gridptr);
-
-  using StaticVector = Dune::BlockVector<Dune::FieldVector<double, Dune::StaticPower<k+1,dim>::power>>;
-  StaticVector staticB(staticMatrix.N());
   auto dynamicB = Dune::HPDG::makeDynamicBlockVector(dynamicMatrix);
-  staticB=1.0;
   dynamicB=1.0;
   auto dynamicX= dynamicB;
-  auto staticX = staticB;
 
   // perform a dynamic BlockGS iteration
   auto dynamicGS = Dune::HPDG::DynamicBlockGS<decltype(dynamicMatrix), decltype(dynamicX)>();
   dynamicGS.setProblem(dynamicMatrix, dynamicX, dynamicB);
-  // TODO: ignore nodes
   for (size_t i = 0; i < iter; i++)
     dynamicGS.iterate();
 
-  // perform a static BlockGS iteration
-  using BitVector = Dune::Solvers::DefaultBitVector_t<StaticVector>;
-  auto staticGS = Dune::Solvers::BlockGSStepFactory<decltype(staticMatrix), StaticVector, BitVector>::create(Dune::Solvers::BlockGS::LocalSolvers::gs(0.,0.), Dune::Solvers::BlockGS::Direction::FORWARD);
-  staticGS.setProblem(staticMatrix, staticX, staticB);
-  BitVector staticIgnore(staticX.size(), false);
-  staticGS.setIgnore(staticIgnore);
-  for (size_t i = 0; i < iter; i++)
-    staticGS.iterate();
+  // compute residual:
+  dynamicMatrix.mmv(dynamicX, dynamicB);
 
-  // compare results (may be slightly off due to floating point arithmetic and slightly different implementations
-  auto max = 0.;
-  for (size_t i = 1; i <staticX.size()-1; i++) {
-    for (size_t j = 0; j <staticX[i].size(); j++) {
-      max = std::max(std::abs(staticX[i][j]-dynamicX[i][j]),max);
-    }
-  }
-  suite.check(max < 1e-14, "Check difference between static and dynamic Block GS") << "Max norm of difference is " << max;
-
+  // as the system is really small, we should approximately have solved the system already.
+  suite.check(dynamicB.two_norm() < 1e-13, "Test if small system was solved") << "Norm is " << dynamicB.two_norm();
   return suite;
 }
 

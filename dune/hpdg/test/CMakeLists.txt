@@ -12,8 +12,6 @@ dune_add_test(
 dune_add_test(
   SOURCES test_commandlinept.cc)
 dune_add_test(
-  SOURCES test_geometricdgmultigrid.cc)
-dune_add_test(
   SOURCES test_dynamicbasis.cc)
 dune_add_test(
   SOURCES test_lumpedmass.cc)
