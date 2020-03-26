@@ -7,67 +7,9 @@
 #include <dune/fufem/functions/constantfunction.hh>
 
 #include <dune/fufem/assemblers/localassemblers/interiorpenaltydgassembler.hh>
-#include <dune/hpdg/functionspacebases/dgqkglbasis.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
-
-/** Assemble a stiffness matrix */
-template<int k, class GridType>
-auto stiffnessMatrix(const GridType& grid, double penaltyFactor=1.5) {
-  constexpr auto dim = GridType::dimensionworld;
-
-  using Matrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, Dune::StaticPower<k+1, dim>::power, Dune::StaticPower<k+1, dim>::power> >;
-  Matrix matrix;
-
-  const auto penalty = penaltyFactor*std::pow((double) k, dim); // penalty factor
-
-  /* Setup Basis */
-  using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
-  Basis basis{grid.leafGridView()};
-
-  /* assemble laplace bulk terms and ipdg terms */
-  {
-    using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
-    using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-    auto matrixBackend = Dune::Fufem::istlMatrixBackend(matrix);
-    auto patternBuilder = matrixBackend.patternBuilder();
-
-    auto assembler = Assembler{basis, basis};
-
-    assembler.assembleSkeletonPattern(patternBuilder);
-
-    patternBuilder.setupMatrix();
-
-
-    auto vintageIPDGAssembler = InteriorPenaltyDGAssembler<GridType, FiniteElement, FiniteElement>(penalty);
-    auto localBlockAssembler = [&](const auto& edge, auto& matrixContainer,
-        auto&& insideTrialLocalView, auto&& insideAnsatzLocalView, auto&& outsideTrialLocalView, auto&& outsideAnsatzLocalView)
-    {
-        vintageIPDGAssembler.assembleBlockwise(edge, matrixContainer, insideTrialLocalView.tree().finiteElement(),
-                                               insideAnsatzLocalView.tree().finiteElement(),
-                                               outsideTrialLocalView.tree().finiteElement(),
-                                               outsideAnsatzLocalView.tree().finiteElement());
-    };
-    auto localBoundaryAssembler = [&](const auto& edge, auto& localMatrix, auto&& insideTrialLocalView, auto&& insideAnsatzLocalView)
-    {
-        vintageIPDGAssembler.assemble(edge, localMatrix, insideTrialLocalView.tree().finiteElement(), insideAnsatzLocalView.tree().finiteElement());
-    };
-
-    assembler.assembleSkeletonEntries(matrixBackend, localBlockAssembler, localBoundaryAssembler); // IPDG terms
-
-    auto vintageBulkAssembler = LaplaceAssembler<GridType,FiniteElement, FiniteElement>();
-
-    /* We need to construct the stiffness Matrix into a separate (temporary) matrix object as otherwise the previously assembled entries
-     * would be lost. This temporary matrix will be deleted after we leave the block scope*/
-    auto bulkMatrix = Matrix{};
-    auto bmatrixBackend = Dune::Fufem::istlMatrixBackend(bulkMatrix);
-    assembler.assembleBulk(bmatrixBackend, vintageBulkAssembler);
-    matrix+=bulkMatrix;
-  }
-
-  return matrix;
-}
 
 /** Assemble a dynamic stiffness matrix */
 template<class GridType>
@@ -173,32 +115,6 @@ auto dynamicMassMatrix(const GridType& grid, int k) {
   }
 
   return dynMatrix;
-}
-
-template<int k, class GridType>
-auto rightHandSide(const GridType& grid, double force=-10.0) {
-  constexpr auto dim = GridType::dimensionworld;
-  using Vector = Dune::BlockVector<Dune::FieldVector<double, Dune::StaticPower<k+1, dim>::power> >;
-  Vector rhs(grid.leafGridView().size(0));
-
-  using Basis = Dune::Functions::DGQkGLBlockBasis<typename GridType::LeafGridView, k>;
-  Basis basis{grid.leafGridView()};
-  auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
-
-  using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
-
-  // assemble standard function \int fv
-  {
-    const ConstantFunction<Dune::FieldVector<double, dim>, Dune::FieldVector<double, 1> > f(force);
-    const L2FunctionalAssembler<GridType, FiniteElement> rhsLocalAssembler(f);
-    const auto localRHSlambda = [&](const auto& element, auto& localV, const auto& localView) {
-      rhsLocalAssembler.assemble(element, localV, localView.tree().finiteElement());
-    };
-    Dune::Fufem::DuneFunctionsFunctionalAssembler<Basis> rhsAssembler(basis);
-    rhsAssembler.assembleBulk(rhsBE, localRHSlambda);
-  }
-
-  return rhs;
 }
 
 template<class GridType>
