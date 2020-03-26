@@ -1,5 +1,4 @@
 install(FILES
-  dgqkglbasis.hh
   dynamicdgqkgausskronrodbasis.hh
   dynamicdgqkgausslegendrebasis.hh
   dynamicdgqkglbasis.hh
