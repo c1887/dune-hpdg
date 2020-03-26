@@ -5,6 +5,7 @@
 
 #include <dune/localfunctions/common/localfiniteelementvariantcache.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkgausslegendre.hh>
 #include <dune/common/indices.hh>
 
 #include <tuple>
@@ -44,6 +45,26 @@ namespace Impl {
     }
   };
 
+  template<class D, class R, std::size_t dim, int maxOrder>
+  struct QkGaussLegendreFiniteElements
+  {
+    static auto getImplementations()
+    {
+      // generate all orders up to order maxOrder-1
+      auto seq = std::make_integer_sequence<int, maxOrder>();
+
+      return static_enumerate(
+          [](auto k){ return [k](){ return Dune::QkGaussLegendreLocalFiniteElement<D, R, dim, k.value>();};},
+          std::move(seq)
+      );
+    }
+
+    /** In this case, this is just identity */
+    constexpr static auto index(int idx) {
+      return idx;
+    }
+  };
+
 } // namespace Impl
 
 /** LFE Cache that contains all orders of the Qk local finite element with Gauss--Lobatto nodes up to
@@ -51,6 +72,12 @@ namespace Impl {
  */
 template<class D, class R, std::size_t dim, std::size_t maxOrder>
 using QkGLVaryingOrderCache = LocalFiniteElementVariantCache<Impl::QkGLFiniteElements<D,R,dim,maxOrder>>;
+
+/** LFE Cache that contains all orders of the Qk local finite element with Gauss--Legendre nodes up to
+ * a given order 'maxOrder'.
+ */
+template<class D, class R, std::size_t dim, std::size_t maxOrder>
+using QkGaussLegendreVaryingOrderCache = LocalFiniteElementVariantCache<Impl::QkGLFiniteElements<D,R,dim,maxOrder>>;
 
 } // namespace Dune
 

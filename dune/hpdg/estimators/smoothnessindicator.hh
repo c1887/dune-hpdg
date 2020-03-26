@@ -4,7 +4,7 @@
 #include <vector>
 
 #include <dune/common/fvector.hh>
-#include <dune/hpdg/localfunctions/qkdglegendre.hh>
+#include <dune/hpdg/localfunctions/lagrange/qkcache.hh>
 #include <dune/functions/common/functionfromcallable.hh>
 
 namespace Dune {
@@ -89,7 +89,7 @@ namespace Dune {
         return alpha;
       }
 
-      DynamicOrderLegendreLocalFiniteElementCache<field_type, field_type, dim> feCache_;
+      QkGaussLegendreVaryingOrderCache<field_type, field_type, dim, 14> feCache_;
     };
   }
 }
