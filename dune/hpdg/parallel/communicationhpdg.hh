@@ -2,11 +2,12 @@
 #if HAVE_DUNE_PARMG
 
 #include <map>
+#include <optional>
+
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 
 #include <dune/parmg/parallel/communicationp1.hh>
 #include <dune/common/parallel/variablesizecommunicator.hh>
-#include <dune/common/std/optional.hh>
 
 namespace Dune {
 namespace ParMG {
@@ -235,8 +236,8 @@ class CommHPDG :
   public Comm {
     public:
 
-      Std::optional<Dune::VariableSizeCommunicator<>> v_communicator_;
-      Std::optional<Dune::VariableSizeCommunicator<>> v_communicatorAny_;
+      std::optional<Dune::VariableSizeCommunicator<>> v_communicator_;
+      std::optional<Dune::VariableSizeCommunicator<>> v_communicatorAny_;
 
 };
 
