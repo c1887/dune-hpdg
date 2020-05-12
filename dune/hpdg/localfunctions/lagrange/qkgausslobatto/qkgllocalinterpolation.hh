@@ -56,7 +56,6 @@ namespace Dune
     void interpolate (const F& f, std::vector<C>& out) const
     {
       typename LB::Traits::DomainType x;
-      typename LB::Traits::RangeType y;
 
       out.resize(StaticPower<k+1,d>::power);
 
@@ -69,7 +68,7 @@ namespace Dune
         for (int j=0; j<d; j++)
           x[j] = gausslobatto_nodes[alpha[j]];
 
-        f.evaluate(x,y); out[i] = y;
+        out[i] = f(x);
       }
     }
   private:
@@ -87,10 +86,8 @@ namespace Dune
     void interpolate (const F& f, std::vector<C>& out) const
     {
       typename LB::Traits::DomainType x(0);
-      typename LB::Traits::RangeType y;
-      f.evaluate(x,y);
       out.resize(1);
-      out[0] = y;
+      out[0] = f(x);
     }
   };
 
