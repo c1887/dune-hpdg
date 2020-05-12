@@ -74,6 +74,17 @@ namespace MatrixFree {
         }
       }
 
+      /** If true, penalty parameter is set to 1 everywhere */
+      const bool& normalizedPenalty() const {
+        return normalizePenalty_;
+      }
+
+      /** If true, penalty parameter is set to 1 everywhere */
+      bool& normalizedPenalty() {
+        return normalizePenalty_;
+      }
+
+
     private:
 
       void computeFace() {
@@ -121,7 +132,7 @@ namespace MatrixFree {
 
           auto maxOrder = std::max(insideFE.localBasis().order(), outsideFE.localBasis().order());
 
-          auto penalty = penalty_ * power(maxOrder, 2);
+          auto penalty = normalizePenalty_ ? 1 : penalty_ * power(maxOrder, 2);
 
           auto quadKey = QuadratureRuleKey(is.type(), maxOrder).square();
           auto quad = QuadratureRuleCache<double, dim-1>::rule(quadKey);
@@ -242,7 +253,7 @@ namespace MatrixFree {
       template<class IS, class C>
       void computeDirichletBoundaryEdge(const IS& is, const C& insideCoeffs) {
         const auto& insideFE = localView_.tree().finiteElement();
-        auto penalty = penalty_ * std::pow(insideFE.localBasis().order(), 2.0);
+        auto penalty = normalizePenalty_? 1 : penalty_ * Dune::power(insideFE.localBasis().order(), 2);
 
         auto insideGeometry = is.geometryInInside();
 
@@ -298,6 +309,7 @@ namespace MatrixFree {
       std::vector<typename V::field_type> localVector_; // contiguous memory buffer
       std::vector<typename V::field_type> outerLocalVector_; // contiguous memory buffer
       Dune::MultipleCodimMultipleGeomTypeMapper<typename Basis::GridView> mapper_;
+      bool normalizePenalty_= false;
   };
 }
 }
