@@ -3,8 +3,8 @@
 #pragma once
 #include <vector>
 #include <functional>
+#include <optional>
 
-#include <dune/common/std/optional.hh>
 #include <dune/common/exceptions.hh>
 
 namespace Dune {
@@ -148,7 +148,7 @@ class IndexedCache {
 
   private:
     std::function<T(IndexType)> generator_;
-    mutable std::vector<Std::optional<T>> cache_;
+    mutable std::vector<std::optional<T>> cache_;
 };
 }
 }
