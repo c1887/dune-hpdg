@@ -33,8 +33,8 @@ namespace MatrixFree {
     {
 
       using CoarseFiniteElement = typename CoarseBasis::LocalView::Tree::FiniteElement;
-      using FunctionBaseClass = typename Dune::LocalFiniteElementFunctionBase<CoarseFiniteElement>::type;
-      using LocalBasisWrapper = LocalBasisComponentWrapper<typename CoarseFiniteElement::Traits::LocalBasisType, FunctionBaseClass>;
+      using FunctionTraits = typename CoarseFiniteElement::Traits::LocalBasisType::Traits;
+      using LocalBasisWrapper = LocalBasisComponentWrapper<typename CoarseFiniteElement::Traits::LocalBasisType, FunctionTraits>;
 
       const auto& gv = fbasis_.gridView();
       for(const auto& element : elements(gv)) {
