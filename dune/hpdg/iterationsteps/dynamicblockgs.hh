@@ -8,15 +8,17 @@
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 
+#include <dune/common/typetraits.hh>
+
 #include <dune/solvers/iterationsteps/lineariterationstep.hh>
 namespace Dune {
   namespace HPDG {
     namespace Imp {
       struct GSCore {
         template<typename MB, typename VB>
-        VB operator()
+        auto operator()
         (const MB& m, const VB& b) {
-        auto x =b;
+        auto x = autoCopy(b);
         x=0;
         for (size_t i = 0; i < m.N(); ++i) {
           const auto& mi = m[i];
@@ -93,7 +95,7 @@ namespace Dune {
         const auto& m = *this->mat_;
         const auto& b = *this->rhs_;
         auto& x = *this->x_;
-        auto r = b;
+        auto r = autoCopy(b);
 
         for (size_t i = 0; i < x.size(); ++i) {
           const auto& row_i = m[i];
