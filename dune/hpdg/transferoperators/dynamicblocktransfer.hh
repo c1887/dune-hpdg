@@ -5,13 +5,13 @@
 #include <dune/istl/matrixindexset.hh>
 #include <dune/common/fmatrix.hh>
 #include <dune/common/bitsetvector.hh>
-#include <dune/matrix-vector/algorithm.hh>
 
 #include <dune/matrix-vector/transformmatrix.hh>
 
 #include <dune/hpdg/common/dynamicbcrs.hh>
 
 #include <dune/hpdg/transferoperators/ordertransfer.hh>
+#include <dune/hpdg/transferoperators/arithmetic.hh>
 /** \brief Galerkin restriction and prolongation for blocked matrices
  * Essentially the same as DGMultigridTransfer but this does not assume that we have a block-diagonal transfer operator
  *
@@ -53,7 +53,8 @@ namespace Dune {
         coarseVector.update();
 
         // step 2: restrict
-        matrix_->mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
+        coarseVector = 0.;
+        Arithmetic::transposedMatrixVectorProduct(*matrix_, fineVector, coarseVector);
  
       }
 
@@ -68,12 +69,14 @@ namespace Dune {
         }
         fineVector.update();
 
-        matrix_->mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
+        fineVector = 0.;
+        Arithmetic::matrixVectorProduct(*matrix_, coarseVector, fineVector);
       }
 
       /** \brief Galerkin assemble a coarse stiffness matrix
      */
-      void galerkinRestrict(const DynamicMatrixType& fineMat, DynamicMatrixType& coarseMat) const
+      template<typename M>
+      void galerkinRestrict(const M& fineMat, M& coarseMat) const
       {
         coarseMat = 0.;
         for (std::size_t i =0; i< fineMat.N(); i++) {
@@ -83,8 +86,7 @@ namespace Dune {
             const auto& Tj = (*matrix_)[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
-                  //Dune::MatrixVector::addTransformedMatrix(coarseMat.matrix()[k][l], Tik, Aij, Tjl);
-                  Impl::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
+                  Dune::HPDG::Arithmetic::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
               });
             });
           });
@@ -99,7 +101,8 @@ namespace Dune {
     * \param coarseMat The coarse level matrix
     * \param setup The function that sets the index set
     */
-      void galerkinRestrictSetOccupation(const DynamicMatrixType& fineMat, DynamicMatrixType& coarseMat) const
+      template<typename M>
+      void galerkinRestrictSetOccupation(const M& fineMat, M& coarseMat) const
       {
         auto m = matrix_->M(); // #coarse functions
         auto indices = Dune::MatrixIndexSet(m, m);
