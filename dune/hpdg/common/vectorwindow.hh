@@ -19,6 +19,7 @@
 
 #include <vector>
 #include <dune/common/densevector.hh>
+#include <dune/istl/bvector.hh>
 
 namespace Dune {
 
@@ -116,6 +117,15 @@ namespace Dune {
 
     using Base::operator=;
 
+    /** \brief Convert VectorWindow into a proper BlockVector */
+    operator BlockVector<K>() const {
+      auto bv = BlockVector<K>(n_);
+
+      std::copy(data_, data_ + n_, bv.begin());
+
+      return bv;
+    }
+
     //! Copy assignment operator
     VectorWindow &operator=(const VectorWindow &other)
     {
@@ -127,6 +137,17 @@ namespace Dune {
       return *this;
     }
 
+    //! Copy assignment operator from BlockVector
+    VectorWindow &operator=(const BlockVector<K>& bv)
+    {
+      if (bv.N() != n_)
+        DUNE_THROW(Dune::Exception, "Attempting to copy-assign from a BlockVector of wrong size!");
+
+      std::copy(bv.begin(), bv.end(), data_);
+
+      return *this;
+    }
+
     //! Move assignment operator
     VectorWindow &operator=(VectorWindow &&other)
     {
@@ -134,6 +155,18 @@ namespace Dune {
         DUNE_THROW(Dune::Exception, "Attempting to move-assign from a VectorWindow&& of wrong size!");
       for(size_t i = 0; i < n_; i++)
         data_[i] = other.data_[i];
+      return *this;
+    }
+
+    /** Set every vector entry to a scalar value
+     *
+     * This is for whatever reason not always done by the base class
+      */
+    template<typename T, typename = std::enable_if_t<Dune::IsNumber<T>::value>>
+    VectorWindow& operator=(const T& scalar) {
+      for(size_t i = 0; i < n_; i++)
+        data_[i] = scalar;
+
       return *this;
     }
 
@@ -180,6 +213,13 @@ namespace Dune {
       return *this;
     }
 
+    VectorWindow& operator+=(const BlockVector<K>& bv) {
+      DUNE_ASSERT_BOUNDS(bv.N()==n_);
+      for (size_t i = 0; i < n_; i++)
+        data_[i]+=bv[i];
+      return *this;
+    }
+
     VectorWindow& operator+=(double other) {
       assert(n_ == 1);
       data_[0] = other;
@@ -207,6 +247,14 @@ namespace Dune {
   };
 
 } // end namespace
+
+ //! Specialization for the proxies of `VectorWindow`
+template<typename K>
+struct AutonomousValueType<HPDG::VectorWindow<K>>
+{
+  using type = BlockVector<K>;
+};
+
 } // end namespace
 
 #endif

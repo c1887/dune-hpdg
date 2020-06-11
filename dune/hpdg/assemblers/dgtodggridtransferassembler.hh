@@ -225,7 +225,6 @@ namespace Dune {
 #else
     template<int k=1, typename K, typename GridType>
     void assembleDGGridTransferHierarchy(std::vector<std::shared_ptr<DynamicBCRSMatrix<K>>>& matrixVector, const GridType& grid){
-      std::cout << "Hi, Im UG\n";
       constexpr const int dim = GridType::dimensionworld;
       const auto maxLevel = grid.maxLevel();
       const auto multiLevelBasis = FullDomainLevelIndexSets<GridType>(grid);
@@ -345,8 +344,12 @@ namespace Dune {
     /** Free function returning a vector containing the transfer
      * matrices used for geometric multigrid with a DG<k> basis.
      */
-    template<typename M, typename G, int k=1>
-    std::vector<std::shared_ptr<M>> dgGridTransferHierarchy(const G& grid) {
+    template<typename G>
+    auto
+    dgGridTransferHierarchy(const G& grid)
+    {
+      // Transfer operators can have scalar entries even in vector-valued case
+      using M = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
       auto m = std::vector<std::shared_ptr<M>>(grid.maxLevel());
 
       for (auto& t: m)

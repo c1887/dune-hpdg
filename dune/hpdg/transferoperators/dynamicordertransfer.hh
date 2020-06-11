@@ -166,7 +166,8 @@ class DynamicOrderTransfer {
   /** \brief Galerkin assemble a coarse stiffness matrix. All orders higher than input maxOrder will be restricted to
    * maxOrder. Lower orders will not be affected
    */
-  void galerkinRestrict(const MatrixType &fineMat, MatrixType &coarseMat, int maxOrder) const {
+  template<typename M>
+  void galerkinRestrict(const M& fineMat, M& coarseMat, int maxOrder) const {
     coarseMat = 0.;
 
     // the idea is the following: the global transfer matrix is block diagonal.
@@ -216,7 +217,8 @@ class DynamicOrderTransfer {
    * \param coarseMat The coarse level matrix
    * \param order The maximal order elements may have. All greater orders will be restricted to order.
    */
-  void galerkinRestrictSetOccupation(const MatrixType &fineMat, MatrixType &coarseMat, int order) const {
+  template<typename M>
+  void galerkinRestrictSetOccupation(const M &fineMat, M &coarseMat, int order) const {
     // This one is easy, as the transfer operator has block diag. structure.
     // Hence, the coarse matrix will have the same block structure as the fine matrix.
     Dune::MatrixIndexSet idx(fineMat.N(), fineMat.M());

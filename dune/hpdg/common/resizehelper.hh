@@ -12,9 +12,13 @@ namespace HPDG {
   void resizeFromBasis(DynamicBCRSMatrix<K>& matrix, const B& basis) {
     matrix.finishIdx();
     auto localView = basis.localView();
+    auto prefix = typename B::SizePrefix {};
     for (const auto& e : elements(basis.gridView())) {
       localView.bind(e);
-      matrix.blockRows(localView.index(0)[0]) = localView.size();
+      prefix.push_back(localView.index(0)[0]);
+      matrix.blockRows(prefix[0]) = basis.size(prefix);
+
+      prefix.clear();
     }
     matrix.setSquare();
 
@@ -26,9 +30,14 @@ namespace HPDG {
   void resizeFromBasis(DynamicBlockVector<K>& v, const B& basis) {
     v.setSize(basis.size());
     auto localView = basis.localView();
+    auto prefix = typename B::SizePrefix {};
     for (const auto& e : elements(basis.gridView())) {
       localView.bind(e);
-      v.blockRows(localView.index(0)[0]) = localView.size();
+      prefix.push_back(localView.index(0)[0]);
+      // we're interested in the size of the next position, so we supply a prefix
+      v.blockRows(prefix[0]) = basis.size(prefix);
+
+      prefix.clear(); // this has to be done in every loop since we assume the current index is the first
     }
 
     // allocate memory
