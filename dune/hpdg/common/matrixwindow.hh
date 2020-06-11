@@ -166,7 +166,7 @@ namespace Dune
 
       using Base::mv; // generic version that works for other vector types
       /** y=Ax */
-      void mv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+/*       void mv (const VectorWindow<K>& x, VectorWindow<K>& y) const
       {
         DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
         DUNE_ASSERT_BOUNDS(x.N() == M());
@@ -176,11 +176,11 @@ namespace Dune
         {
           y[i] = mat_access(i) * x;
         }
-      }
+      } */
 
       using Base::umv; // generic version that works for other vector types
       /** y+=Ax */
-      void umv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+/*       void umv (const VectorWindow<K>& x, VectorWindow<K>& y) const
       {
         DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
         DUNE_ASSERT_BOUNDS(x.N() == M());
@@ -190,11 +190,10 @@ namespace Dune
         {
           y[i] += mat_access(i) * x;
         }
-      }
+      } */
 
-      using Base::mmv; // generic version that works for other vector types
-      /** y-=Ax */
-      void mmv (const VectorWindow<K>& x, VectorWindow<K>& y) const
+      template<typename KK>
+      void umv (const VectorWindow<KK>& x, VectorWindow<KK>& y) const
       {
         DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
         DUNE_ASSERT_BOUNDS(x.N() == M());
@@ -202,7 +201,35 @@ namespace Dune
 
         for (size_type i=0; i<n_; ++i)
         {
-          y[i] -= mat_access(i) * x;
+          const auto& row = mat_access(i);
+          for (size_type j=0; j<m_; ++j) {
+            row[j].umv(x[j], y[i]);
+          }
+        }
+      }
+
+      template<typename KK>
+      void mv (const VectorWindow<KK>& x, VectorWindow<KK>& y) const
+      {
+        y=0;
+        umv(x,y);
+      }
+      using Base::mmv; // generic version that works for other vector types
+      /** y-=Ax */
+      template<typename KK>
+      void mmv (const VectorWindow<KK>& x, VectorWindow<KK>& y) const
+      {
+        DUNE_ASSERT_BOUNDS((void*)(&x) != (void*)(&y));
+        DUNE_ASSERT_BOUNDS(x.N() == M());
+        DUNE_ASSERT_BOUNDS(y.N() == N());
+
+        for (size_type i=0; i<n_; ++i)
+        {
+          // y[i] -= mat_access(i) * x;
+          for (size_type j = 0; j < m_; ++j) {
+            // y[i] -= mat_access(i)[j] x[j];
+            mat_access(i)[j].mmv(x[j], y[i]);
+          }
         }
       }
 
