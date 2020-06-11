@@ -18,12 +18,14 @@
 namespace Dune {
 namespace HPDG {
 namespace MultigridSetup {
-  template<typename Vector, int dim>
+  template<typename MatrixType, typename Vector, int dim, typename GS=HPDG::Imp::GSCore>
   struct MultigridData {
 
-    using Matrix = DynamicBCRSMatrix<FieldMatrix<double,1,1>>;
+    using Matrix = MatrixType;
     using PTransfer = Dune::HPDG::DGOrderTransfer<Vector, dim>;
     using GridTransfer = DynamicBlockTransferOperator<Vector>;
+
+    using LocalSolver = GS; // This is a bit ugly in a data struct, but we need it often.
 
     // system matrices on each level
     std::vector<std::shared_ptr<Matrix>> systemMatrix;
@@ -37,15 +39,14 @@ namespace MultigridSetup {
   };
 
 namespace Impl {
-  template<class Vector, int dim>
+  template<typename Matrix, typename Vector, int dim, typename GS>
   class TransferOperators {
     public:
 
-      TransferOperators(MultigridData<Vector, dim>* data):
+      TransferOperators(MultigridData<Matrix, Vector, dim, GS>* data):
         data_(data)
       {}
 
-      template<typename Matrix>
       void restrictMatrix(std::size_t coarseLevel, const Matrix& fine, Matrix& coarse) {
         if (coarseLevel >= data_->gridTransfer.size())
           data_->pTransfer[p_index(coarseLevel)]->galerkinRestrict(fine, coarse);
@@ -59,17 +60,17 @@ namespace Impl {
         return global_idx - data_->gridTransfer.size();
       }
 
-      MultigridData<Vector, dim>* data_;
+      MultigridData<Matrix, Vector, dim, GS>* data_;
   };
 }
   /** Prepare multigrid data by resizing properly and
    * setting up transfer operators.
    *
    */
-  template<typename Vector, typename Grid, typename M>
+  template<typename Vector, typename Grid, typename M, typename LocalSolver=HPDG::Imp::GSCore>
   auto setupData(const Grid& grid, int maximalDegree, M& matrix) {
     constexpr const int dim = Grid::dimension;
-    using MGData = MultigridData<Vector, dim>;
+    using MGData = MultigridData<M, Vector, dim, LocalSolver>;
     MGData mgData;
 
     const auto gridLevels = grid.maxLevel(); // number of transfers on grid +1
@@ -97,7 +98,7 @@ namespace Impl {
       p->galerkinRestrictSetOccupation(*mgData.systemMatrix[l+1], *mgData.systemMatrix[l]);
     }
 
-    auto gTransferMats = Dune::HPDG::dgGridTransferHierarchy<M>(grid); // geometric multigrid transfer operators
+    auto gTransferMats = Dune::HPDG::dgGridTransferHierarchy(grid); // geometric multigrid transfer operators
     for (int l = gridLevels -1; l>=0; --l) {
       mgData.gridTransfer[l]->setup([&](auto&& matrix) {matrix=gTransferMats[l];}); // put the transfer matrix into the Transferoperator object (sigh...)
       mgData.gridTransfer[l]->galerkinRestrictSetOccupation(*mgData.systemMatrix[l+1], *mgData.systemMatrix[l]);
@@ -106,8 +107,8 @@ namespace Impl {
     return mgData;
   }
 
-  template<typename Vector, int dim>
-  auto setupLevelOps(const MultigridData<Vector, dim>& data) {
+  template<typename Matrix, typename Vector, int dim, typename GS>
+  auto setupLevelOps(const MultigridData<Matrix, Vector, dim, GS>& data) {
     using LevelOps = typename Multigrid<Vector>::LevelOperations;
     std::vector<LevelOps> ops(data.systemMatrix.size()); // size levels+1
 
@@ -134,11 +135,10 @@ namespace Impl {
       ops[l+1].restrict = restrictFromMultigridTransfer<Vector>(gtransfer[l]);
       ops[l+1].prolong = prolongFromMultigridTransfer<Vector>(gtransfer[l]);
     }
-    using Matrix = typename MultigridData<Vector, dim>::Matrix;
 
     // setup smoothers
     for (std::size_t l = 0; l < ops.size(); ++l) {
-      using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector>;
+      using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector, Solvers::DefaultBitVector_t<Vector>, GS>;
       auto smoother = std::make_shared<Smoother>(); // no memory leak because shared_ptrs will be copied
       smoother->setMatrix(*matrices[l]);
       ops[l].preSmoother = ops[l].postSmoother = smootherFromIterationStep2<Vector>(smoother);
@@ -147,16 +147,16 @@ namespace Impl {
     return ops;
   }
 
-  template<typename Vector, int dim>
-  void renewMatrixHierachy(MultigridData<Vector, dim>& data) {
-    auto transfer = Impl::TransferOperators<Vector, dim>(&data);
+  template<typename M, typename Vector, int dim, typename GS>
+  void renewMatrixHierachy(MultigridData<M, Vector, dim, GS>& data) {
+    auto transfer = Impl::TransferOperators<M, Vector, dim, GS>(&data);
 
     for (int l = data.systemMatrix.size()-2; l>=0; --l) {
       transfer.restrictMatrix(l, *data.systemMatrix[l+1], *data.systemMatrix[l]);
     }
   }
 
-  template<typename Matrix, typename Vector, int dim>
+  template<typename Matrix, typename Vector, int dim, typename GS>
   class DGMultigridStep : public LinearIterationStep<Matrix, Vector, Solvers::DefaultBitVector_t<Vector>> {
 
     public:
@@ -190,23 +190,23 @@ namespace Impl {
     }
 
     private:
-      MultigridData<Vector, dim> data_;
+      MultigridData<Matrix, Vector, dim, GS> data_;
       Multigrid<Vector> multigrid_;
   };
 
-  template<typename Vector, typename Grid, typename Matrix>
+  template<typename Vector, typename GS = HPDG::Imp::GSCore, typename Grid, typename Matrix>
   auto multigridSolver(const Grid& grid, int maximalDegree, const Matrix& matrix, int coarseIterations=5) {
     constexpr const int dim = Grid::dimension;
-    auto mg = std::make_shared<DGMultigridStep<Matrix, Vector, dim>>();
+    auto mg = std::make_shared<DGMultigridStep<Matrix, Vector, dim, GS>>();
 
     Matrix& mut_matrix = const_cast<Matrix&>(matrix);
-    mg->multigridData() = setupData<Vector>(grid, maximalDegree, mut_matrix);
+    mg->multigridData() = setupData<Vector, Grid, Matrix, GS>(grid, maximalDegree, mut_matrix);
     mg->multigrid().levelOperations(setupLevelOps(mg->multigridData()));
 
     // GS coarse solver
     auto coarse_matrix_ptr = mg->multigridData().systemMatrix.front();
     auto coarse_solver = [coarse_matrix_ptr, coarseIterations](auto& x, const auto& b) {
-      using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector>;
+      using Smoother = Dune::HPDG::DynamicBlockGS<Matrix, Vector, Solvers::DefaultBitVector_t<Vector>, GS>;
       auto smoother = std::make_shared<Smoother>();
       smoother->setProblem(*coarse_matrix_ptr, x, b);
       for (int i= 0; i < coarseIterations;i++)
