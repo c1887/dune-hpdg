@@ -2,7 +2,6 @@
 // vi: set et ts=4 sw=2 sts=2
 #pragma once
 #include <dune/hpdg/matrix-free/operator.hh>
-#include <dune/hpdg/matrix-free/tbb_operator.hh>
 #include <dune/hpdg/matrix-free/localoperators/sfipdg.hh>
 //#include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
