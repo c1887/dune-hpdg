@@ -12,37 +12,11 @@
 #include <dune/matrix-vector/transformmatrix.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/transferoperators/dynamicordertransfer.hh>
+#include <dune/hpdg/transferoperators/arithmetic.hh>
 
 
 namespace Dune {
   namespace HPDG {
-    namespace Impl {
-
-      // modified code from dune-matrix-vector for FieldMatrices
-      template<class K>
-      void addTransformedMatrix(MatrixWindow<K>& A, const MatrixWindow<K>& T1,
-          const MatrixWindow<K>& B,
-          const MatrixWindow<K>& T2) {
-
-        auto T1transposedB = Dune::Matrix<Dune::FieldMatrix<typename K::field_type,1,1>>(T1.M(), B.M());
-        T1transposedB = 0;
-        for (size_t i = 0; i < T1.M(); ++i)
-          for (size_t k = 0; k < B.N(); ++k)
-            if (T1[k][i] != 0) {
-              for (size_t l = 0; l < B.M(); ++l)
-                T1transposedB[i][l] += T1[k][i]*B[k][l];
-            }
-
-        // multiply such that row-major format is better used
-        for (size_t i = 0; i < A.N(); i++) {
-          for (size_t j = 0; j < A.M(); j++) {
-            auto& Aij = A[i][j];
-            for (size_t l = 0; l < T2.N(); l++)
-              Aij+= T1transposedB[i][l]*T2[l][j];
-          }
-        }
-      }
-    }
 
 /** \brief Galerkin restriction and prolongation for Discontinuous Galerkin stiffness matrices
  *
@@ -67,7 +41,8 @@ namespace Dune {
 
       virtual ~DGOrderTransfer() {}
 
-      void setup(const DynamicMatrixType& fineReference, int maxOrder)
+      template<typename M>
+      void setup(const M& fineReference, int maxOrder)
       {
         // set up index set (block diagonal):
         {
@@ -115,9 +90,15 @@ namespace Dune {
      */
       void restrict(const VectorType& fineVector, VectorType& coarseVector) const
       {
-        coarseVector = makeDynamicBlockVector(matrix_);
+        coarseVector.setSize(matrix_.M());
+        // step 1: prepare coarse vector:
+        for (size_t i = 0; i < matrix_.M(); i++)
+          coarseVector.blockRows(i)=matrix_.blockColumns(i);
+        coarseVector.update();
 
-        matrix_.mtv(fineVector, coarseVector); // coarseVector = matrix_^T * fineVector;
+        // step 2: restrict
+        coarseVector = 0.;
+        Arithmetic::transposedMatrixVectorProduct(matrix_, fineVector, coarseVector);
       }
 
       /** \brief Prolong a function from the coarse onto the fine grid
@@ -133,12 +114,14 @@ namespace Dune {
 
 
         // prolong
-        matrix_.mv(coarseVector, fineVector); // fineVector = matrix_*coarseVector;
+        fineVector = 0.;
+        Arithmetic::matrixVectorProduct(matrix_, coarseVector, fineVector);
       }
 
       /** \brief Galerkin assemble a coarse stiffness matrix
       */
-      void galerkinRestrict(const DynamicMatrixType& fineMatrix, DynamicMatrixType& coarseMatrix) const
+      template<typename M>
+      void galerkinRestrict(const M& fineMatrix, M& coarseMatrix) const
       {
 
         const auto& fineMat = fineMatrix;
@@ -153,8 +136,7 @@ namespace Dune {
             const auto& Tj = matrix_[j];
             Dune::MatrixVector::sparseRangeFor(Ti, [&](auto&& Tik, auto&& k) {
               Dune::MatrixVector::sparseRangeFor(Tj, [&](auto&& Tjl, auto&& l) {
-                  //Dune::MatrixVector::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
-                  Impl::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
+                  Dune::HPDG::Arithmetic::addTransformedMatrix(coarseMat[k][l], Tik, Aij, Tjl);
               });
             });
           });
@@ -168,7 +150,8 @@ namespace Dune {
     * \param fineMat The fine level matrix
     * \param coarseMat The coarse level matrix
     */
-      void galerkinRestrictSetOccupation(const DynamicMatrixType& fineMat, DynamicMatrixType& coarseMat) const
+      template<typename M>
+      void galerkinRestrictSetOccupation(const M& fineMat, M& coarseMat) const
       {
         // This one is easy, as the transfer operator has block diag. structure. Hence,
         // the coarse matrix will have the same block structure as the fine matrix.
