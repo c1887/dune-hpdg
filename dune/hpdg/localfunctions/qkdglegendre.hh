@@ -3,6 +3,11 @@
 
 // DG tensor product basis with Legendre polynomials
 
+/** Copyright notice:
+ * This header is imported from dune-pdelab. Copyright is with the respective
+ * authors.
+ */
+
 #ifndef DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
 #define DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
 
