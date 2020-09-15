@@ -6,6 +6,9 @@
 /** Copyright notice:
  * This header is imported from dune-pdelab. Copyright is with the respective
  * authors.
+ *
+ * Changes:
+ *   - Lasse Hinrichsen (09/15/2020): Removed const from member to make it copyable.
  */
 
 #ifndef DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
@@ -339,7 +342,7 @@ namespace Dune
     {
       enum { n = LegendreSize<k,d>::value };
       typedef DGLegendreLocalBasis<D,R,k,d> LB;
-      const LB lb;
+      LB lb;
       Dune::GeometryType gt;
 
     public:
