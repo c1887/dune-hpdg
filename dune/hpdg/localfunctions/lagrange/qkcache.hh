@@ -6,6 +6,7 @@
 #include <dune/localfunctions/common/localfiniteelementvariantcache.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslobatto.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkgausslegendre.hh>
+#include <dune/hpdg/localfunctions/qkdglegendre.hh>
 #include <dune/common/indices.hh>
 
 #include <tuple>
@@ -55,7 +56,7 @@ namespace Impl {
 
       return static_enumerate(
           // for reasons unknown to me, dim and k are swapped here...
-          [](auto k){ return [k](){ return Dune::QkGaussLegendreLocalFiniteElement<D, R, k.value, dim>();};},
+          [](auto k){ return [k](){ return Dune::QkDGLegendreLocalFiniteElement<D, R, k.value, dim>();};},
           std::move(seq)
       );
     }
