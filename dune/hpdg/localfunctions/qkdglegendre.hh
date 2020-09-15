@@ -3,11 +3,11 @@
 
 // DG tensor product basis with Legendre polynomials
 
-#ifndef DUNE_HPDG_FINITEELEMENT_QKDGLEGENDRE_HH
-#define DUNE_HPDG_FINITEELEMENT_QKDGLEGENDRE_HH
+#ifndef DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
+#define DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
 
+#include <numeric>
 #include <vector>
-#include <map>
 
 #include <dune/common/fvector.hh>
 #include <dune/common/deprecated.hh>
@@ -15,14 +15,11 @@
 #include <dune/geometry/type.hh>
 #include <dune/geometry/quadraturerules.hh>
 
-#include <dune/localfunctions/common/virtualinterface.hh>
-#include <dune/localfunctions/common/virtualwrappers.hh>
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
 #include <dune/localfunctions/common/localkey.hh>
 #include <dune/localfunctions/common/localtoglobaladaptors.hh>
-#include <dune/localfunctions/lagrange/p0.hh>
-
+#include <dune/localfunctions/common/localinterpolation.hh>
 
 namespace Dune
 {
@@ -311,17 +308,22 @@ namespace Dune
           }
       }
 
+      //! \brief Evaluate partial derivative of all shape functions
+      void partial(const std::array<unsigned int, Traits::dimDomain>& DUNE_UNUSED(order),
+                   const typename Traits::DomainType& DUNE_UNUSED(in),
+                   std::vector<typename Traits::RangeType>& DUNE_UNUSED(out)) const {
+        auto totalOrder = std::accumulate(order.begin(), order.end(), 0);
+        if (totalOrder == 0) {
+          evaluateFunction(in, out);
+        } else {
+          DUNE_THROW(NotImplemented, "Desired derivative order is not implemented");
+        }
+      }
+
       //! \brief Polynomial order of the shape functions
       unsigned int order () const
       {
         return k;
-      }
-
-      void partial(const std::array<unsigned int,d>& order,
-          const typename Traits::DomainType& in,
-          std::vector<typename Traits::RangeType>& out) const
-      {
-        DUNE_THROW(Dune::NotImplemented, "partial derivatives not implemented for Legendre polynomials");
       }
     };
 
@@ -337,15 +339,17 @@ namespace Dune
 
     public:
 
-      DGLegendreLocalInterpolation () : gt(Dune::GeometryTypes::cube(d))
+      DGLegendreLocalInterpolation () : gt(GeometryTypes::cube(d))
       {}
 
       //! \brief Local interpolation of a function
       template<typename F, typename C>
-      void interpolate (const F& f, std::vector<C>& out) const
+      void interpolate (const F& ff, std::vector<C>& out) const
       {
         // select quadrature rule
         typedef typename LB::Traits::RangeType RangeType;
+
+        auto&& f = Impl::makeFunctionWithCallOperator<typename LB::Traits::DomainType>(ff);
         const Dune::QuadratureRule<R,d>&
           rule = Dune::QuadratureRules<R,d>::rule(gt,2*k);
 
@@ -362,7 +366,7 @@ namespace Dune
             typename LB::Traits::DomainType x;
             RangeType y;
             for (int i=0; i<d; i++) x[i] = it->position()[i];
-            f.evaluate(x,y);
+            y = f(x);
 
             // evaluate the basis
             std::vector<RangeType> phi(n);
@@ -435,7 +439,8 @@ namespace Dune
     /** \todo Please doc me !
      */
     QkDGLegendreLocalFiniteElement ()
-      : gt(GeometryTypes::cube(d)) {}
+      : gt(GeometryTypes::cube(d))
+    {}
 
     /** \todo Please doc me !
      */
@@ -460,13 +465,16 @@ namespace Dune
 
     /** \todo Please doc me !
      */
+    std::size_t size() const
+    {
+      return basis.size();
+    }
+
+    /** \todo Please doc me !
+     */
     GeometryType type () const
     {
       return gt;
-    }
-
-    unsigned size() const {
-      return n;
     }
 
     QkDGLegendreLocalFiniteElement* clone () const
@@ -481,98 +489,37 @@ namespace Dune
     GeometryType gt;
   };
 
-  template<class D, class R, int dim>
-  struct DynamicOrderLegendreLocalFiniteElementFactory
+  //! Factory for global-valued DGLegendre elements
+  /**
+   * \tparam Geometry Type of the geometry.  Used to extract the domain field
+   *                  type and the dimension.
+   * \tparam RF       Range field type.
+   */
+  template<class Geometry, class RF, int k>
+  class QkDGLegendreFiniteElementFactory :
+    public ScalarLocalToGlobalFiniteElementAdaptorFactory<
+    QkDGLegendreLocalFiniteElement<
+      typename Geometry::ctype, RF, k, Geometry::mydimension
+      >,
+    Geometry
+    >
   {
-    typedef typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits T;
-    //typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
-    typedef LocalFiniteElementVirtualInterface<T> FiniteElementType;
-    template<int k>
-    using Legendre = QkDGLegendreLocalFiniteElement<D, R, k, dim>;
+    typedef QkDGLegendreLocalFiniteElement<
+      typename Geometry::ctype, RF, k, Geometry::mydimension
+      > LFE;
+    typedef ScalarLocalToGlobalFiniteElementAdaptorFactory<LFE, Geometry> Base;
 
-
-    //! create finite element for given GeometryType
-    static FiniteElementType* create(const size_t& gt)
-    {
-          // TODO: smart ptr
-      switch(gt) {
-        case(1):
-          return new LocalFiniteElementVirtualImp<Legendre<1>>(Legendre<1>());
-        case(2):
-          return new LocalFiniteElementVirtualImp<Legendre<2>>(Legendre<2>());
-        case(3):
-          return new LocalFiniteElementVirtualImp<Legendre<3>>(Legendre<3>());
-        case(4):
-          return new LocalFiniteElementVirtualImp<Legendre<4>>(Legendre<4>());
-        case(5):
-          return new LocalFiniteElementVirtualImp<Legendre<5>>(Legendre<5>());
-        case(6):
-          return new LocalFiniteElementVirtualImp<Legendre<6>>(Legendre<6>());
-        case(7):
-          return new LocalFiniteElementVirtualImp<Legendre<7>>(Legendre<7>());
-        case(8):
-          return new LocalFiniteElementVirtualImp<Legendre<8>>(Legendre<8>());
-        case(9):
-          return new LocalFiniteElementVirtualImp<Legendre<9>>(Legendre<9>());
-        case(10):
-          return new LocalFiniteElementVirtualImp<Legendre<10>>(Legendre<10>());
-        default:
-          DUNE_THROW(Dune::NotImplemented, "Legendre only up to order 10");
-      }
-    }
-  };
-  template<class D, class R, int dim>
-  class DynamicOrderLegendreLocalFiniteElementCache
-  {
-  protected:
-    typedef typename QkDGLegendreLocalFiniteElement<D,R,0,dim>::Traits::LocalBasisType::Traits T;
-    //typedef typename FixedOrderLocalBasisTraits<typename P0LocalFiniteElement<D,R,dim>::Traits::LocalBasisType::Traits,0>::Traits T;
-    typedef LocalFiniteElementVirtualInterface<T> FE;
-    typedef typename std::map<int,FE*> FEMap;
+    static const LFE lfe;
 
   public:
-    /** \brief Type of the finite elements stored in this cache */
-    typedef FE FiniteElementType;
-
-    /** \brief Default constructor */
-    DynamicOrderLegendreLocalFiniteElementCache() {}
-
-    /** \brief Copy constructor */
-    DynamicOrderLegendreLocalFiniteElementCache(const DynamicOrderLegendreLocalFiniteElementCache& other)
-    {
-      typename FEMap::iterator it = other.cache_.begin();
-      typename FEMap::iterator end = other.cache_.end();
-      for(; it!=end; ++it)
-        cache_[it->first] = (it->second)->clone();
-    }
-
-    ~DynamicOrderLegendreLocalFiniteElementCache()
-    {
-      typename FEMap::iterator it = cache_.begin();
-      typename FEMap::iterator end = cache_.end();
-      for(; it!=end; ++it)
-        delete it->second;
-    }
-
-    //! Get local finite element for given GeometryType
-    const FiniteElementType& get(const int& gt) const
-    {
-      typename FEMap::const_iterator it = cache_.find(gt);
-      if (it==cache_.end())
-      {
-        FiniteElementType* fe = DynamicOrderLegendreLocalFiniteElementFactory<D,R,dim>::create(gt);
-        if (fe==nullptr)
-          DUNE_THROW(Dune::NotImplemented,"No Qk Legendre local finite element available for order " << gt);
-
-        cache_[gt] = fe;
-        return *fe;
-      }
-      return *(it->second);
-    }
-
-  protected:
-    mutable FEMap cache_;
-
+    //! default constructor
+    QkDGLegendreFiniteElementFactory() : Base(lfe) {}
   };
-}// End Dune namespace
-#endif // DUNE_HPDG_FINITEELEMENT_QKDGLEGENDRE_HH
+
+  template<class Geometry, class RF, int k>
+  const typename QkDGLegendreFiniteElementFactory<Geometry, RF, k>::LFE
+  QkDGLegendreFiniteElementFactory<Geometry, RF, k>::lfe;
+
+} // End Dune namespace
+
+#endif // DUNE_PDELAB_FINITEELEMENT_QKDGLEGENDRE_HH
