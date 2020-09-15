@@ -54,7 +54,8 @@ namespace Impl {
       auto seq = std::make_integer_sequence<int, maxOrder>();
 
       return static_enumerate(
-          [](auto k){ return [k](){ return Dune::QkGaussLegendreLocalFiniteElement<D, R, dim, k.value>();};},
+          // for reasons unknown to me, dim and k are swapped here...
+          [](auto k){ return [k](){ return Dune::QkGaussLegendreLocalFiniteElement<D, R, k.value, dim>();};},
           std::move(seq)
       );
     }
@@ -77,7 +78,7 @@ using QkGLVaryingOrderCache = LocalFiniteElementVariantCache<Impl::QkGLFiniteEle
  * a given order 'maxOrder'.
  */
 template<class D, class R, std::size_t dim, std::size_t maxOrder>
-using QkGaussLegendreVaryingOrderCache = LocalFiniteElementVariantCache<Impl::QkGLFiniteElements<D,R,dim,maxOrder>>;
+using QkGaussLegendreVaryingOrderCache = LocalFiniteElementVariantCache<Impl::QkGaussLegendreFiniteElements<D,R,dim,maxOrder>>;
 
 } // namespace Dune
 
