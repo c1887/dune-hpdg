@@ -98,6 +98,77 @@ namespace Fufem {
       return std::sqrt(error);
     }
 
+    /** \brief Computes the jump term [[a]] on each edge and sums them up
+     *
+     * For Dirichlet edges, we compute (a-g) in the L^2 norm on the edge
+     */
+    template<class F1, class F2>
+    static double computeJumpTerm(const F1& a,
+                                  const F2& g,
+                                  QuadratureRuleKey quadKey)
+    {
+      // The error to be computed
+      double error = 0;
+
+      const auto& gridView = a.entitySet().gridView();
+
+      for (const auto element : elements(gridView)) {
+        for (const auto& is : intersections(gridView, element)) {
+
+          // Get quadrature formula
+          quadKey.setGeometryType(is.type());
+          const Dune::QuadratureRule<ctype, dim - 1>& quad =
+            QuadratureRuleCache<double, dim - 1>::rule(quadKey);
+
+          auto localA = localFunction(a);
+          localA.bind(element);
+
+          if (not is.neighbor()) {
+            for (size_t i = 0; i < quad.size(); i++) {
+
+              // need to lift the quad point to the coordinates of the EDGE
+              auto inner_quad_pt =
+                is.geometryInInside().global(quad[i].position());
+
+              // Evaluate function a
+              auto innerValue = localA(inner_quad_pt);
+              auto dirichletValue = g(element.geometry().global(inner_quad_pt));
+
+              // integrate error
+              error += (innerValue - dirichletValue) *
+                       (innerValue - dirichletValue) * quad[i].weight() *
+                       is.geometry().integrationElement(quad[i].position());
+            }
+          } else {
+            const auto& out = is.outside();
+
+            auto out_local = localFunction(a);
+            out_local.bind(out);
+
+            for (size_t i = 0; i < quad.size(); i++) {
+
+              // need to lift the quad point to the coordinates of the EDGE
+              auto inner_quad_pt =
+                is.geometryInInside().global(quad[i].position());
+              auto outer_quad_pt =
+                is.geometryInOutside().global(quad[i].position());
+
+              // Evaluate function a
+              auto innerValue = localA(inner_quad_pt);
+              auto outerValue = out_local(outer_quad_pt);
+
+              // integrate error (we put 0.5 here because we visit every edge
+              // twice. This is actually wasteful)
+              error += 0.5 * (innerValue - outerValue) *
+                       (innerValue - outerValue) * quad[i].weight() *
+                       is.geometry().integrationElement(quad[i].position());
+            }
+          }
+        }
+      }
+
+      return std::sqrt(error);
+    }
   };
 }
 }
