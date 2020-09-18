@@ -3,9 +3,35 @@
 
 // DG tensor product basis with Legendre polynomials
 
-/** Copyright notice:
- * This header is imported from dune-pdelab. Copyright is with the respective
- * authors.
+/* Copyright notice:
+ * This header is imported from dune-pdelab, see https://dune-project.org/modules/dune-pdelab/.
+ *
+ * Copyright is with the respective authors.
+ *
+ * Copyright holders (according to git history):
+ * René Heß 2015 - 2020
+ * Jö Fahlke 2016
+ * Steffen Müthing 2017 - 2018
+ * Andreas Nüßing 2018
+ * Dominic Kempf 2020
+ * Liesel Schumacher 2020
+ *
+ * L-GPL2.0:
+
+ This library is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 2.1 of the License, or (at your option) any later version.
+
+ This library is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public
+ License along with this library; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ *
  *
  * Changes:
  *   - Lasse Hinrichsen (09/15/2020): Removed const from member to make it copyable.
