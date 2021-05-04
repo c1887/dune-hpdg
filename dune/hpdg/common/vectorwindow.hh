@@ -222,7 +222,7 @@ namespace Dune {
 
     VectorWindow& operator+=(double other) {
       assert(n_ == 1);
-      data_[0] = other;
+      data_[0] += other;
       return *this;
     }
 
