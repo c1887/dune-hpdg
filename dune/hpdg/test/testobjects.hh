@@ -1,3 +1,4 @@
+#pragma once
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/dunefunctionsfunctionalassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
