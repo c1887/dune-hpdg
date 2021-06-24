@@ -35,3 +35,5 @@ dune_add_test(
   SOURCES test_persistentgvdatatransfer.cc)
 dune_add_test(
   SOURCES test_solversetup.cc)
+dune_add_test(
+  SOURCES test_solver_dgcg.cc)
