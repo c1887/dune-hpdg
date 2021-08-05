@@ -9,6 +9,8 @@
 
 #include <dune/fufem/assemblers/localassemblers/interiorpenaltydgassembler.hh>
 
+#include <dune/functions/backends/istlvectorbackend.hh>
+
 namespace Dune {
 namespace ParMG {
 
@@ -71,7 +73,7 @@ auto rightHandSide(const Basis& basis, double force=-10.0) {
   using Vector = Dune::BlockVector<Dune::FieldVector<double, 1>>;
   Vector rhs(basis.dimension());
 
-  auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
+  auto rhsBE = Dune::Functions::istlVectorBackend(rhs);
 
   using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
 

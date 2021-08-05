@@ -12,6 +12,8 @@
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 
+#include <dune/functions/backends/istlvectorbackend.hh>
+
 /** Assemble a dynamic stiffness matrix */
 template<class GridType>
 auto dynamicStiffnessMatrix(const GridType& grid, int k, double penaltyFactor=1.5, bool dirichlet=true) {
@@ -133,7 +135,7 @@ auto dynamicRightHandSide(const GridType& grid, int k=1, double force=-10.0) {
   using Basis = Dune::Functions::DynamicDGQkGLBlockBasis<typename GridType::LeafGridView>;
   Basis basis{grid.leafGridView(), k};
 
-  auto rhsBE = Dune::Fufem::istlVectorBackend(rhs);
+  auto rhsBE = Dune::Functions::istlVectorBackend(rhs);
 
   using FiniteElement = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
 
