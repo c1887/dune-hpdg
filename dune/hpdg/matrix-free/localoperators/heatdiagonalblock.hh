@@ -7,7 +7,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/istl/matrix.hh>

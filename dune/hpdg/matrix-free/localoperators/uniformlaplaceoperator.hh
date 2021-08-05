@@ -6,7 +6,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include "localoperator.hh"
@@ -91,10 +91,10 @@ namespace MatrixFree {
         const auto& geometry = localView_.element().geometry();
 
         // we need the coefficients at every quadrature point. We extract and order them once:
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
         auto coeffs = std::vector<Field>(feSize_);
         for (size_t i = 0; i < feSize_; i++) {
-          coeffs[i] = inputBackend(localView_.index(i));
+          coeffs[i] = inputBackend[localView_.index(i)];
         }
 
         for (size_t q = 0; q < quad_.size(); q++) {
@@ -128,10 +128,10 @@ namespace MatrixFree {
           for (auto& entry: localVector_)
             entry*=factor;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<feSize_; ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
+          auto& rowEntry = outputBackend[localView_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }

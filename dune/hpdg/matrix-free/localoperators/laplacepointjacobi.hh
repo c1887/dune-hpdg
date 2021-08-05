@@ -4,7 +4,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include "localoperator.hh"
@@ -83,10 +83,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localIndexSet_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localIndexSet_.index(localRow));
+          auto& rowEntry = outputBackend[localIndexSet_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }

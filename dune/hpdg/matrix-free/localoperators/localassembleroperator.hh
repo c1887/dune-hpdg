@@ -6,7 +6,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 
 #include "localoperator.hh"
 
@@ -47,7 +47,7 @@ namespace MatrixFree {
         localAssembler_(localView_.element(), localMatrix_, localView_, localView_);
 
         // Add element stiffness matrix onto the global stiffness matrix
-        auto inputBackend = Fufem::istlVectorBackend<const typename V::field_type>(*(this->input_));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
           auto& rowEntry = localVector_[localRow];
@@ -55,7 +55,7 @@ namespace MatrixFree {
           for (size_t localCol=0; localCol<localView_.size(); ++localCol)
           {
             auto col = localView_.index(localCol);
-            rowEntry+= inputBackend(col)*localMatrix_[localRow][localCol];
+            rowEntry+= inputBackend[col]*localMatrix_[localRow][localCol];
           }
         }
       }
@@ -68,10 +68,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
+          auto& rowEntry = outputBackend[localView_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }

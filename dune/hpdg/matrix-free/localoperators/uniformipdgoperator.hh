@@ -4,7 +4,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/grid/common/mcmgmapper.hh>
@@ -78,10 +78,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localIndexSet_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localIndexSet_.index(localRow));
+          auto& rowEntry = outputBackend[localIndexSet_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }
@@ -100,9 +100,9 @@ namespace MatrixFree {
 
         const auto& insideFE = localView_.tree().finiteElement();
         auto insideCoeffs = std::vector<Field>(insideFE.localBasis().size());
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
-              insideCoeffs[i] = inputBackend(localIndexSet_.index(i)); }
+              insideCoeffs[i] = inputBackend[localIndexSet_.index(i)]; }
 
         for (const auto& is: intersections(gv, localView_.element())) {
           if (!is.neighbor()) // this is also for processor boundaries valid
@@ -126,7 +126,7 @@ namespace MatrixFree {
 
           auto outsideCoeffs = std::vector<Field>(outsideFE.localBasis().size());
           for (size_t i = 0; i < outsideCoeffs.size(); i++) {
-            outsideCoeffs[i] = inputBackend(outerLocalIndexSet_.index(i));
+            outsideCoeffs[i] = inputBackend[outerLocalIndexSet_.index(i)];
           }
 
           auto maxOrder = std::max(insideFE.localBasis().order(), outsideFE.localBasis().order());
@@ -231,10 +231,10 @@ namespace MatrixFree {
             for (auto& entry: outerLocalVector_)
               entry*=this->factor_;
 
-          auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+          auto outputBackend = Functions::istlVectorBackend(*(this->output_));
           for (size_t localRow=0; localRow<outerLocalIndexSet_.size(); ++localRow)
           {
-            auto& rowEntry = outputBackend(outerLocalIndexSet_.index(localRow));
+            auto& rowEntry = outputBackend[outerLocalIndexSet_.index(localRow)];
             rowEntry += outerLocalVector_[localRow];
           }
         }
@@ -254,10 +254,10 @@ namespace MatrixFree {
         const auto& geometry = localView_.element().geometry();
 
         // we need the coefficients at every quadrature point. We extract and order them once:
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
         auto coeffs = std::vector<Field>(fe.localBasis().size());
         for (size_t i = 0; i < coeffs.size(); i++) {
-          coeffs[i] = inputBackend(localIndexSet_.index(i));
+          coeffs[i] = inputBackend[localIndexSet_.index(i)];
         }
 
         for (size_t q = 0; q < nPoints; q++) {

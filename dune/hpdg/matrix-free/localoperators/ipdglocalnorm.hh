@@ -7,7 +7,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/hpdg/localfunctions/assemblycache.hh>
@@ -100,8 +100,8 @@ namespace MatrixFree {
         // for dg, we know that the coeffs. will be continous in memory
         //auto insideCoeffs = std::vector<Field>(insideFE.localBasis().size());
         const Field* insideCoeffs;
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        insideCoeffs = &(inputBackend(localView_.index(0))); // assuming 0 maps to the lowest index
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        insideCoeffs = &(inputBackend[localView_.index(0)]); // assuming 0 maps to the lowest index
 
         for (const auto& is: intersections(gv, localView_.element())) {
           if (!is.neighbor()) // this is also for processor boundaries valid
@@ -133,7 +133,7 @@ namespace MatrixFree {
           auto& outsideFE = outsideFE_cached_; // shorthand
 
           //auto outsideCoeffs = std::vector<Field>(outsideFE.localBasis().size());
-          const Field* outsideCoeffs = &(inputBackend(outerLocalView_.index(0)));
+          const Field* outsideCoeffs = &(inputBackend[outerLocalView_.index(0)]);
 
           auto maxOrder = std::max(insideFE.localBasis().order(), outsideFE.localBasis().order());
 
@@ -223,8 +223,8 @@ namespace MatrixFree {
         const auto& geometry = localView_.element().geometry();
 
         // we need the coefficients at every quadrature point. We extract and order them once:
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        const Field* coeffs = &(inputBackend(localView_.index(0)));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        const Field* coeffs = &(inputBackend[localView_.index(0)]);
 
         for (size_t q = 0; q < nPoints; q++) {
 

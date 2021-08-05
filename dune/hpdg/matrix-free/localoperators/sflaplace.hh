@@ -5,7 +5,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/geometry/quadraturerules.hh>
@@ -109,8 +109,8 @@ namespace MatrixFree {
         // find the first entry in input vector. Because we know DG indices are contiguous and
         // the local 0 idx is also the lowest global index, we can perform this little
         // hack to circumvent using a buffer and several calls do localView.index(foo).
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        const auto* coeffs = &(inputBackend(localView_.index(0))); // using DG structure here
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        const auto* coeffs = &(inputBackend[localView_.index(0)]); // using DG structure here
 
         using FV = Dune::FieldVector<double, dim>;
 
@@ -159,7 +159,7 @@ namespace MatrixFree {
 
           // This here is a nice use of the common DG hack. However, be aware that this would
           // probably not be thread-safe!
-          //auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+          //auto outputBackend = Functions::istlVectorBackend(*(this->output_));
           //auto* out = &(outputBackend(localView_.index(0)));
           //Dune::HPDG::CplusAXtBt(matrix1, innerValues[r], matrix0, out);
         }
@@ -175,10 +175,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
+          auto& rowEntry = outputBackend[localView_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }

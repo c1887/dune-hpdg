@@ -22,6 +22,7 @@
 
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
+#include <dune/fufem/assemblers/istlbackend.hh>
 
 #include <dune/functions/functionspacebases/interpolate.hh>
 using namespace Dune;

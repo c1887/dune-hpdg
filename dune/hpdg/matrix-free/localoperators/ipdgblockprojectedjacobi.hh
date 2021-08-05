@@ -4,7 +4,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
@@ -63,11 +63,11 @@ namespace MatrixFree {
         auto insideCoeffs = std::vector<Field>(fe.localBasis().size());
         auto lowerC = std::vector<Field>(fe.localBasis().size());
         auto upperC = std::vector<Field>(fe.localBasis().size());
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        auto lowerBE = Fufem::istlVectorBackend<const Field>(*lower_);
-        auto upperBE = Fufem::istlVectorBackend<const Field>(*upper_);
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        auto lowerBE = Functions::istlVectorBackend(*lower_);
+        auto upperBE = Functions::istlVectorBackend(*upper_);
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
-          insideCoeffs[i] = inputBackend(localView_.index(i));
+          insideCoeffs[i] = inputBackend[localView_.index(i)];
           lowerC[i] = lowerBE(localView_.index(i));
           upperC[i] = upperBE(localView_.index(i));
         }
@@ -83,8 +83,8 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
-        auto* rowEntry = &(outputBackend(localView_.index(0)));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
+        auto* rowEntry = &(outputBackend[localView_.index(0)]);
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
           rowEntry[localRow] += localVector_[localRow];

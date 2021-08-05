@@ -7,7 +7,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
@@ -153,9 +153,9 @@ namespace MatrixFree {
 
         // now that the localMatrix is set up, we can apply the localsolver:
         auto insideCoeffs = std::vector<Field>(fe.localBasis().size());
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
-          insideCoeffs[i] = inputBackend(localView_.index(i));
+          insideCoeffs[i] = inputBackend[localView_.index(i)];
         }
 
         localSolver_(localMatrix_, insideCoeffs, localVector_);
@@ -169,10 +169,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
+          auto& rowEntry = outputBackend[localView_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
       }

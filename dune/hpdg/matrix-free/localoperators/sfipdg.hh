@@ -8,7 +8,7 @@
 
 #include <dune/grid/common/mcmgmapper.hh>
 
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/geometry/quadraturerules.hh>
@@ -93,10 +93,10 @@ namespace MatrixFree {
         if (factor == 0.0)
           return;
 
-        auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+        auto outputBackend = Functions::istlVectorBackend(*(this->output_));
         for (size_t localRow=0; localRow<localView_.size(); ++localRow)
         {
-          auto& rowEntry = outputBackend(localView_.index(localRow));
+          auto& rowEntry = outputBackend[localView_.index(localRow)];
           rowEntry += localVector_[localRow];
         }
 
@@ -120,8 +120,8 @@ namespace MatrixFree {
         // find the first entry in input vector. Because we know DG indices are contiguous and
         // the local 0 idx is also the lowest global index, we can perform this little
         // hack to circumvent using a buffer and several calls do localView.index(foo).
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        const auto* coeffs = &(inputBackend(localView_.index(0))); // using DG structure here
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        const auto* coeffs = &(inputBackend[localView_.index(0)]); // using DG structure here
 
 
         // precompute the derivatives of the local function at each (tensor-product) quad point
@@ -169,8 +169,8 @@ namespace MatrixFree {
 
         const auto& gv = basis_.gridView();
 
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        auto* coeffs = &(inputBackend(localView_.index(0)));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        auto* coeffs = &(inputBackend[localView_.index(0)]);
 
         for (const auto& is: intersections(gv, localView_.element())) {
           if (!is.neighbor()) // this is also for processor boundaries valid
@@ -217,7 +217,7 @@ namespace MatrixFree {
               outer_edgePair = &((*nc_matrices)[1]);
             }
 
-            const auto* outsideCoeffs = &(inputBackend(outerView_.index(0)));
+            const auto* outsideCoeffs = &(inputBackend[outerView_.index(0)]);
 
             // penalty= sigma p^2 / |e|
             auto penalty = penalty_*power(std::max(localDegree_, outerLocalDegree_), 2)
@@ -315,10 +315,10 @@ namespace MatrixFree {
               for (auto& entry: outerLocalVector_)
                 entry*=this->factor_;
 
-            auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
+            auto outputBackend = Functions::istlVectorBackend(*(this->output_));
             for (size_t localRow=0; localRow<outerView_.size(); ++localRow)
             {
-              auto& rowEntry = outputBackend(outerView_.index(localRow));
+              auto& rowEntry = outputBackend[outerView_.index(localRow)];
               rowEntry += outerLocalVector_[localRow];
             }
           }
@@ -327,8 +327,8 @@ namespace MatrixFree {
 
       template<class IS>
       void computeDirichletBoundaryEdge(const IS& is) {
-        auto inputBackend = Fufem::istlVectorBackend<const Field>(*(this->input_));
-        auto* coeffs = &(inputBackend(localView_.index(0)));
+        auto inputBackend = Functions::istlVectorBackend(*(this->input_));
+        auto* coeffs = &(inputBackend[localView_.index(0)]);
 
         auto innerIdx = is.indexInInside();
 

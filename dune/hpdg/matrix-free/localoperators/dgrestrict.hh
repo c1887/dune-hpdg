@@ -5,7 +5,7 @@
 #include<dune/common/fmatrix.hh>
 #include<dune/istl/matrix.hh>
 #include <dune/fufem/assemblers/basisinterpolationmatrixassembler.hh> // contains the LocalBasisComponentWrapper
-#include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/functions/backends/istlvectorbackend.hh>
 
 #include "localoperator.hh"
 
@@ -98,7 +98,7 @@ namespace MatrixFree {
     void compute() {
       // compute matrix^T vector product by hand (we cant be sure on the vector types)
 
-      auto inputBackend = Fufem::istlVectorBackend<const double>(*(this->input_));
+      auto inputBackend = Functions::istlVectorBackend(*(this->input_));
       auto const* inputArray_ = &(inputBackend[flv.index(0)]);
       for(std::size_t i = 0; i < currentMat_->N(); i++) {
         const auto& row = (*currentMat_)[i];
@@ -109,7 +109,7 @@ namespace MatrixFree {
       }
     }
     void write(double factor) {
-      auto outputBE = Fufem::istlVectorBackend<double>(*(this->output_));
+      auto outputBE = Functions::istlVectorBackend(*(this->output_));
       for(std::size_t i = 0; i < clv.size(); i++) {
         outputBE[clv.index(i)] += factor*buffer_[i];
       }
