@@ -68,8 +68,8 @@ namespace MatrixFree {
         auto upperBE = Functions::istlVectorBackend(*upper_);
         for (size_t i = 0; i < insideCoeffs.size(); i++) {
           insideCoeffs[i] = inputBackend[localView_.index(i)];
-          lowerC[i] = lowerBE(localView_.index(i));
-          upperC[i] = upperBE(localView_.index(i));
+          lowerC[i] = lowerBE[localView_.index(i)];
+          upperC[i] = upperBE[localView_.index(i)];
         }
 
         localSolver_(localMatrix_, insideCoeffs, localVector_, lowerC, upperC);
