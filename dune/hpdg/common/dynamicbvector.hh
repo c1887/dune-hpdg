@@ -313,6 +313,18 @@ namespace Dune {
         return (*this)*(*this);
       }
 
+      /** Construct a view to a vector's data.
+       *
+       * This view will be flat, i.e. it does not know about the blocking of
+       * the dynamic vector. This might be handy, e.g., if the dynamic vector is
+       * actually flat in the sense that all blocks are of size 1.
+       */
+      template<typename KK>
+      friend auto flatVectorWindow(const DynamicBlockVector<KK>& v)
+      {
+        return VectorWindow<KK>(v.data_.get(), v.n_);
+      }
+
       private:
 
       /** Allocates memory.
