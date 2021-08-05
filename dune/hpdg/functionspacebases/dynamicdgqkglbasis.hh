@@ -78,29 +78,6 @@ public:
 
   void initializeIndices()
   {
-    switch (dim)
-    {
-      case 1: { break;
-      }
-      case 2:
-      {
-        auto triangle = GeometryTypes::triangle;
-        quadrilateralOffset_ = gridView_.size(triangle);
-        break;
-      }
-      case 3:
-      {
-        auto tetrahedron = GeometryTypes::simplex(3);
-        prismOffset_ = gridView_.size(tetrahedron);
-
-        auto prism = GeometryTypes::prism;
-        hexahedronOffset_ = prismOffset_ + gridView_.size(prism);
-
-        auto hexahedron = GeometryTypes::cube(3);
-        pyramidOffset_ = hexahedronOffset_ + gridView_.size(hexahedron);
-        break;
-      }
-    }
   }
 
   /** \brief Obtain the grid view that the basis is defined on
@@ -185,86 +162,26 @@ public:
     degreeMap_=degrees;
   }
 
-//protected:
-  GridView gridView_;
-  MultipleCodimMultipleGeomTypeMapper<GridView> mcmgMapper_;
-  DegreeMap degreeMap_;
-
-  size_t quadrilateralOffset_;
-  size_t pyramidOffset_;
-  size_t prismOffset_;
-  size_t hexahedronOffset_;
-};
-
-
-
-template<typename GV, class MI>
-class DynamicDGQkGLNodeIndexSet
-{
-  // Cannot be an enum -- otherwise the switch statement below produces compiler warnings
-  static const int dim = GV::dimension;
-
-public:
-
-  using size_type = std::size_t;
-
-  /** \brief Type used for global numbering of the basis vectors */
-  using MultiIndex = MI;
-
-  using NodeFactory = DynamicDGQkGLNodeFactory<GV, MI>;
-  using PreBasis = NodeFactory;
-
-  using Node = typename NodeFactory::Node;
-
-  DynamicDGQkGLNodeIndexSet(const NodeFactory& nodeFactory) :
-    nodeFactory_(&nodeFactory)
-  {}
-
-  /** \brief Bind the view to a grid element
-   *
-   * Having to bind the view to an element before being able to actually access any of its data members
-   * offers to centralize some expensive setup code in the 'bind' method, which can save a lot of run-time.
-   */
-  void bind(const Node& node)
+  template<typename It>
+  It indices(const Node& node, It it) const
   {
-    node_ = &node;
-  }
-
-  /** \brief Unbind the view
-   */
-  void unbind()
-  {
-    node_ = nullptr;
-  }
-
-  /** \brief Size of subtree rooted in this node (element-local)
-   */
-  size_type size() const
-  {
-    return node_->finiteElement().size();
-  }
-
-
-  //! Maps from subtree index set [0..size-1] to a globally unique multi index in global basis
-  template<class It>
-  It indices(It it) const
-  {
-    const auto& gridIndexSet = nodeFactory_->gridView().indexSet();
-    const auto& element = node_->element();
+    const auto& gridIndexSet = gridView_.indexSet();
+    const auto& element = node.element();
     auto elementIdx = gridIndexSet.subIndex(element, 0, 0);
-    for (size_t i =0, end = node_->finiteElement().size(); i <end; i++, ++it) {
+    for (size_t i = 0, end = node.finiteElement().size(); i < end; ++i, ++it) {
 
-      // Our Gauss-Lobatto basis is defined for tensor-product bases on cubic grids only. Hence, we do not have
-      // to differentiate between the different geometries and dimensions.
-      *it= {{elementIdx, i}};
+      // Our Gauss-Lobatto basis is defined for tensor-product bases on cubic
+      // grids only. Hence, we do not have to differentiate between the
+      // different geometries and dimensions.
+      *it = { { elementIdx, i } };
     }
     return it;
   }
 
-protected:
-  const NodeFactory* nodeFactory_;
-
-  const Node* node_;
+//protected:
+  GridView gridView_;
+  MultipleCodimMultipleGeomTypeMapper<GridView> mcmgMapper_;
+  DegreeMap degreeMap_;
 };
 
 namespace BasisBuilder {
