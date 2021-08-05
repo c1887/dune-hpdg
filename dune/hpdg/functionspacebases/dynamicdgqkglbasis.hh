@@ -24,17 +24,12 @@ namespace Functions {
 // This is the reusable part of the basis. It contains
 //
 //   DynamicDGQkGLNodeFactory
-//   DynamicDGQkGLNodeIndexSet
-//   DynamicQkGLNode
 //
 // The factory allows to create the others and is the owner of possible shared
 // state. These three components do _not_ depend on the global basis or index
 // set and can be used without a global basis.
 // *****************************************************************************
 
-
-template<typename GV, class MI>
-class DynamicDGQkGLNodeIndexSet;
 
 
 template<typename GV, class MI>
@@ -50,8 +45,6 @@ public:
 
   using DegreeMap = std::vector<int>;
   using Node = DynamicQkGLNode<GV, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
-
-  using IndexSet = DynamicDGQkGLNodeIndexSet<GV, MI>;
 
   /** \brief Type used for global numbering of the basis vectors */
   using MultiIndex = MI;
@@ -98,11 +91,6 @@ public:
     return Node{&mcmgMapper_, &degreeMap_};
   }
 
-
-  IndexSet makeIndexSet() const
-  {
-    return IndexSet{*this};
-  }
 
   size_type size() const
   {
