@@ -82,7 +82,7 @@ public:
 
   void update(const GridView& gv) {
     gridView_ = gv;
-    mcmgMapper_.update();// TODO: This does not work if the supplied 'gv' is not the very same thing as the former gridView_
+    mcmgMapper_.update(gv);
     degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
   }
 

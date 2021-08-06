@@ -107,7 +107,7 @@ public:
 
   void update(const GridView& gv) {
     gridView_ = gv;
-    mcmgMapper_.update();
+    mcmgMapper_.update(gv);
     degreeMap_.resize(mcmgMapper_.size()); // TODO: should all updates happen here?
   }
 
