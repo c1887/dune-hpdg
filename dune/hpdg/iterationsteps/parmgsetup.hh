@@ -128,7 +128,7 @@ namespace Impl {
       p->galerkinRestrictSetOccupation(*mgData.systemMatrix[l+1], *mgData.systemMatrix[l]);
     }
 
-    auto gTransferMats = Dune::HPDG::dgGridTransferHierarchy<M>(grid); // geometric multigrid transfer operators
+    auto gTransferMats = Dune::HPDG::dgGridTransferHierarchy(grid); // geometric multigrid transfer operators
     for (int l = gridLevels -1; l>=0; --l) {
       mgData.gridTransfer[l]->setup([&](auto&& matrix) {matrix=gTransferMats[l];}); // put the transfer matrix into the Transferoperator object (sigh...)
       mgData.gridTransfer[l]->galerkinRestrictSetOccupation(*mgData.systemMatrix[l+1], *mgData.systemMatrix[l]);
