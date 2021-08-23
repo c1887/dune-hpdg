@@ -2,7 +2,6 @@
 
 #include <dune/hpdg/common/mappedcache.hh>
 #include <dune/hpdg/common/indexedcache.hh>
-#include <dune/common/std/optional.hh>
 #include <unordered_map>
 #include <vector>
 
