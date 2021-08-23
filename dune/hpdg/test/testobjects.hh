@@ -4,8 +4,9 @@
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
-#include <dune/fufem/assemblers/localassemblers/l2functionalassembler.hh>
+#include <dune/fufem/assemblers/localassemblers/dunefunctionsl2functionalassembler.hh>
 #include <dune/fufem/functions/constantfunction.hh>
+#include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/fufem/assemblers/localassemblers/interiorpenaltydgassembler.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
@@ -13,6 +14,7 @@
 #include <dune/hpdg/common/dynamicbvector.hh>
 
 #include <dune/functions/backends/istlvectorbackend.hh>
+#include <dune/functions/gridfunctions/analyticgridviewfunction.hh>
 
 /** Assemble a dynamic stiffness matrix */
 template<class GridType>
@@ -141,8 +143,10 @@ auto dynamicRightHandSide(const GridType& grid, int k=1, double force=-10.0) {
 
   // assemble standard function \int fv
   {
-    const ConstantFunction<Dune::FieldVector<double, dim>, Dune::FieldVector<double, 1> > f(force);
-    const L2FunctionalAssembler<GridType, FiniteElement> rhsLocalAssembler(f);
+    auto f = [&force] (const auto&) { return Dune::FieldVector<double, 1>(force); };
+    auto ff = Dune::Functions::makeAnalyticGridViewFunction(f, basis.gridView());
+    auto key = QuadratureRuleKey(dim, 0);
+    auto rhsLocalAssembler = Dune::Fufem::DuneFunctionsL2FunctionalAssembler<GridType, FiniteElement, decltype(ff)>{ff, key};
     const auto localRHSlambda = [&](const auto& element, auto& localV, const auto& localView) {
       rhsLocalAssembler.assemble(element, localV, localView.tree().finiteElement());
     };
