@@ -5,7 +5,6 @@
 
 #include <dune/common/fvector.hh>
 #include <dune/hpdg/localfunctions/lagrange/qkcache.hh>
-#include <dune/functions/common/functionfromcallable.hh>
 
 namespace Dune {
   namespace HPDG {
@@ -26,12 +25,8 @@ namespace Dune {
         using LocalDomain = typename E::Geometry::LocalCoordinate;
         using FiniteElement = std::decay_t<decltype(fe)>;
         using FiniteElementRange = typename FiniteElement::Traits::LocalBasisType::Traits::RangeType;
-        using FunctionBaseClass = typename Dune::LocalFiniteElementFunctionBase<FiniteElement>::type;
-        using FunctionFromCallable = typename Dune::Functions::FunctionFromCallable<FiniteElementRange(LocalDomain), std::decay_t<LF>, FunctionBaseClass>;
 
-        auto ffc = FunctionFromCallable(std::forward<LF>(localFunction));
-
-        fe.localInterpolation().interpolate(ffc, interpolationValues);
+        fe.localInterpolation().interpolate(localFunction, interpolationValues);
 
         // set value to |log(|value|)|
         for (size_t i = 0; i < interpolationValues.size(); i++) {
