@@ -5,7 +5,6 @@
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/dunefunctionsl2functionalassembler.hh>
-#include <dune/fufem/functions/constantfunction.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
 #include <dune/fufem/assemblers/localassemblers/interiorpenaltydgassembler.hh>
