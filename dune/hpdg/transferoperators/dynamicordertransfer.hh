@@ -54,10 +54,9 @@ namespace Impl {
       std::vector<typename FE::Traits::LocalBasisType::Traits::RangeType> values(
           numCoarse);
 
-      using FunctionBaseClass =
-        typename Dune::LocalFiniteElementFunctionBase<FE>::type;
-      using LocalBasisWrapper = LocalBasisComponentWrapper<
-        typename FE::Traits::LocalBasisType, FunctionBaseClass>;
+      using LB = typename FE::Traits::LocalBasisType;
+      using LocalBasisWrapper =
+        LocalBasisComponentWrapper<LB, typename LB::Traits>;
       LocalBasisWrapper coarseBasisFunction(coarseFE.localBasis(), 0);
 
       for (size_t j = 0; j < numCoarse; j++) {
