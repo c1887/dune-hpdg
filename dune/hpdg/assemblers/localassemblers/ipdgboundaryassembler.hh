@@ -5,24 +5,29 @@
 
 #include <memory>
 
-#include <dune/common/function.hh>
 #include <dune/common/fvector.hh>
 #include <dune/common/shared_ptr.hh>
 #include <dune/istl/bvector.hh>
 
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
-#include <dune/fufem/functions/virtualgridfunction.hh>
 
 #include <dune/fufem/assemblers/localboundaryassembler.hh>
+
+namespace Dune::HPDG {
 
 /** \brief Assemble right hand side contributions of the IPDG method
  * 
  * \tparam GridType The grid we are assembling for
  * \tparam T Type used for the set of dofs at one node
  */
-template <class GridType, class T=Dune::FieldVector<typename GridType::ctype,1> >
+template <class GridType, class Function, class T=Dune::FieldVector<typename GridType::ctype,1> >
 class IPDGBoundaryAssembler :
     public LocalBoundaryAssembler<GridType, T>
+
+    /** TODO: The quadrature order is currently fixed such that
+     * the test functions are square integrable. This might be
+     * too few or too much depending on the user supplied functional!
+     */
 
 {
     private:
@@ -30,35 +35,25 @@ class IPDGBoundaryAssembler :
         using ctype = typename GridType::ctype;
         static const int dimworld = GridType::dimensionworld;
 
-        using GlobalCoordinate = typename GridType::template Codim<0>::Geometry::GlobalCoordinate;
-        using GridFunction = VirtualGridFunction<GridType, T>;
+        using LocalFunction = std::decay_t<decltype(localFunction(std::declval<Function>()))>;
 
     public:
         using LocalVector = typename LocalBoundaryAssembler<GridType,T>::LocalVector;
 
-        using Function = typename Dune::VirtualFunction<GlobalCoordinate, T>;
 
         /** \brief Constructor
-         * \param neumann Neumann force function
-         * \param order The quadrature order used for numerical integration
+         * \param f Neumann force function or Dirichlet data
+         * \param bdrType bool: true is for Dirichlet, false for Neumann
+         * \param varyingDegree bool: set true if degrees on elements may be different
          */
-        template <class F>
-        IPDGBoundaryAssembler(const F& neumann, bool bdrType=true, bool varyingDegree=false) :
-            bdrFunction_(Dune::stackobject_to_shared_ptr(neumann)),
+        template <class FF>
+        IPDGBoundaryAssembler(FF&& f, bool bdrType=true, bool varyingDegree=false) :
+            bdrFunction_(Dune::wrap_or_move(f)),
+            lf_(localFunction(*bdrFunction_)),
             dirichlet(bdrType),
             varyingDegree_(varyingDegree)
         {}
 
-        /** \brief Constructor
-         * \param f Neumann force function or Dirichlet data
-         * \param order The quadrature order used for numerical integration
-         * \param bdrType True means we assemble for Dirichlet data, false means Neumann data
-         */
-        template <class F>
-        IPDGBoundaryAssembler(std::shared_ptr<const F> f, bool bdrType=true)
-            : bdrFunction_(f),
-              dirichlet(bdrType)
-        {}
 
         // TODO:
         template <class TrialLocalFE, class BoundaryIterator>
@@ -73,12 +68,11 @@ class IPDGBoundaryAssembler :
         template <class TrialLocalFE, class BoundaryIterator>
         void assembleDirichlet(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
         {
-            using FV = typename Dune::template FieldVector<ctype,T::dimension>;
             using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
 
             localVector = 0.0;
 
-            double penalty = sigma0;
+            double penalty = penalty_;
             if (varyingDegree_) {
                 auto degree = tFE.localBasis().order();
                 penalty*= degree*degree;
@@ -101,7 +95,9 @@ class IPDGBoundaryAssembler :
             std::vector<typename TrialLocalFE::Traits::LocalBasisType::Traits::JacobianType> refGradients(tFE.localBasis().size());
             std::vector<Dune::FieldVector<ctype, dimworld>> gradients(tFE.localBasis().size());
 
-            const auto inside = it->inside();
+            const auto& inside = it->inside();
+
+            lf_.bind(inside);
 
             const auto outerNormal = it->centerUnitOuterNormal();
 
@@ -131,15 +127,8 @@ class IPDGBoundaryAssembler :
                 // evaluate basis functions
                 tFE.localBasis().evaluateFunction(elementQuadPos, values);
 
-
-                // Evaluate Dirichlet function at quadrature point. If it is a grid function use that to speed up the evaluation
-                FV dirichletVal;
-
-                const GridFunction* gf = dynamic_cast<const GridFunction*>(bdrFunction_.get());
-                if (gf and gf->isDefinedOn(inside))
-                    gf->evaluateLocal(inside, elementQuadPos, dirichletVal);
-                else
-                    bdrFunction_->evaluate(segmentGeometry.global(quadPos), dirichletVal);
+                // Evaluate Dirichlet function at quadrature point.
+                auto dirichletVal = lf_(elementQuadPos);
 
                 // and vector entries
                 for (size_t i=0; i<values.size(); ++i)
@@ -153,7 +142,6 @@ class IPDGBoundaryAssembler :
         template <class TrialLocalFE, class BoundaryIterator>
         void assembleNeumann(const BoundaryIterator& it, LocalVector& localVector, const TrialLocalFE& tFE)
         {
-            using FV = typename Dune::template FieldVector<ctype,T::dimension>;
             using RangeType = typename TrialLocalFE::Traits::LocalBasisType::Traits::RangeType;
 
             localVector = 0.0;
@@ -170,7 +158,8 @@ class IPDGBoundaryAssembler :
             // store values of shape functions
             std::vector<RangeType> values(tFE.localBasis().size());
 
-            const auto inside = it->inside();
+            const auto& inside = it->inside();
+            lf_.bind(inside);
 
             // loop over quadrature points
             for (size_t pt=0; pt < quad.size(); ++pt)
@@ -188,13 +177,7 @@ class IPDGBoundaryAssembler :
                 tFE.localBasis().evaluateFunction(elementQuadPos, values);
 
                 // Evaluate Neumann function at quadrature point. If it is a grid function use that to speed up the evaluation
-                FV neumannVal;
-
-                const GridFunction* gf = dynamic_cast<const GridFunction*>(bdrFunction_.get());
-                if (gf and gf->isDefinedOn(inside))
-                    gf->evaluateLocal(inside, elementQuadPos, neumannVal);
-                else
-                    bdrFunction_->evaluate(segmentGeometry.global(quadPos), neumannVal);
+                auto neumannVal = lf_(elementQuadPos);
 
                 // and vector entries
                 for (size_t i=0; i<values.size(); ++i)
@@ -213,16 +196,20 @@ class IPDGBoundaryAssembler :
                 DGType_ = dg;
         }
 
-    public:
-        double sigma0 = 10.0;
+        void setPenalty(double penalty) {
+            penalty_ = penalty;
+        }
+
     private:
+        double penalty_ = 10.0;
         const std::shared_ptr<const Function> bdrFunction_;
+        mutable LocalFunction lf_;
         
         // quadrature order
         bool dirichlet;
         bool varyingDegree_;
         double DGType_ = -1.0;
 };
-
+}
 #endif
 
