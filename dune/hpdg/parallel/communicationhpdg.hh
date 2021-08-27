@@ -30,7 +30,7 @@ struct GlobalDofHPDGDataHandle
   bool contains(int, int codim) const
     { return codim == 0; }
 
-  bool fixedsize(int, int) const
+  bool fixedSize(int, int) const
     { return true; }
 
   template< class Entity>
@@ -112,7 +112,7 @@ struct LeafDofHPDGDataHandle
   bool contains(int, int codim) const
     { return codim == 0; }
 
-  bool fixedsize(int, int codim) const
+  bool fixedSize(int, int codim) const
     { return codim != 0; }
 
   template< class Entity>
@@ -297,7 +297,7 @@ namespace Impl {
       DGAddGatherScatter(Vector* vec) :
         v(vec) {}
 
-      constexpr bool fixedsize() const {
+      constexpr bool fixedSize() const {
         return false;
       }
 
@@ -334,7 +334,7 @@ namespace Impl {
       DGCopyGatherScatter(Vector* vec) :
         v(vec) {}
 
-      constexpr bool fixedsize() const {
+      constexpr bool fixedSize() const {
         return false;
       }
 
