@@ -22,10 +22,6 @@ namespace Dune {
         auto interpolationValues = std::vector<field_type>();
 
         // interpolate:
-        using LocalDomain = typename E::Geometry::LocalCoordinate;
-        using FiniteElement = std::decay_t<decltype(fe)>;
-        using FiniteElementRange = typename FiniteElement::Traits::LocalBasisType::Traits::RangeType;
-
         fe.localInterpolation().interpolate(localFunction, interpolationValues);
 
         // set value to |log(|value|)|
