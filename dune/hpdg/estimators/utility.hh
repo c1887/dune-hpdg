@@ -87,6 +87,7 @@ namespace HPDG {
     int rank = grid.comm().rank();
     int n_procs = grid.comm().size();
 
+    // This is int, because MPI_Gatherv (see below) expects an int as the size argument.
     int local_size = errors.size();
 
     std::vector<double> e;
@@ -105,14 +106,6 @@ namespace HPDG {
 
     MPI_Gatherv(errors.data(), local_size, MPI_DOUBLE,
         e.data(), sizes.data(), disps.data(), MPI_DOUBLE, 0, grid.comm());
-    /*
-    if(rank==0) {
-      for(const auto& val : e ) {
-        if(val <0.)
-          DUNE_THROW(Dune::Exception, "omgwtf");
-      }
-    }
-    */
 
     if(rank==0)
       border = fraction(e, frac);
