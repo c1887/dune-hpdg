@@ -11,7 +11,6 @@ namespace Dune {
     void assembleDGtoCGTransferOperator(MatrixType& matrix, const CoarseBasisType& coarseBasis, const FineBasisType& fineBasis)
     {
       using GridView = typename CoarseBasisType::GridView;
-      using BlockType = typename MatrixType::block_type;
 
       /* This all might be done more elegantly*/
       using CoarseFiniteElement = typename CoarseBasisType::LocalView::Tree::FiniteElement;
