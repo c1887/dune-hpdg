@@ -14,8 +14,10 @@ namespace Dune {
 
       /* This all might be done more elegantly*/
       using CoarseFiniteElement = typename CoarseBasisType::LocalView::Tree::FiniteElement;
-      using FunctionBaseClass = typename Dune::LocalFiniteElementFunctionBase<CoarseFiniteElement>::type;
-      using LocalBasisWrapper = LocalBasisComponentWrapper<typename CoarseFiniteElement::Traits::LocalBasisType, FunctionBaseClass>;
+      using LB = typename CoarseFiniteElement::Traits::LocalBasisType;
+      using LocalBasisWrapper =
+        LocalBasisComponentWrapper<LB, typename LB::Traits>;
+
 
       static_assert(std::is_same<GridView, typename FineBasisType::GridView>::value, "GridViews don't match!");
 
