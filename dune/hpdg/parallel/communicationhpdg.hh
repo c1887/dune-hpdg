@@ -33,11 +33,6 @@ struct GlobalDofHPDGDataHandle
   bool fixedSize(int, int) const
     { return true; }
 
-  // Legacy: Remove once the VariableComm. in dune-common
-  // has switched to new interace
-  bool fixedsize(int a, int b) const
-    { return fixedSize(a, b); }
-
   template< class Entity>
   std::size_t size(const Entity&, std::enable_if_t<Entity::codimension != 0, void*> = nullptr) const
     { return 0; }
@@ -119,10 +114,6 @@ struct LeafDofHPDGDataHandle
 
   bool fixedSize(int, int codim) const
     { return codim != 0; }
-
-  // Legacy
-  bool fixedsize(int a, int codim) const
-    { return fixedSize(a, codim); }
 
   template< class Entity>
   std::size_t size(const Entity&, std::enable_if_t<Entity::codimension != 0, void*> = nullptr) const
@@ -310,11 +301,6 @@ namespace Impl {
         return false;
       }
 
-      // Legacy
-      constexpr bool fixedsize() const {
-        return fixedSize();
-      }
-
       std::size_t size(std::size_t i) {
         return (*v)[i].size();
       }
@@ -344,16 +330,12 @@ namespace Impl {
   template<typename Vector>
     struct DGCopyGatherScatter {
       using DataType = typename Vector::value_type;
-      Vector* v; 
+      Vector* v;
       DGCopyGatherScatter(Vector* vec) :
         v(vec) {}
 
       constexpr bool fixedSize() const {
         return false;
-      }
-
-      constexpr bool fixedsize() const {
-        return fixedSize();
       }
 
       std::size_t size(std::size_t i) const {
