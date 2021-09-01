@@ -213,7 +213,6 @@ public:
      */
     void bind(const Element& element)
     {
-      // TODO: Hier muss man überprüfen, ob man das gegebene Element binden darf
       // store a pointer to the supplied element so we can transform the input x at operator()
       // accordingly.
       fineElement_ = &element;
@@ -223,6 +222,8 @@ public:
           DUNE_THROW(Dune::Exception, "Can't find ancestor to element that is contained in persistent basis!");
         coarse = coarse.father();
       }
+      // The localView stores a copy of the element.
+      // Hence, lifetime should not be an issue.
       localView_.bind(coarse);
       bound_ = true;
     }
