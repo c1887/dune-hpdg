@@ -325,7 +325,11 @@ namespace Dune {
         return VectorWindow<KK>(v.data_.get(), v.n_);
       }
 
-      private:
+      K* data() { return data_.get(); }
+
+      const K* data() const { return data_.get(); }
+
+    private:
 
       /** Allocates memory.
        *
