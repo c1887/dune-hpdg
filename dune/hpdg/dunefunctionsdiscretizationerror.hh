@@ -33,13 +33,13 @@ namespace Fufem {
 
       const auto& gridView = a.entitySet().gridView();
 
+      auto localA = localFunction(a);
       for (const auto element: elements(gridView)) {
 
         // Get quadrature formula
         quadKey.setGeometryType(element.type());
         const Dune::QuadratureRule<ctype,dim>& quad = QuadratureRuleCache<double, dim>::rule(quadKey);
 
-        auto localA = localFunction(a);
         localA.bind(element);
 
         for (size_t i=0; i<quad.size(); i++) {
@@ -112,6 +112,8 @@ namespace Fufem {
 
       const auto& gridView = a.entitySet().gridView();
 
+      auto localA = localFunction(a);
+      auto out_local = localFunction(a);
       for (const auto element : elements(gridView)) {
         for (const auto& is : intersections(gridView, element)) {
 
@@ -120,7 +122,6 @@ namespace Fufem {
           const Dune::QuadratureRule<ctype, dim - 1>& quad =
             QuadratureRuleCache<double, dim - 1>::rule(quadKey);
 
-          auto localA = localFunction(a);
           localA.bind(element);
 
           if (not is.neighbor()) {
@@ -142,7 +143,6 @@ namespace Fufem {
           } else {
             const auto& out = is.outside();
 
-            auto out_local = localFunction(a);
             out_local.bind(out);
 
             for (size_t i = 0; i < quad.size(); i++) {
