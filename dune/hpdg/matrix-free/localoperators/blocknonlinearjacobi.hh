@@ -9,6 +9,8 @@
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 
+#include <dune/functions/backends/istlvectorbackend.hh>
+
 #include <dune/tnnmg/iterationsteps/nonlineargsstep.hh>
 
 #include <dune/istl/matrix.hh>
@@ -118,8 +120,8 @@ public:
     if (factor == 0.0)
       return;
 
-    auto outputBackend = Fufem::istlVectorBackend(*(this->output_));
-    auto* rowEntry = &(outputBackend(localView_.index(0)));
+    auto outputBackend = Functions::istlVectorBackend(*(this->output_));
+    auto* rowEntry = &(outputBackend[localView_.index(0)]);
     for (size_t localRow = 0; localRow < localView_.size(); ++localRow) {
       rowEntry[localRow] += localVector_[localRow];
     }
