@@ -6,6 +6,7 @@
 //#include <dune/hpdg/matrix-free/localoperators/ipdgoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/laplaceoperator.hh>
 #include <dune/hpdg/matrix-free/localoperators/ipdgblockprojectedjacobi.hh>
+#include <dune/hpdg/matrix-free/localoperators/blocknonlinearjacobi.hh>
 
 namespace Dune {
 namespace HPDG {
@@ -96,6 +97,77 @@ namespace HPDG {
       op.apply(rhs,c);
 
       x+=c;
+    }
+  }
+
+  template<class Vector,
+           class FunctionalCreator,
+           class LocalSolver,
+           class Basis,
+           class MatrixCreator,
+           class MFOperator>
+  void
+  matrixFreeBlockNonlinearJacobi(Vector& x,
+                                 Vector rhs,
+                                 FunctionalCreator&& functionalCreator,
+                                 LocalSolver&& ls,
+                                 MatrixCreator matrixCreator,
+                                 MFOperator matrixFreeOperator,
+                                 const Basis& basis,
+                                 size_t localIterations = 5,
+                                 size_t globalIterations = 1)
+  {
+    // Block Projected Jacobi:
+
+    using GV = typename Basis::GridView;
+    const auto& gv = basis.gridView();
+
+    auto fc = [&](const auto& matrix, auto idx) {
+      return functionalCreator(matrix, autoCopy(rhs[idx]), autoCopy(x[idx]), idx);
+    };
+
+    auto jacobi = Dune::Fufem::MatrixFree::BlockNonlinearJacobi<
+      Vector,
+      GV,
+      Basis,
+      std::decay_t<LocalSolver>,
+      std::decay_t<decltype(fc)>,
+      MatrixCreator>(basis,
+                     std::forward<LocalSolver>(ls),
+                     fc, // copy should not be too bad.
+                     matrixCreator);
+    jacobi.setIterations(localIterations);
+
+    auto op = Dune::Fufem::MatrixFree::Operator<Vector, GV, decltype(jacobi)>(
+      gv, jacobi);
+
+
+    auto c = Vector::uninitializedCopy(x);
+    for (size_t i = 0; i < globalIterations; i++) {
+      // compute residual
+
+      /* problem is, we compute the residual in the quadratic part twice.
+      Here, which is the right place, plus another time when applying 
+      shift to the whole functional (we only want it for the nonlinear part, tho).
+
+      Remedy: Maybe shift the nonlinear part also a priori?
+      */
+      auto Ac = Vector::uninitializedCopy(c);
+      matrixFreeOperator.apply(x, Ac);
+      rhs -= Ac;
+
+      // reset correction vector
+      c = 0;
+
+      // we dont need Ac anymore.
+      // we do need, however, something we can plug into the operator,
+      // tho it is implicitly assumed it's zero anyway. We do not allocate new storage but reuse the old object.
+      Ac = 0;
+
+      // apply one block Jacobi step
+      op.apply(Ac, c);
+
+      x += c;
     }
   }
 }}
