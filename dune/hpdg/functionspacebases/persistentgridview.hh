@@ -82,7 +82,7 @@ namespace Experimental {
     template<class Entity>
     IndexType index(const Entity& e) const
     {
-      auto id = grid_->globalIdSet().id(e);
+      auto id = grid_->localIdSet().id(e);
       auto it = idToIndex_.find(id);
       if (it!=idToIndex_.end())
         return it->second;
@@ -104,7 +104,7 @@ namespace Experimental {
     template<class Entity>
     IndexType subIndex(const Entity& e, int subEntity, unsigned int codim) const
     {
-      auto id = grid_->globalIdSet().subId(e, subEntity, codim);
+      auto id = grid_->localIdSet().subId(e, subEntity, codim);
       auto it = idToIndex_.find(id);
       if (it!=idToIndex_.end())
         return it->second;
@@ -151,7 +151,7 @@ namespace Experimental {
     template<class Entity >
     bool contains(const Entity& e) const
     {
-      auto it = idToIndex_.find(grid_->globalIdSet().id(e));
+      auto it = idToIndex_.find(grid_->localIdSet().id(e));
       return it != std::end(idToIndex_);
     }
 
@@ -188,7 +188,7 @@ namespace Experimental {
       // to the PersistentGridView for the contains() method.
       for(const auto& element : elements(originalGridView_)) {
         auto index = originalGridView_.indexSet().index(element);
-        auto id = grid_->globalIdSet().id(element);
+        auto id = grid_->localIdSet().id(element);
         idToIndex_.insert({id, index});
       }
     }
@@ -202,7 +202,7 @@ namespace Experimental {
     std::array<Types, dimension+1> typesPerCodim_;
 
     // index cache
-    mutable std::unordered_map<typename Grid::GlobalIdSet::IdType, IndexType> idToIndex_;
+    mutable std::unordered_map<typename Grid::LocalIdSet::IdType, IndexType> idToIndex_;
     mutable bool isMutable_;
   };
 
