@@ -4,6 +4,7 @@
 #define DUNE_HPDG_GRIDFUNCTIONS_SIMPLEDERIVATIVE_HH
 #include <vector>
 #include <dune/common/fvector.hh>
+#include <dune/functions/gridfunctions/gridviewentityset.hh>
 
 namespace Dune {
 namespace HPDG {
@@ -39,8 +40,14 @@ namespace HPDG {
       lv_.bind(*e_);
     }
 
+    friend auto localFunction(SimpleDerivativeFunction sdf) {
+      return sdf;
+    }
 
-    GradientType operator()(const Domain& x) { // x is in local (reference element) coordinates!
+    using Range = GradientType;
+    using EntitySet = Dune::Functions::GridViewEntitySet<typename Basis::GridView, 0>;
+
+    GradientType operator()(const Domain& x) const { // x is in local (reference element) coordinates!
       const auto& fe = lv_.tree().finiteElement(); // trivial tree only for now
       using FE = std::decay_t<decltype(fe)>;
 
