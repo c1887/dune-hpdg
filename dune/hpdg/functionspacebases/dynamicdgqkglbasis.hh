@@ -32,7 +32,7 @@ namespace Functions {
 
 
 
-template<typename GV, class MI>
+template<typename GV>
 class DynamicDGQkGLNodeFactory
 {
   static const int dim = GV::dimension;
@@ -46,10 +46,9 @@ public:
   using DegreeMap = std::vector<int>;
   using Node = DynamicQkGLNode<GV, MultipleCodimMultipleGeomTypeMapper<GridView>, DegreeMap>;
 
-  /** \brief Type used for global numbering of the basis vectors */
-  using MultiIndex = MI;
-
-  using SizePrefix = Dune::ReservedVector<size_type, 2>;
+  static constexpr size_type maxMultiIndexSize = 2;
+  static constexpr size_type minMultiIndexSize = 2;
+  static constexpr size_type multiIndexBufferSize = 2;
 
   /** \brief Constructor for a given grid view object */
   DynamicDGQkGLNodeFactory(const GridView& gv, int k = 1) :
@@ -101,7 +100,8 @@ public:
   }
 
   //! Return number possible values for next position in multi index
-  size_type size(const SizePrefix prefix) const
+  template<typename SizePrefix>
+  size_type size(const SizePrefix& prefix) const
   {
     if (prefix.size() == 0)
       return size();
@@ -174,25 +174,10 @@ public:
 
 namespace BasisBuilder {
 
-namespace Imp {
-
-class DynamicDGQkGlPreBasisFactory
-{
-public:
-  static const std::size_t requiredMultiIndexSize = 2;
-
-  template<class MultiIndex, class GridView>
-  auto makePreBasis(const GridView& gridView) const
-  {
-    return DynamicDGQkGLNodeFactory<GridView, MultiIndex>(gridView);
-  }
-
-};
-
-} // end namespace BasisBuilder::Imp
-
 auto dynamicDG() {
-  return Imp::DynamicDGQkGlPreBasisFactory();
+  return [](const auto& gridView) {
+    return DynamicDGQkGLNodeFactory<std::decay_t<decltype(gridView)>>(gridView);
+  };
 }
 
 } // end namespace BasisBuilder
@@ -209,7 +194,7 @@ auto dynamicDG() {
  * \tparam GV The GridView that the space is defined on
  */
 template<typename GV>
-using DynamicDGQkGLBlockBasis = DefaultGlobalBasis<DynamicDGQkGLNodeFactory<GV, std::array<std::size_t, 2> > >;
+using DynamicDGQkGLBlockBasis = DefaultGlobalBasis<DynamicDGQkGLNodeFactory<GV> >;
 
 
 } // end namespace Functions
