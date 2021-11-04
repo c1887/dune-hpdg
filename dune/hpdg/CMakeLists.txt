@@ -1,4 +1,5 @@
 add_subdirectory("assemblers")
+add_subdirectory("buildingblocks")
 add_subdirectory("common")
 add_subdirectory("estimators")
 add_subdirectory("functionspacebases")
