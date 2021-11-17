@@ -4,6 +4,7 @@
 #include <vector>
 #include <dune/hpdg/functionspacebases/persistentgridview.hh>
 #include <dune/grid/common/mcmgmapper.hh>
+#include <dune/solvers/common/wrapownshare.hh>
 
 namespace Dune {
 namespace HPDG {
@@ -15,9 +16,10 @@ namespace HPDG {
     public:
 
       using PGV = Dune::Functions::Experimental::PersistentGridView<BaseGridView>;
-      PersistentGridViewDataTransfer(const PGV& pgv) :
-        pgv_(pgv),
-        mapper_(pgv_, mcmgElementLayout()),
+      template<typename PGVType>
+      PersistentGridViewDataTransfer(const PGVType& pgv) :
+        pgv_(Dune::Solvers::wrap_own_share<const PGV>(pgv)),
+        mapper_(*pgv_, mcmgElementLayout()),
         data_(mapper_.size()){}
 
       /** Access the data stored with respect to an element.
@@ -26,7 +28,7 @@ namespace HPDG {
        */
       template<typename E>
       DataType& operator[](const E& element) {
-        if (!pgv_.contains(element)) {
+        if (!pgv_->contains(element)) {
           return (*this)[element.father()];
         }
         return data_[mapper_.index(element)];
@@ -38,14 +40,15 @@ namespace HPDG {
        */
       template<typename E>
       const DataType& operator[](const E& element) const {
-        if (!pgv_.contains(element)) {
+        if (!pgv_->contains(element)) {
           return (*this)[element.father()];
         }
         return data_[mapper_.index(element)];
       }
 
     private:
-      const PGV& pgv_;
+      // const PGV& pgv_;
+      std::shared_ptr<const PGV> pgv_;
       MultipleCodimMultipleGeomTypeMapper<PGV> mapper_;
       std::vector<DataType> data_;
   };
