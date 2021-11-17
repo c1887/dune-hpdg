@@ -31,6 +31,7 @@ namespace HPDG {
    */
   template<typename K>
   K fraction(const std::vector<K>& vec, double frac) {
+    assert(not vec.empty());
     auto vec_sorted = vec;
     std::sort(std::begin(vec_sorted), std::end(vec_sorted));
 
