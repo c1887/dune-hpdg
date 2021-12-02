@@ -4,9 +4,12 @@
 #include <dune/common/fvector.hh>
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
+#include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 #include <dune/fufem/assemblers/localassemblers/dunefunctionsweightedmassassembler.hh>
+#include <dune/fufem/assemblers/localassemblers/dunefunctionsweightedlaplaceassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
 #include <dune/hpdg/assemblers/localassemblers/gausslobattoipdgassembler.hh>
+#include <dune/hpdg/assemblers/localassemblers/weightedipdg.hh>
 #include <dune/hpdg/assemblers/localassemblers/gausslobattoipdgcoefficientassembler.hh>
 #include <dune/hpdg/common/dynamicbcrs.hh>
 #include <dune/hpdg/common/resizehelper.hh>
@@ -99,8 +102,12 @@ auto
 laplace(Dune::Functions::DynamicDGQkGLBlockBasis<GridView> const& basis,
         double penalty,
         bool dirichlet,
-        const F& alpha)
+        const F& alpha,
+        const QuadratureRuleKey& key)
 {
+  // Dirichlet is not yet implemented with weights
+  assert(not dirichlet);
+
   using Basis = typename Dune::Functions::DynamicDGQkGLBlockBasis<GridView>;
   using Matrix = Dune::HPDG::DynamicBCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
   Matrix matrix;
@@ -119,9 +126,9 @@ laplace(Dune::Functions::DynamicDGQkGLBlockBasis<GridView> const& basis,
   Dune::HPDG::resizeFromBasis(matrix, basis);
   matrix = 0;
 
-  // TODO: Fix this assembler. It underintegrates the coefficient!
-  auto localAssembler = Dune::HPDG::GaussLobattoIPDGCoefficientAssembler<Basis, F>(
-    basis, alpha, penalty, dirichlet);
+  using FE = std::decay_t<decltype(basis.localView().tree().finiteElement())>;
+  const auto laplaceAssembler = Dune::Fufem::DuneFunctionsWeightedLaplaceAssembler<typename GridView::Grid, F, FE, FE>{alpha, key};
+  const auto boundaryAssembler = Dune::Fufem::WeightedInteriorPenaltyDGAssembler<typename GridView::Grid, F, FE, FE>{penalty, alpha, key};
 
   // set up the local lambdas for the global assembler
   auto localBlockAssembler = [&](const auto& edge,
@@ -130,28 +137,27 @@ laplace(Dune::Functions::DynamicDGQkGLBlockBasis<GridView> const& basis,
                                  auto&&,
                                  auto&& outsideTrialLocalView,
                                  auto&&) {
-    localAssembler.assembleEdge(
+    boundaryAssembler.assembleBlockwise(
       edge,
       matrixContainer,
-      basis.preBasis().degree(insideTrialLocalView.element()),
-      basis.preBasis().degree(outsideTrialLocalView.element()));
+      insideTrialLocalView.tree().finiteElement(),
+      insideTrialLocalView.tree().finiteElement(),
+      outsideTrialLocalView.tree().finiteElement(),
+      outsideTrialLocalView.tree().finiteElement());
   };
 
   auto localBoundaryAssembler = [&](const auto& edge,
                                     auto& localMatrix,
                                     auto&& insideTrialLocalView,
                                     auto&&) {
-    localAssembler.assembleBoundary(
-      edge,
-      localMatrix,
-      basis.preBasis().degree(insideTrialLocalView.element()));
+                                      // TODO no dirichlet yet
   };
 
   assembler.assembleBulkEntries( // Laplace
     matrixBackend,
     [&](const auto& e, auto& localMatrix, auto&& lv, auto&&) {
-      localAssembler.assembleBulk(
-        e, localMatrix, basis.preBasis().degree(lv.element()));
+      laplaceAssembler.assemble(
+        e, localMatrix, lv.tree().finiteElement(), lv.tree().finiteElement());
     });
 
   assembler.assembleSkeletonEntries(
