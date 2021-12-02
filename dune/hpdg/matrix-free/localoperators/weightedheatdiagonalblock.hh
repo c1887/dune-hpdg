@@ -115,7 +115,8 @@ private:
         //   }
         // }
       } else {
-        outerView_.bind(is.outside());
+        const auto& outside = is.outside();
+        outerView_.bind(outside);
         const auto& ofe = outerView_.tree().finiteElement();
 
         const auto maxOrder =
@@ -138,7 +139,7 @@ private:
 
         // get quadrature rule
         QuadratureRuleKey tFEquad(is.type(), maxOrder);
-        QuadratureRuleKey quadKey = tFEquad.square();
+        QuadratureRuleKey quadKey = tFEquad.square().square();
 
         const auto& quad = QuadratureRuleCache<double, dim - 1>::rule(quadKey);
 
@@ -196,7 +197,7 @@ private:
                          (weight * (insideGradients[j] * outerNormal));
               zij += -0.5 * z * tFEinsideValues[j] * weight *
                      (insideGradients[i] * outerNormal);
-              zij += penalty * z / edgeLength * tFEinsideValues[i] *
+              zij += penalty * std::max(1.0, weight) * z / edgeLength * tFEinsideValues[i] *
                      tFEinsideValues[j];
               localMatrix_[i][j] += factors_.laplace * zij;
             }
