@@ -5,6 +5,7 @@
 #include <dune/functions/gridfunctions/discreteglobalbasisfunction.hh>
 #include <dune/grid/io/file/vtk/subsamplingvtkwriter.hh>
 #include <dune/grid/io/file/vtk/vtkwriter.hh>
+#include <dune/hpdg/buildingblocks/details.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <string>
 
@@ -13,19 +14,6 @@
  * TODO: Maybe use dune-vtk for this.
  */
 namespace Dune::HPDG::BuildingBlocks {
-namespace Detail {
-
-template<typename Basis>
-auto
-maxDegree(const Basis& basis)
-{
-  int max = 1;
-  for (const auto& e : elements(basis.gridView()))
-    max = std::max(max, basis.preBasis().degree(e));
-  return max;
-}
-
-} // end namespace Detail
 
 /** Plot a scalar function given by a grid function. */
 template<typename GridFunction>
