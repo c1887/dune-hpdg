@@ -1,3 +1,4 @@
+add_subdirectory(test)
 install(FILES
   details.hh
   estimating.hh
