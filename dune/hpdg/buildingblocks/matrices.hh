@@ -5,9 +5,9 @@
 #include <dune/fufem/assemblers/dunefunctionsoperatorassembler.hh>
 #include <dune/fufem/assemblers/istlbackend.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
-#include <dune/fufem/assemblers/localassemblers/dunefunctionsweightedmassassembler.hh>
-#include <dune/fufem/assemblers/localassemblers/dunefunctionsweightedlaplaceassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
+#include <dune/hpdg/assemblers/localassemblers/dunefunctionsweightedmassassembler.hh>
+#include <dune/hpdg/assemblers/localassemblers/dunefunctionsweightedlaplaceassembler.hh>
 #include <dune/hpdg/assemblers/localassemblers/gausslobattoipdgassembler.hh>
 #include <dune/hpdg/assemblers/localassemblers/weightedipdg.hh>
 #include <dune/hpdg/assemblers/localassemblers/gausslobattoipdgcoefficientassembler.hh>

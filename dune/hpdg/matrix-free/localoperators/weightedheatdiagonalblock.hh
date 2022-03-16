@@ -14,7 +14,7 @@
 
 #include <dune/istl/matrix.hh>
 
-#include <dune/fufem/assemblers/localassemblers/dunefunctionsweightedmassassembler.hh>
+#include <dune/hpdg/assemblers/localassemblers/dunefunctionsweightedmassassembler.hh>
 #include <dune/hpdg/common/indexedcache.hh>
 #include <dune/hpdg/common/mutablequadraturenodes.hh>
 #include <dune/hpdg/localfunctions/assemblycache.hh>
