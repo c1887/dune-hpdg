@@ -153,9 +153,8 @@ class WeightedInteriorPenaltyDGAssembler : public LocalAssembler<GridType, Trial
         const auto gf_inside_val = inner_lf(edge.geometryInInside().global(quadPos));
         const auto gf_outside_val = outer_lf(edge.geometryInOutside().global(quadPos));
         // Now that I have the edge values, I also want to average.
-        // Maybe, also add 1.0 such that even for the gf function being zero we have penalty in the other variable.
         // C++ 20: std::midpoint
-        const auto weight_avg = 1.0 + 0.5 * (gf_inside_val + gf_outside_val);
+        const auto weight_avg = 0.5 * (gf_inside_val + gf_outside_val);
 
         // get transposed inverse of Jacobian of transformation
         const auto& invJacobian = insideGeometry.jacobianInverseTransposed(edge.geometryInInside().global(quadPos));
