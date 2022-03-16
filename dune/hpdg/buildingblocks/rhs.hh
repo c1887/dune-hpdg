@@ -1,8 +1,12 @@
 #ifndef DUNE_HPDG_BUILDING_BLOCKS_RHS
 #define DUNE_HPDG_BUILDING_BLOCKS_RHS
+#include <dune/fufem/assemblers/dunefunctionsboundaryfunctionalassembler.hh>
 #include <dune/fufem/assemblers/dunefunctionsfunctionalassembler.hh>
 #include <dune/fufem/assemblers/localassemblers/dunefunctionsl2functionalassembler.hh>
+#include <dune/fufem/boundarypatch.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
+#include <dune/functions/gridfunctions/analyticgridviewfunction.hh>
+#include <dune/hpdg/assemblers/localassemblers/ipdgboundaryassembler.hh>
 #include <dune/hpdg/common/dynamicbvector.hh>
 
 namespace Dune::HPDG::BuildingBlocks {
@@ -47,6 +51,55 @@ l2Functional(const Basis& basis, const G& g, const QuadratureRuleKey& key)
   }
 
   return rhs;
+}
+
+/**
+ * @brief Assembles the extra terms for the rhs when Dirichlet data is to be
+ * incorporated.
+ *
+ * @tparam Basis
+ * @tparam G
+ * @param basis
+ * @param g
+ * @param key
+ * @param penalty
+ * @return auto
+ */
+template<typename Basis, typename G>
+auto
+dirichletData(const Basis& basis,
+              const G& g,
+              // const QuadratureRuleKey& key, // TODO: this is missing in the
+              // idpg boundary assembler!
+              double penalty)
+{
+
+  using Vector = Dune::HPDG::DynamicBlockVector<Dune::FieldVector<double, 1>>;
+  using Grid = typename Basis::GridView::Grid;
+  auto localView = basis.localView();
+
+  auto dirichlet =
+    Dune::Functions::makeAnalyticGridViewFunction(g, basis.gridView());
+
+  auto r = Vector{};
+  Dune::HPDG::resizeFromBasis(r, basis);
+  r = 0.0;
+
+  auto rBE = Dune::Functions::istlVectorBackend(r);
+  HPDG::IPDGBoundaryAssembler<Grid, decltype(dirichlet)> ipdgBdrAssembler(
+    dirichlet, true, true); // dirichlet data true, varying degree true
+  ipdgBdrAssembler.setPenalty(penalty);
+  const auto localRHSlambda =
+    [&](const auto& bIt, auto& localV, const auto& localView) {
+      ipdgBdrAssembler.assemble(bIt, localV, localView.tree().finiteElement());
+    };
+  BoundaryPatch<typename Basis::GridView> bpatch(basis.gridView(), true);
+  auto bdrAssembler =
+    Dune::Fufem::duneFunctionsBoundaryFunctionalAssembler(basis, bpatch);
+  bdrAssembler.assembleBulk(rBE, localRHSlambda);
+  assert(r.checkValidity());
+
+  return r;
 }
 }
 #endif // DUNE_HPDG_BUILDING_BLOCKS_RHS
