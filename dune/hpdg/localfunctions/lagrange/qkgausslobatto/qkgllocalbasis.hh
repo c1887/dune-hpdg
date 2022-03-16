@@ -10,7 +10,7 @@
 
 #include <dune/common/fvector.hh>
 #include <dune/common/fmatrix.hh>
-#include <dune/common/power.hh>
+#include <dune/common/math.hh>
 
 #include <dune/geometry/type.hh>
 #include <dune/geometry/quadraturerules.hh>
@@ -37,7 +37,7 @@ namespace Dune
   template<class D, class R, int k, int d>
   class QkGaussLobattoLocalBasis
   {
-    enum { n = StaticPower<k+1,d>::power };
+    enum { n = Dune::power(k+1,d) };
 
     // ith Lagrange polynomial of degree k in one dimension
     R p (int i, D x) const
@@ -82,9 +82,9 @@ namespace Dune
     typedef LocalBasisTraits<D,d,Dune::FieldVector<D,d>,R,1,Dune::FieldVector<R,1>,Dune::FieldMatrix<R,1,d>> Traits;
 
     //! \brief number of shape functions
-    unsigned int size () const
+    constexpr unsigned int size () const
     {
-      return StaticPower<k+1,d>::power;
+      return Dune::power(k+1,d);
     }
 
     //! \brief Evaluate all shape functions

@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include <dune/common/fvector.hh>
-#include <dune/common/power.hh>
+#include <dune/common/math.hh>
 
 #include <dune/geometry/type.hh>
 #include <dune/geometry/quadraturerules.hh>
@@ -57,9 +57,9 @@ namespace Dune
     {
       typename LB::Traits::DomainType x;
 
-      out.resize(StaticPower<k+1,d>::power);
+      out.resize(Dune::power(k + 1, d));
 
-      for (int i=0; i<StaticPower<k+1,d>::power; i++)
+      for (int i=0; i < Dune::power(k + 1, d); i++)
       {
         // convert index i to multiindex
         Dune::FieldVector<int,d> alpha(multiindex(i));
