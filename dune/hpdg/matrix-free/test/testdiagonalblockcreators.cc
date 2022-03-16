@@ -9,7 +9,9 @@
 
 #include <dune/hpdg/matrix-free/localoperators/ipdgdiagonalblock.hh>
 #include <dune/hpdg/matrix-free/localoperators/heatdiagonalblock.hh>
+#include <dune/hpdg/matrix-free/localoperators/weightedheatdiagonalblock.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
+#include <dune/hpdg/gridfunctions/constantfunction.hh>
 
 #include <dune/fufem/assemblers/localassemblers/massassembler.hh>
 
@@ -77,6 +79,67 @@ TestSuite test_heat_diag(const GV& gv) {
 }
 
 template<class GV>
+TestSuite test_weighted_heat_diag(const GV& gv) {
+  TestSuite suite;
+
+  int order = 1;
+  const auto penalty = 2.0;
+  using Basis = Functions::DynamicDGQkGLBlockBasis<GV>;
+  Basis basis(gv);
+  auto lv = basis.localView();
+
+  // add some factors to spice things up
+  const auto laplace_factor = 0.3;
+  const auto mass_factor = 0.7;
+
+  auto fully_assembled_ipdg = dynamicStiffnessMatrix(gv.grid(), order, penalty, false);
+  fully_assembled_ipdg *= laplace_factor;
+  // add also some mass term:
+  {
+    // TODO: The mass matrix is also in testobjects.hh
+
+    using Assembler = Dune::Fufem::DuneFunctionsOperatorAssembler<Basis, Basis>;
+
+    auto assembler = Assembler{basis, basis};
+
+    using FiniteElement = std::decay_t<decltype(lv.tree().finiteElement())>;
+    using Grid = typename GV::Grid;
+    auto mass = fully_assembled_ipdg;
+    mass =0.;
+    auto matrixBackend = Dune::Fufem::istlMatrixBackend(mass.asBCRSMatrix());
+
+    auto massA = MassAssembler<Grid, FiniteElement, FiniteElement>();
+
+    assembler.assembleBulkEntries(matrixBackend, massA);
+
+    mass *= mass_factor;
+
+    fully_assembled_ipdg += mass;
+  }
+
+  const auto mw = Dune::HPDG::ConstantGridViewFunction<double>{ 1.0 };
+  const auto gw = Dune::HPDG::ConstantGridViewFunction<double>{ 1.0 };
+
+  auto matrixCreator = HPDG::WeightedIPDGHeatDiagonalBlock<Basis, decltype(gw), decltype(mw)>(basis, gw, mw, 2, penalty, false);
+  matrixCreator.setFactors(laplace_factor, mass_factor);
+
+  for(const auto& element : elements(gv)) {
+    matrixCreator.bind(element);
+    lv.bind(element);
+
+    auto matrix = matrixCreator.matrix(); // get diagonal block wrt to the given element
+
+    auto i = lv.index(0)[0]; // get element index in basis
+    const auto& assembledDiagonalBlock = fully_assembled_ipdg[i][i];
+
+    matrix -= assembledDiagonalBlock;
+    suite.check(matrix.frobenius_norm() < 1e-13, "Matrix blocks do not match") << "Error: " << matrix.frobenius_norm();
+  }
+
+  return suite;
+}
+
+template<class GV>
 TestSuite test_ipdg_diag(const GV& gv) {
   TestSuite suite;
 
@@ -115,5 +178,6 @@ int main(int argc, char** argv) {
   TestSuite suite;
   suite.subTest(test_ipdg_diag(grid.leafGridView()));
   suite.subTest(test_heat_diag(grid.leafGridView()));
+  suite.subTest(test_weighted_heat_diag(grid.leafGridView()));
   return suite.exit();
 }
