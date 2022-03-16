@@ -1,5 +1,6 @@
 #ifndef DUNE_HDPG_BUILDINGBLOCKS_PERSISTENT_BASIS_HH
 #define DUNE_HDPG_BUILDINGBLOCKS_PERSISTENT_BASIS_HH
+#include <dune/functions/functionspacebases/interpolate.hh>
 #include <dune/hpdg/common/resizehelper.hh>
 #include <dune/hpdg/functionspacebases/dynamicdgqkglbasis.hh>
 #include <dune/hpdg/functionspacebases/persistentgridview.hh>
@@ -56,7 +57,7 @@ updateDegrees(const SavedDegrees& saved,
  * @returns Coefficients wrt. the new basis.
  */
 template<typename OldGV, typename NewGV, typename Coeffs>
-auto
+Coeffs
 interpolateIntoRefinedBasis(
   const SavedBasis<OldGV>& saved,
   const Dune::Functions::DynamicDGQkGLBlockBasis<NewGV>& refinedBasis,
