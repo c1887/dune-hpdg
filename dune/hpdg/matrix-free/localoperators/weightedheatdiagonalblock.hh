@@ -8,7 +8,7 @@
 #include <dune/istl/matrix.hh>
 
 #include <dune/fufem/assemblers/localassemblers/laplaceassembler.hh>
-#include <dune/fufem/assemblers/localassemblers/variableipdg.hh>
+#include <dune/hpdg/assemblers/localassemblers/variableipdg.hh>
 #include <dune/fufem/quadraturerules/quadraturerulecache.hh>
 #include <dune/functions/backends/istlvectorbackend.hh>
 

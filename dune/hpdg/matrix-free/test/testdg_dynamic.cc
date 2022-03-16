@@ -108,7 +108,7 @@ TestSuite test_sipg(const GV& gv) {
   auto func=[](auto&& x) {
     return x*x;
   };
-  auto xbe = Dune::Functions::hierarchicVector(x);
+  auto xbe = Dune::Functions::istlVectorBackend(x);
   Dune::Functions::interpolate(basis, xbe, func);
   auto Ax=x;
   Ax=0.0;
