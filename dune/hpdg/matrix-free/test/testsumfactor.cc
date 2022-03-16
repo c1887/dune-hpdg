@@ -100,7 +100,7 @@ TestSuite test_bulk(const GV& gv, int k) {
   auto func=[](auto&& x) {
     return exp(x*x);
   };
-  auto xbe = Dune::Functions::hierarchicVector(x);
+  auto xbe = Dune::Functions::istlVectorBackend(x);
   Dune::Functions::interpolate(basis, xbe, func);
   auto Ax=x;
   Ax=0.0;
@@ -161,7 +161,7 @@ TestSuite test_mass(const GV& gv, int k) {
   auto func=[](auto&& x) {
     return exp(x*x);
   };
-  auto xbe = Dune::Functions::hierarchicVector(x);
+  auto xbe = Dune::Functions::istlVectorBackend(x);
   Dune::Functions::interpolate(basis, xbe, func);
   auto Ax=x;
   Ax=0.0;
